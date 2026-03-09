@@ -56,6 +56,7 @@ src/
 - Fully offline-capable (no server dependency)
 - Must handle audio files up to ~30 MB without lag
 - Target: Chromium-based browsers (Chrome, Brave, Edge) + Firefox
+- File System Access API (v0.5+): Chromium-based browsers only (Chrome, Brave, Edge)
 
 ## Feature Phases
 
@@ -81,3 +82,12 @@ src/
 - Playback speed slider (50%–150%)
 - Pitch correction toggle (preserve pitch when slowing down)
 - Speed presets (50%, 75%, 100%)
+
+### v0.5 – Song Library & Setlists
+- Persistent song list (IndexedDB) with File System Access API (Chromium only)
+- Song library sidebar: browse, select, and reload previously loaded songs
+  without re-dropping the file
+- Setlist builder: create and name ordered playlists of songs
+- Setlist playback mode: auto-advance to next song in setlist
+- Song metadata display: title, duration, marker count
+- Delete songs from library (removes song + all associated markers)
