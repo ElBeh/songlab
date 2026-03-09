@@ -27,27 +27,43 @@ A browser-based app for guitarists to load songs (MP3/audio files), visualize th
 - **Language**: TypeScript
 - **Framework**: React 18+
 - **Bundler**: Vite
-- **Audio**: wavesurfer.js v7 (Waveform, Regions plugin)
+- **Audio**: wavesurfer.js v7
 - **Playback control**: Web Audio API
 - **Storage**: IndexedDB (via idb wrapper library)
-- **Styling**: Tailwind CSS
+- **State management**: Zustand
+- **Styling**: Tailwind CSS v4 (via @tailwindcss/vite)
 - **Desktop wrapper (future)**: Tauri (optional)
 
 ## Architecture
 Single-page application, fully client-side. No backend required.
-
 ```
 src/
-├── components/        # React UI components
-│   ├── Player/        # Waveform, transport controls
-│   ├── Markers/       # Section marker management
-│   ├── Tabs/          # ASCII tab editor & display
-│   └── Layout/        # App shell, sidebar, toolbar
-├── hooks/             # Custom React hooks (useAudio, useMarkers, etc.)
-├── stores/            # State management (Zustand or React Context)
-├── services/          # IndexedDB access, file import/export
-├── types/             # TypeScript type definitions
-├── utils/             # Helper functions
+├── components/
+│   ├── Player/
+│   │   ├── WaveformPlayer.tsx     # Waveform rendering, marker overlays, loop overlays, drag
+│   │   ├── WaveformTimeline.tsx   # Custom timeline/ruler below waveform
+│   │   └── PlayerControls.tsx     # Transport, time input, loop controls, song loop, reset
+│   ├── Markers/
+│   │   ├── MarkerForm.tsx         # Add marker form with type, label, color picker
+│   │   ├── MarkerList.tsx         # Section list with active highlight, edit, loop, delete
+│   │   ├── MarkerEditForm.tsx     # Inline edit form for existing markers
+│   └── Tabs/
+│       ├── TabEditor.tsx          # ASCII tab textarea with import/export/save
+│       └── TabViewer.tsx          # Read-only tab view with auto-scroll during playback
+│   └── Layout/
+│       └── AppShell.tsx           # App shell, drag & drop, state wiring
+├── hooks/
+│   └── useKeyboardShortcuts.ts    # Space, M, L, ←/→ shortcuts
+├── stores/
+│   ├── useSongStore.ts            # Songs + markers state (Zustand)
+│   ├── useLoopStore.ts            # Loop state: section loop, A/B loop, A/B mode
+│   └── useTabStore.ts             # Tab content state per marker
+├── services/
+│   └── db.ts                      # IndexedDB access (songs, markers, tabs)
+├── types/
+│   └── index.ts                   # SongData, SectionMarker, SectionType, LoopRange, SectionTab
+├── utils/
+│   └── sectionColors.ts           # Default colors per SectionType
 ├── App.tsx
 └── main.tsx
 ```
@@ -60,23 +76,39 @@ src/
 
 ## Feature Phases
 
-### v0.1 – Core Playback & Markers
+### v0.1 – Core Playback & Markers (done)
 - Load audio file via drag & drop or file picker
 - Render waveform (wavesurfer.js)
 - Play / Pause / Seek via click on waveform
 - Add, edit, delete section markers (types: Intro, Verse, Pre-Chorus, Chorus, Bridge, Solo, Interlude, Outro, Custom)
-- Color coding per section type
-- Persist markers per song in IndexedDB
+- Color coding per section type with free color picker
+- Color sync across all markers of the same type
+- Persist markers per song in IndexedDB (stable song ID via filename + filesize)
+- Custom waveform timeline/ruler with 1s ticks, 5s/10s/30s labels
+- Section marker drag to reposition on waveform
+- Active section highlighting in sidebar during playback
+- Marker edit (label, type, color) inline in sidebar
+- Keyboard shortcuts: Space (play/pause), M (add marker), ←/→ (seek 5s)
+- Auto-pause when opening marker form
 
-### v0.2 – Section Looping
-- Click section marker → loop that section
-- Custom A/B loop: select arbitrary range on waveform
-- Loop counter display (optional)
+### v0.2 – Section Looping (done)
+- Click section marker in sidebar → loop that section
+- Custom A/B loop: dedicated A/B mode, click waveform to set A and B points
+- A/B handles draggable on waveform to fine-tune loop range
+- Loop overlay on waveform with A/B line markers
+- Loop on/off toggle (button + L shortcut)
+- Clear loop button
+- Song loop toggle (repeat entire song)
+- Reset to start button (⏮)
+- Transport and loop controls merged into single PlayerControls bar
 
-### v0.3 – Tab Sync
+### v0.3 – Tab Sync (done)
 - ASCII tab editor per section (textarea with monospace font)
 - Tabs scroll automatically during playback, synced to section timing
-- Import/export tabs as plain text
+- Import/export tabs as plain text (.txt)
+- Persist tabs per marker in IndexedDB
+- Edit/View mode toggle per section
+- Active section auto-selected during playback
 
 ### v0.4 – Tempo Control
 - Playback speed slider (50%–150%)
