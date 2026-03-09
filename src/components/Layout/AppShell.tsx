@@ -9,6 +9,7 @@ import { TabViewer } from '../Tabs/TabViewer';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { exportSong, importSong } from '../../services/exportImport';
 
 export default function AppShell() {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -79,6 +80,31 @@ export default function AppShell() {
     setCurrentTime(0);
   };
 
+  const handleExport = async () => {
+    if (!activeSong) return;
+    await exportSong(activeSong);
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const song = await importSong(file);
+        await setActiveSong(song);
+        await loadTabsForSong(song.id);
+        // Audio file still needs to be loaded manually
+        setAudioUrl(null);
+      } catch (err) {
+        console.error('Import failed:', err);
+      }
+    };
+    input.click();
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -131,9 +157,30 @@ export default function AppShell() {
   return (
     <div className='min-h-screen bg-slate-900 text-slate-100 flex flex-col'>
       {/* Header */}
-      <header className='px-6 py-4 border-b border-slate-700 flex items-center gap-3'>
+        <header className='px-6 py-4 border-b border-slate-700 flex items-center gap-3'>
         <span className='text-indigo-400 text-xl'>🎸</span>
         <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
+
+        <div className='ml-auto flex items-center gap-2'>
+          {activeSong && (
+            <button
+              onClick={handleExport}
+              className='px-3 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                         text-slate-300 rounded transition-colors'
+              title='Export current sections/tabs'
+            >
+              ↓ export sections/tabs
+            </button>
+          )}
+          <button
+            onClick={handleImport}
+            className='px-3 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                       text-slate-300 rounded transition-colors'
+            title='Import sections/tabs'
+          >
+            ↑ import sections/tabs
+          </button>
+        </div>
       </header>
 
       <div className='flex flex-1 overflow-hidden'>
