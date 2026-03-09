@@ -1,11 +1,14 @@
 import { useRef, useState, useCallback } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { WaveformPlayer } from '../Player/WaveformPlayer';
+import { PlayerControls } from '../Player/PlayerControls';
 import { MarkerForm } from '../Markers/MarkerForm';
 import { MarkerList } from '../Markers/MarkerList';
+import { TabEditor } from '../Tabs/TabEditor';
+import { TabViewer } from '../Tabs/TabViewer';
 import { useSongStore } from '../../stores/useSongStore';
+import { useTabStore } from '../../stores/useTabStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
-import { PlayerControls } from '../Player/PlayerControls';
 
 export default function AppShell() {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -16,11 +19,29 @@ export default function AppShell() {
   const [duration, setDuration] = useState(0);
   const [showMarkerForm, setShowMarkerForm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [songLoop, setSongLoop] = useState(false);
 
   const activeSong = useSongStore((state) => state.activeSong);
   const addSong = useSongStore((state) => state.addSong);
   const setActiveSong = useSongStore((state) => state.setActiveSong);
   const addMarker = useSongStore((state) => state.addMarker);
+  const markers = useSongStore((state) => state.markers);
+
+  const loadTabsForSong = useTabStore((state) => state.loadTabsForSong);
+  const setActiveMarker = useTabStore((state) => state.setActiveMarker);
+  const activeMarkerId = useTabStore((state) => state.activeMarkerId);
+
+  // Find active marker based on currentTime
+  const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
+  const activeMarker = [...sortedMarkers].reverse().find((m) => m.startTime <= currentTime) ?? null;
+  const selectedMarker = activeMarkerId
+    ? markers.find((m) => m.id === activeMarkerId) ?? activeMarker
+    : activeMarker;
+
+  const selectedMarkerEnd = selectedMarker
+    ? (sortedMarkers.find((m) => m.startTime > selectedMarker.startTime)?.startTime ?? duration)
+    : duration;
 
   const handleFile = useCallback(async (file: File) => {
     const url = URL.createObjectURL(file);
@@ -29,7 +50,6 @@ export default function AppShell() {
     setCurrentTime(0);
     setDuration(0);
 
-    // Stable ID based on filename + filesize – survives page reload
     const song = {
       id: `${file.name}-${file.size}`,
       title: file.name.replace(/\.[^.]+$/, ''),
@@ -41,7 +61,23 @@ export default function AppShell() {
 
     await addSong(song);
     await setActiveSong(song);
-  }, [addSong, setActiveSong]);
+    await loadTabsForSong(song.id);
+  }, [addSong, setActiveSong, loadTabsForSong]);
+
+  const handleFinish = useCallback(() => {
+  if (songLoop) {
+    wavesurferRef.current?.setTime(0);
+    wavesurferRef.current?.play();
+    setIsPlaying(true);
+  } else {
+    setIsPlaying(false);
+  }
+  }, [songLoop, wavesurferRef]);
+
+  const handleReset = () => {
+    wavesurferRef.current?.setTime(0);
+    setCurrentTime(0);
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -76,20 +112,20 @@ export default function AppShell() {
   }, []);
 
   useKeyboardShortcuts({
-  wavesurferRef,
-  onPlayPause: handlePlayPause,
-  onAddMarker: () => {
-    if (!audioUrl) return;
-    const ws = wavesurferRef.current;
-    const t = ws?.getCurrentTime() ?? currentTime;
-    if (ws?.isPlaying()) {
-      ws.pause();
-      setIsPlaying(false);
-    }
-    setCurrentTime(t);
-    setShowMarkerForm(true);
-  },
-  isPlaying,
+    wavesurferRef,
+    onPlayPause: handlePlayPause,
+    onAddMarker: () => {
+      if (!audioUrl) return;
+      const ws = wavesurferRef.current;
+      const t = ws?.getCurrentTime() ?? currentTime;
+      if (ws?.isPlaying()) {
+        ws.pause();
+        setIsPlaying(false);
+      }
+      setCurrentTime(t);
+      setShowMarkerForm(true);
+    },
+    isPlaying,
   });
 
   return (
@@ -101,17 +137,22 @@ export default function AppShell() {
       </header>
 
       <div className='flex flex-1 overflow-hidden'>
-        {/* Sidebar – marker list */}
+        {/* Sidebar */}
         <aside className='w-64 border-r border-slate-700 p-4 flex flex-col gap-4 overflow-y-auto'>
           <h2 className='text-xs font-mono text-slate-400 uppercase tracking-widest'>
             Sections
           </h2>
-          <MarkerList onSeekTo={handleSeekTo} duration={duration} currentTime={currentTime} />
+          <MarkerList
+            onSeekTo={handleSeekTo}
+            duration={duration}
+            currentTime={currentTime}
+            onMarkerSelect={(id) => setActiveMarker(id)}
+          />
         </aside>
 
         {/* Main area */}
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto'>
-          {/* Drop zone / file picker */}
+          {/* Drop zone */}
           {!audioUrl && (
             <div
               onDrop={handleDrop}
@@ -124,18 +165,11 @@ export default function AppShell() {
                             : 'border-slate-600 hover:border-slate-400'}`}
             >
               <span className='text-4xl'>🎵</span>
-              <p className='text-slate-400 font-mono text-sm'>
-                Drop an audio file here, or
-              </p>
+              <p className='text-slate-400 font-mono text-sm'>Drop an audio file here, or</p>
               <label className='px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white
                                 rounded-lg font-mono text-sm cursor-pointer transition-colors'>
                 Browse file
-                <input
-                  type='file'
-                  accept='audio/*'
-                  className='hidden'
-                  onChange={handleFileInput}
-                />
+                <input type='file' accept='audio/*' className='hidden' onChange={handleFileInput} />
               </label>
             </div>
           )}
@@ -150,12 +184,7 @@ export default function AppShell() {
                 <label className='text-xs text-slate-500 hover:text-slate-300
                                   font-mono cursor-pointer transition-colors'>
                   change file
-                  <input
-                    type='file'
-                    accept='audio/*'
-                    className='hidden'
-                    onChange={handleFileInput}
-                  />
+                  <input type='file' accept='audio/*' className='hidden' onChange={handleFileInput} />
                 </label>
               </div>
 
@@ -163,6 +192,7 @@ export default function AppShell() {
                 audioUrl={audioUrl}
                 onReady={handleReady}
                 onTimeUpdate={handleTimeUpdate}
+                onFinish={handleFinish}
                 wavesurferRef={wavesurferRef}
               />
 
@@ -172,7 +202,15 @@ export default function AppShell() {
                 duration={duration}
                 isPlaying={isPlaying}
                 onPlayPause={handlePlayPause}
+                songLoop={songLoop}
+                onSongLoopToggle={() => setSongLoop((v) => !v)}
+                onReset={handleReset}
               />
+
+              {/* Keyboard shortcut hints */}
+              <p className='text-xs text-slate-600 font-mono'>
+                Space: play/pause · M: add marker · ←/→: seek 5s · L: loop toggle
+              </p>
 
               {!showMarkerForm && (
                 <button
@@ -199,16 +237,49 @@ export default function AppShell() {
                   songId={activeSong.id}
                   onAdd={async (marker) => {
                     await addMarker(marker);
-                    // Sync color to all existing markers of the same type
-                    const { markers, updateMarker } = useSongStore.getState();
-                    const sameType = markers.filter((m) => m.type === marker.type && m.id !== marker.id);
-                    for (const m of sameType) {
-                      await updateMarker({ ...m, color: marker.color });
+                    const { markers: m, updateMarker } = useSongStore.getState();
+                    const sameType = m.filter((x) => x.type === marker.type && x.id !== marker.id);
+                    for (const x of sameType) {
+                      await updateMarker({ ...x, color: marker.color });
                     }
                     setShowMarkerForm(false);
                   }}
                   onCancel={() => setShowMarkerForm(false)}
                 />
+              )}
+
+              {/* Tab section */}
+              {selectedMarker && activeSong && (
+                <div className='flex flex-col gap-2 flex-1 min-h-64'>
+                  <div className='border-t border-slate-700 pt-4 flex items-center justify-between'>
+                    <div className='flex items-center gap-3'>
+                      <h3 className='text-xl font-mono text-slate-400 uppercase tracking-widest'>
+                        Tabs
+                      </h3>
+                      <button
+                        onClick={() => setEditMode((v) => !v)}
+                        className='self-start px-3 py-1 text-sm font-mono rounded transition-colors'
+                        style={{
+                          backgroundColor: editMode ? '#6366f1' : '#475569',
+                          color: editMode ? '#fff' : '#cbd5e1',
+                        }}
+                      >
+                        {editMode ? '👁 View Tab' : '✎ Edit Tab'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {editMode ? (
+                    <TabEditor marker={selectedMarker} songId={activeSong.id} />
+                  ) : (
+                    <TabViewer
+                      marker={selectedMarker}
+                      currentTime={currentTime}
+                      isPlaying={isPlaying}
+                      sectionEnd={selectedMarkerEnd}
+                    />
+                  )}
+                </div>
               )}
             </>
           )}

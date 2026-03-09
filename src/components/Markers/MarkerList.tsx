@@ -7,6 +7,7 @@ interface MarkerListProps {
   onSeekTo: (time: number) => void;
   duration: number;
   currentTime: number;
+  onMarkerSelect: (id: string) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -15,7 +16,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps) {
+export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: MarkerListProps) {
   const markers = useSongStore((state) => state.markers);
   const removeMarker = useSongStore((state) => state.removeMarker);
   const updateMarker = useSongStore((state) => state.updateMarker);
@@ -24,6 +25,12 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
   const loopEnabled = useLoopStore((state) => state.loopEnabled);
   const [editingColorId, setEditingColorId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+
+  const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
+
+  const activeMarkerId = [...sortedMarkers]
+    .reverse()
+    .find((m) => m.startTime <= currentTime)?.id ?? null;
 
   const handleColorChange = async (markerId: string, newColor: string) => {
     const marker = markers.find((m) => m.id === markerId);
@@ -34,9 +41,7 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
     }
   };
 
-  const handleColorCommit = () => {
-    setEditingColorId(null);
-  };
+  const handleColorCommit = () => setEditingColorId(null);
 
   if (markers.length === 0) {
     return (
@@ -46,16 +51,12 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
     );
   }
 
-  const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
-
-  const activeMarkerId = [...sortedMarkers]
-    .reverse()
-    .find((m) => m.startTime <= currentTime)?.id ?? null;
-
   return (
     <ul className='flex flex-col gap-1'>
       {sortedMarkers.map((marker) => {
-        const endTime = sortedMarkers.find((m) => m.startTime > marker.startTime)?.startTime ?? duration;
+        const endTime = sortedMarkers.find(
+          (m) => m.startTime > marker.startTime
+        )?.startTime ?? duration;
         const isActive = marker.id === activeMarkerId;
         const isEditingColor = editingColorId === marker.id;
 
@@ -64,14 +65,13 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
             key={marker.id}
             className='flex flex-col px-3 py-2 rounded-lg transition-colors group'
             style={{
-              backgroundColor: isActive
-                ? `${marker.color}33`  // hex + 33 = ~20% opacity
-                : undefined,
+              backgroundColor: isActive ? `${marker.color}33` : undefined,
             }}
           >
             <div className='flex items-center gap-3'>
               {/* Active indicator */}
-              <div className='w-1 shrink-0 rounded-full transition-all'
+              <div
+                className='w-1 shrink-0 rounded-full transition-all'
                 style={{
                   height: isActive ? '24px' : '8px',
                   backgroundColor: isActive ? marker.color : 'transparent',
@@ -80,7 +80,7 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
                 }}
               />
 
-              {/* Color dot – click to open color picker */}
+              {/* Color dot */}
               <button
                 onClick={() => setEditingColorId(isEditingColor ? null : marker.id)}
                 className='w-3 h-3 rounded-full shrink-0 ring-offset-slate-800
@@ -91,7 +91,10 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
 
               {/* Label + times */}
               <button
-                onClick={() => onSeekTo(marker.startTime)}
+                onClick={() => {
+                  onSeekTo(marker.startTime);
+                  onMarkerSelect(marker.id);
+                }}
                 className='flex-1 flex flex-col text-left'
               >
                 <span
@@ -106,6 +109,21 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
                 </span>
               </button>
 
+              {/* Loop */}
+              <button
+                onClick={() => {
+                  setLoop({ start: marker.startTime, end: endTime, label: marker.label });
+                }}
+                className='text-slate-600 hover:text-indigo-400 transition-colors
+                           opacity-0 group-hover:opacity-100 text-xl font-mono'
+                style={{
+                  color: loop?.label === marker.label && loopEnabled ? '#6366f1' : undefined,
+                }}
+                title='Loop this section'
+              >
+                ↺
+              </button>
+
               {/* Edit */}
               <button
                 onClick={() => setEditingMarkerId(editingMarkerId === marker.id ? null : marker.id)}
@@ -114,26 +132,6 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
                 title='Edit marker'
               >
                 ✎
-              </button>
-
-              {/* Loop */}
-              <button
-                onClick={() => {
-                  const endTime = sortedMarkers.find(
-                    (m) => m.startTime > marker.startTime
-                  )?.startTime ?? duration;
-                  setLoop({ start: marker.startTime, end: endTime, label: marker.label });
-                }}
-                className='text-slate-600 hover:text-indigo-400 transition-colors
-                           opacity-0 group-hover:opacity-100 text-xl font-mono'
-                style={{
-                  color: loop?.label === marker.label && loopEnabled
-                    ? '#6366f1'
-                    : undefined,
-                }}
-                title='Loop this section'
-              >
-                ↺
               </button>
 
               {/* Delete */}
@@ -169,14 +167,16 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
                 </button>
               </div>
             )}
+
             {/* Edit form */}
             {editingMarkerId === marker.id && (
               <MarkerEditForm
                 marker={marker}
                 onSave={async (updated) => {
-                  // Sync color to all markers of the same type if type unchanged
                   if (updated.type === marker.type && updated.color !== marker.color) {
-                    const sameType = markers.filter((m) => m.type === updated.type && m.id !== updated.id);
+                    const sameType = markers.filter(
+                      (m) => m.type === updated.type && m.id !== updated.id
+                    );
                     for (const m of sameType) {
                       await updateMarker({ ...m, color: updated.color });
                     }

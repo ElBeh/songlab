@@ -34,3 +34,11 @@ export interface LoopRange {
   end: number;   // seconds
   label?: string; // e.g. section name for display
 }
+
+export interface SectionTab {
+  id: string;       // same as markerId
+  songId: string;
+  markerId: string;
+  content: string;  // ASCII tab content
+  updatedAt: number;
+}

@@ -9,6 +9,7 @@ interface WaveformPlayerProps {
   audioUrl: string;
   onReady: (duration: number) => void;
   onTimeUpdate: (currentTime: number) => void;
+  onFinish: () => void;
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
 }
 
@@ -23,6 +24,7 @@ export function WaveformPlayer({
   audioUrl,
   onReady,
   onTimeUpdate,
+  onFinish,
   wavesurferRef,
 }: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,11 +45,11 @@ export function WaveformPlayer({
 
   const onReadyRef = useRef(onReady);
   const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onFinishRef = useRef(onFinish);
 
-  useEffect(() => {
-    onReadyRef.current = onReady;
-    onTimeUpdateRef.current = onTimeUpdate;
-  }, [onReady, onTimeUpdate]);
+  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
+  useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -81,6 +83,10 @@ export function WaveformPlayer({
       }
     });
 
+    ws.on('finish', () => {
+      onFinishRef.current();
+    });
+
     ws.on('error', (err) => {
       console.error('WaveSurfer error:', err);
     });
@@ -97,7 +103,6 @@ export function WaveformPlayer({
     return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   }, []);
 
-  // Handle click on waveform container in A/B mode
   const handleWaveformClick = useCallback((e: React.MouseEvent) => {
     const { abMode: am, abStart: as_ } = useLoopStore.getState();
     if (!am) return;
@@ -186,7 +191,6 @@ export function WaveformPlayer({
     };
   }, [drag, duration, markers, updateMarker, wavesurferRef, getPercentFromEvent, setLoop]);
 
-  // Loop overlay with draggable handles
   const loopOverlay = (() => {
     if (!loop || !duration) return null;
     const startDragging = drag?.type === 'loopStart';
@@ -224,9 +228,16 @@ export function WaveformPlayer({
           }}
           onMouseDown={(e) => handleLoopHandleMouseDown(e, 'loopStart')}
         >
-          <div className='absolute top-0 h-full w-px' style={{ left: '4px', backgroundColor: '#fbbf24' }} />
-          <span className='absolute bottom-1 left-1 text-xs font-mono px-1 rounded'
-            style={{ backgroundColor: '#fbbf24', color: '#000' }}>A</span>
+          <div
+            className='absolute top-0 h-full w-px'
+            style={{ left: '4px', backgroundColor: '#fbbf24' }}
+          />
+          <span
+            className='absolute bottom-1 left-1 text-xs font-mono px-1 rounded'
+            style={{ backgroundColor: '#fbbf24', color: '#000' }}
+          >
+            A
+          </span>
         </div>
         {/* B handle */}
         <div
@@ -241,15 +252,21 @@ export function WaveformPlayer({
           }}
           onMouseDown={(e) => handleLoopHandleMouseDown(e, 'loopEnd')}
         >
-          <div className='absolute top-0 h-full w-px' style={{ left: '4px', backgroundColor: '#f87171' }} />
-          <span className='absolute bottom-1 left-1 text-xs font-mono px-1 rounded'
-            style={{ backgroundColor: '#f87171', color: '#000' }}>B</span>
+          <div
+            className='absolute top-0 h-full w-px'
+            style={{ left: '4px', backgroundColor: '#f87171' }}
+          />
+          <span
+            className='absolute bottom-1 left-1 text-xs font-mono px-1 rounded'
+            style={{ backgroundColor: '#f87171', color: '#000' }}
+          >
+            B
+          </span>
         </div>
       </>
     );
   })();
 
-  // A-point preview line
   const abPreview = abStart !== null && duration > 0 ? (
     <div
       className='absolute top-0 h-full w-px pointer-events-none'
@@ -259,8 +276,12 @@ export function WaveformPlayer({
         zIndex: 4,
       }}
     >
-      <span className='absolute bottom-1 left-1 text-xs font-mono px-1 rounded'
-        style={{ backgroundColor: '#fbbf24', color: '#000' }}>A</span>
+      <span
+        className='absolute bottom-1 left-1 text-xs font-mono px-1 rounded'
+        style={{ backgroundColor: '#fbbf24', color: '#000' }}
+      >
+        A
+      </span>
     </div>
   ) : null;
 
@@ -325,7 +346,11 @@ export function WaveformPlayer({
         style={{ cursor: abMode ? 'crosshair' : 'default' }}
         onClick={handleWaveformClick}
       >
-        <div ref={containerRef} className='w-full' style={{ position: 'relative', zIndex: 0 }} />
+        <div
+          ref={containerRef}
+          className='w-full'
+          style={{ position: 'relative', zIndex: 0 }}
+        />
         <div
           className='absolute top-0 left-0 w-full'
           style={{ height: '96px', zIndex: 1, pointerEvents: 'none' }}

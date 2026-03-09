@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { SongData, SectionMarker } from '../types';
+import type { SongData, SectionMarker, SectionTab } from '../types';
 
 // IndexedDB schema – idb uses this for type safety
 interface SongLabDB extends DBSchema {
@@ -12,10 +12,15 @@ interface SongLabDB extends DBSchema {
     value: SectionMarker;
     indexes: { 'by-song': string };
   };
+  tabs: {
+    key: string;
+    value: SectionTab;
+    indexes: { 'by-song': string };
+  };
 }
 
 const DB_NAME = 'songlab';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance: IDBPDatabase<SongLabDB> | null = null;
 
@@ -23,12 +28,16 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
   if (dbInstance) return dbInstance;
 
   dbInstance = await openDB<SongLabDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      db.createObjectStore('songs', { keyPath: 'id' });
-
-      const markerStore = db.createObjectStore('markers', { keyPath: 'id' });
-      // Index lets us query all markers for a given songId efficiently
-      markerStore.createIndex('by-song', 'songId');
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        db.createObjectStore('songs', { keyPath: 'id' });
+        const markerStore = db.createObjectStore('markers', { keyPath: 'id' });
+        markerStore.createIndex('by-song', 'songId');
+      }
+      if (oldVersion < 2) {
+        const tabStore = db.createObjectStore('tabs', { keyPath: 'id' });
+        tabStore.createIndex('by-song', 'songId');
+      }
     },
   });
 
@@ -72,4 +81,21 @@ export async function getMarkersForSong(songId: string): Promise<SectionMarker[]
 export async function deleteMarker(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('markers', id);
+}
+
+// --- Tabs ---
+
+export async function saveTab(tab: SectionTab): Promise<void> {
+  const db = await getDB();
+  await db.put('tabs', tab);
+}
+
+export async function getTabsForSong(songId: string): Promise<SectionTab[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('tabs', 'by-song', songId);
+}
+
+export async function deleteTab(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('tabs', id);
 }

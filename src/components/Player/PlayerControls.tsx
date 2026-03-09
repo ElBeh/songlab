@@ -8,6 +8,9 @@ interface PlayerControlsProps {
   duration: number;
   isPlaying: boolean;
   onPlayPause: () => void;
+  songLoop: boolean;
+  onSongLoopToggle: () => void;
+  onReset: () => void;
 }
 
 function formatTime(seconds: number): string {
@@ -37,6 +40,9 @@ export function PlayerControls({
   duration,
   isPlaying,
   onPlayPause,
+  songLoop,
+  onSongLoopToggle,
+  onReset,
 }: PlayerControlsProps) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -82,7 +88,18 @@ export function PlayerControls({
   return (
     <div className='flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-lg flex-wrap'>
       {/* Transport */}
-      <button onClick={handleSeekBack} className='text-slate-300 hover:text-white transition-colors' title='Back 5s'>
+      <button
+        onClick={onReset}
+        className='text-slate-300 hover:text-white transition-colors'
+        title='Reset to start'
+      >
+        ⏮
+      </button>
+      <button
+        onClick={handleSeekBack}
+        className='text-slate-300 hover:text-white transition-colors'
+        title='Back 5s'
+      >
         ⏪
       </button>
       <button
@@ -93,7 +110,11 @@ export function PlayerControls({
       >
         {isPlaying ? '⏸' : '▶'}
       </button>
-      <button onClick={handleSeekForward} className='text-slate-300 hover:text-white transition-colors' title='Forward 5s'>
+      <button
+        onClick={handleSeekForward}
+        className='text-slate-300 hover:text-white transition-colors'
+        title='Forward 5s'
+      >
         ⏩
       </button>
 
@@ -111,7 +132,11 @@ export function PlayerControls({
             placeholder='m:ss'
           />
         ) : (
-          <button onClick={handleTimeClick} className='hover:text-white transition-colors' title='Click to seek'>
+          <button
+            onClick={handleTimeClick}
+            className='hover:text-white transition-colors'
+            title='Click to seek'
+          >
             {formatTime(currentTime)} / {formatTime(duration)}
           </button>
         )}
@@ -119,6 +144,19 @@ export function PlayerControls({
 
       {/* Divider */}
       <div className='w-px h-6 bg-slate-600 mx-1' />
+
+      {/* Song loop */}
+      <button
+        onClick={onSongLoopToggle}
+        className='px-3 py-1 rounded font-mono text-xs transition-colors'
+        style={{
+          backgroundColor: songLoop ? '#22c55e' : '#334155',
+          color: songLoop ? '#fff' : '#94a3b8',
+        }}
+        title='Loop entire song'
+      >
+        🔁 song
+      </button>
 
       {/* A/B Mode toggle */}
       <button
@@ -134,7 +172,7 @@ export function PlayerControls({
           ? abStart === null
             ? '▸ click A'
             : '▸ click B'
-          : 'A/B'}
+          : 'A/B Loopsection'}
       </button>
 
       {/* Loop toggle */}
@@ -156,8 +194,10 @@ export function PlayerControls({
       {loop && (
         <span className='text-xs font-mono text-slate-400'>
           {loop.label && (
-            <span className='mr-1.5 px-1.5 py-0.5 rounded text-white text-xs'
-              style={{ backgroundColor: '#6366f1' }}>
+            <span
+              className='mr-1.5 px-1.5 py-0.5 rounded text-white text-xs'
+              style={{ backgroundColor: '#6366f1' }}
+            >
               {loop.label}
             </span>
           )}
