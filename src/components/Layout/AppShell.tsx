@@ -1,11 +1,11 @@
 import { useRef, useState, useCallback } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { WaveformPlayer } from '../Player/WaveformPlayer';
-import { TransportControls } from '../Player/TransportControls';
 import { MarkerForm } from '../Markers/MarkerForm';
 import { MarkerList } from '../Markers/MarkerList';
 import { useSongStore } from '../../stores/useSongStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { PlayerControls } from '../Player/PlayerControls';
 
 export default function AppShell() {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -166,7 +166,7 @@ export default function AppShell() {
                 wavesurferRef={wavesurferRef}
               />
 
-              <TransportControls
+              <PlayerControls
                 wavesurferRef={wavesurferRef}
                 currentTime={currentTime}
                 duration={duration}

@@ -28,3 +28,9 @@ export interface SongData {
   duration: number;     // seconds, filled after waveform loads
   createdAt: number;    // unix timestamp
 }
+
+export interface LoopRange {
+  start: number; // seconds
+  end: number;   // seconds
+  label?: string; // e.g. section name for display
+}

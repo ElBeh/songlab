@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { MarkerEditForm } from './MarkerEditForm';
+import { useLoopStore } from '../../stores/useLoopStore';
 
 interface MarkerListProps {
   onSeekTo: (time: number) => void;
@@ -18,6 +19,9 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
   const markers = useSongStore((state) => state.markers);
   const removeMarker = useSongStore((state) => state.removeMarker);
   const updateMarker = useSongStore((state) => state.updateMarker);
+  const setLoop = useLoopStore((state) => state.setLoop);
+  const loop = useLoopStore((state) => state.loop);
+  const loopEnabled = useLoopStore((state) => state.loopEnabled);
   const [editingColorId, setEditingColorId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
 
@@ -112,6 +116,26 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
                 ✎
               </button>
 
+              {/* Loop */}
+              <button
+                onClick={() => {
+                  const endTime = sortedMarkers.find(
+                    (m) => m.startTime > marker.startTime
+                  )?.startTime ?? duration;
+                  setLoop({ start: marker.startTime, end: endTime, label: marker.label });
+                }}
+                className='text-slate-600 hover:text-indigo-400 transition-colors
+                           opacity-0 group-hover:opacity-100 text-xl font-mono'
+                style={{
+                  color: loop?.label === marker.label && loopEnabled
+                    ? '#6366f1'
+                    : undefined,
+                }}
+                title='Loop this section'
+              >
+                ↺
+              </button>
+
               {/* Delete */}
               <button
                 onClick={() => removeMarker(marker.id)}
@@ -145,7 +169,7 @@ export function MarkerList({ onSeekTo, duration, currentTime }: MarkerListProps)
                 </button>
               </div>
             )}
-                        {/* Edit form */}
+            {/* Edit form */}
             {editingMarkerId === marker.id && (
               <MarkerEditForm
                 marker={marker}

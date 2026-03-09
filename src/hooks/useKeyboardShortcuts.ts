@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import { useLoopStore } from '../stores/useLoopStore';
 
 interface KeyboardShortcutsOptions {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
@@ -14,9 +15,11 @@ export function useKeyboardShortcuts({
   onAddMarker,
   isPlaying,
 }: KeyboardShortcutsOptions) {
+  const toggleLoop = useLoopStore((state) => state.toggleLoop);
+  const loop = useLoopStore((state) => state.loop);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore shortcuts when user is typing in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
@@ -30,10 +33,15 @@ export function useKeyboardShortcuts({
           e.preventDefault();
           onAddMarker();
           break;
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          if (loop) toggleLoop();
+          break;
         case 'ArrowLeft':
           e.preventDefault();
           wavesurferRef.current?.setTime(
-            Math.max(0, (wavesurferRef.current?.getCurrentTime() ?? 0) - 1),
+            Math.max(0, (wavesurferRef.current?.getCurrentTime() ?? 0) - 5),
           );
           break;
         case 'ArrowRight':
@@ -41,7 +49,7 @@ export function useKeyboardShortcuts({
           wavesurferRef.current?.setTime(
             Math.min(
               wavesurferRef.current?.getDuration() ?? 0,
-              (wavesurferRef.current?.getCurrentTime() ?? 0) + 1,
+              (wavesurferRef.current?.getCurrentTime() ?? 0) + 5,
             ),
           );
           break;
@@ -50,5 +58,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying]);
+  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying, toggleLoop, loop]);
 }
