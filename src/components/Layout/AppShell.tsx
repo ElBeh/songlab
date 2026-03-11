@@ -289,11 +289,6 @@ export default function AppShell() {
                 </div>
               </div>
 
-              {/* Keyboard shortcut hints */}
-              <p className='text-xs text-slate-600 font-mono'>
-                Space: play/pause · M: add marker · ←/→: seek 5s · L: loop toggle
-              </p>
-
               {showMarkerForm && activeSong && (
                 <MarkerForm
                   currentTime={currentTime}
@@ -310,6 +305,11 @@ export default function AppShell() {
                   onCancel={() => setShowMarkerForm(false)}
                 />
               )}
+              
+              {/* Keyboard shortcut hints */}
+              <p className='text-xs text-slate-600 font-mono'>
+                Space: play/pause · M: add marker · ←/→: seek 5s · L: loop toggle
+              </p>
 
               {/* Tab section */}
               {selectedMarker && activeSong && (
