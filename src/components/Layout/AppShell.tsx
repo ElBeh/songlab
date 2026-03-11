@@ -1,7 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { WaveformPlayer } from '../Player/WaveformPlayer';
-import { PlayerControls } from '../Player/PlayerControls';
 import { MarkerForm } from '../Markers/MarkerForm';
 import { MarkerList } from '../Markers/MarkerList';
 import { TabEditor } from '../Tabs/TabEditor';
@@ -10,6 +9,8 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { exportSong, importSong } from '../../services/exportImport';
+import { TransportControls } from '../Player/TransportControls';
+import { TempoControls } from '../Player/TempoControls';
 
 export default function AppShell() {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -135,7 +136,12 @@ export default function AppShell() {
   const handleTimeUpdate = useCallback((t: number) => {
     setCurrentTime(t);
     setIsPlaying(wavesurferRef.current?.isPlaying() ?? false);
-  }, []);
+
+    // Auto-update active marker during playback
+    const sorted = [...useSongStore.getState().markers].sort((a, b) => a.startTime - b.startTime);
+    const active = [...sorted].reverse().find((m) => m.startTime <= t + 0.1);
+    if (active) setActiveMarker(active.id);
+  }, [setActiveMarker]);
 
   useKeyboardShortcuts({
     wavesurferRef,
@@ -243,40 +249,50 @@ export default function AppShell() {
                 wavesurferRef={wavesurferRef}
               />
 
-              <PlayerControls
-                wavesurferRef={wavesurferRef}
-                currentTime={currentTime}
-                duration={duration}
-                isPlaying={isPlaying}
-                onPlayPause={handlePlayPause}
-                songLoop={songLoop}
-                onSongLoopToggle={() => setSongLoop((v) => !v)}
-                onReset={handleReset}
-              />
+              {/* Controls */}
+              <div className='flex items-stretch gap-3 flex-wrap'>
+                <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                  <TransportControls
+                    wavesurferRef={wavesurferRef}
+                    currentTime={currentTime}
+                    duration={duration}
+                    isPlaying={isPlaying}
+                    onPlayPause={handlePlayPause}
+                    songLoop={songLoop}
+                    onSongLoopToggle={() => setSongLoop((v) => !v)}
+                    onReset={handleReset}
+                  />
+                </div>
+
+                {!showMarkerForm && (
+                  <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                    <button
+                      onClick={() => {
+                        const ws = wavesurferRef.current;
+                        const t = ws?.getCurrentTime() ?? currentTime;
+                        if (ws?.isPlaying()) {
+                          ws.pause();
+                          setIsPlaying(false);
+                        }
+                        setCurrentTime(t);
+                        setShowMarkerForm(true);
+                      }}
+                      className='text-sm font-mono text-slate-300 hover:text-white transition-colors'
+                    >
+                      + Add Marker
+                    </button>
+                  </div>
+                )}
+
+                <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                  <TempoControls />
+                </div>
+              </div>
 
               {/* Keyboard shortcut hints */}
               <p className='text-xs text-slate-600 font-mono'>
                 Space: play/pause · M: add marker · ←/→: seek 5s · L: loop toggle
               </p>
-
-              {!showMarkerForm && (
-                <button
-                  onClick={() => {
-                    const ws = wavesurferRef.current;
-                    const t = ws?.getCurrentTime() ?? currentTime;
-                    if (ws?.isPlaying()) {
-                      ws.pause();
-                      setIsPlaying(false);
-                    }
-                    setCurrentTime(t);
-                    setShowMarkerForm(true);
-                  }}
-                  className='self-start px-3 py-1 text-sm font-mono bg-slate-700
-                             hover:bg-slate-600 text-slate-300 rounded transition-colors'
-                >
-                  + Add Marker
-                </button>
-              )}
 
               {showMarkerForm && activeSong && (
                 <MarkerForm

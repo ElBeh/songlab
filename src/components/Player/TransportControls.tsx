@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useLoopStore } from '../../stores/useLoopStore';
 
-interface PlayerControlsProps {
+interface TransportControlsProps {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
   currentTime: number;
   duration: number;
@@ -34,7 +34,7 @@ function parseTimeInput(input: string): number | null {
   return null;
 }
 
-export function PlayerControls({
+export function TransportControls({
   wavesurferRef,
   currentTime,
   duration,
@@ -43,7 +43,7 @@ export function PlayerControls({
   songLoop,
   onSongLoopToggle,
   onReset,
-}: PlayerControlsProps) {
+}: TransportControlsProps) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -86,37 +86,18 @@ export function PlayerControls({
   };
 
   return (
-    <div className='flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-lg flex-wrap'>
-      {/* Transport */}
-      <button
-        onClick={onReset}
-        className='text-slate-300 hover:text-white transition-colors'
-        title='Reset to start'
-      >
-        ⏮
-      </button>
-      <button
-        onClick={handleSeekBack}
-        className='text-slate-300 hover:text-white transition-colors'
-        title='Back 5s'
-      >
-        ⏪
-      </button>
+    <div className='flex items-center gap-3 flex-wrap'>
+      {/* Seek controls */}
+      <button onClick={onReset} className='text-slate-300 hover:text-white transition-colors' title='Reset to start'>⏮</button>
+      <button onClick={handleSeekBack} className='text-slate-300 hover:text-white transition-colors' title='Back 5s'>⏪</button>
       <button
         onClick={onPlayPause}
         className='w-10 h-10 flex items-center justify-center rounded-full
                    bg-indigo-500 hover:bg-indigo-400 text-white transition-colors'
-        title={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? '⏸' : '▶'}
       </button>
-      <button
-        onClick={handleSeekForward}
-        className='text-slate-300 hover:text-white transition-colors'
-        title='Forward 5s'
-      >
-        ⏩
-      </button>
+      <button onClick={handleSeekForward} className='text-slate-300 hover:text-white transition-colors' title='Forward 5s'>⏩</button>
 
       {/* Time display */}
       <div className='font-mono text-sm text-slate-300'>
@@ -132,11 +113,7 @@ export function PlayerControls({
             placeholder='m:ss'
           />
         ) : (
-          <button
-            onClick={handleTimeClick}
-            className='hover:text-white transition-colors'
-            title='Click to seek'
-          >
+          <button onClick={handleTimeClick} className='hover:text-white transition-colors' title='Click to seek'>
             {formatTime(currentTime)} / {formatTime(duration)}
           </button>
         )}
@@ -166,13 +143,9 @@ export function PlayerControls({
           backgroundColor: abMode ? '#f59e0b' : '#334155',
           color: abMode ? '#000' : '#94a3b8',
         }}
-        title='Toggle A/B mode – click waveform to set points'
+        title='Toggle A/B mode'
       >
-        {abMode
-          ? abStart === null
-            ? '▸ click A'
-            : '▸ click B'
-          : 'A/B Loopsection'}
+        {abMode ? (abStart === null ? '▸ click A' : '▸ click B') : 'A/B'}
       </button>
 
       {/* Loop toggle */}
@@ -194,10 +167,8 @@ export function PlayerControls({
       {loop && (
         <span className='text-xs font-mono text-slate-400'>
           {loop.label && (
-            <span
-              className='mr-1.5 px-1.5 py-0.5 rounded text-white text-xs'
-              style={{ backgroundColor: '#6366f1' }}
-            >
+            <span className='mr-1.5 px-1.5 py-0.5 rounded text-white text-xs'
+              style={{ backgroundColor: '#6366f1' }}>
               {loop.label}
             </span>
           )}
@@ -211,7 +182,6 @@ export function PlayerControls({
           onClick={clearLoop}
           className='px-3 py-1 rounded font-mono text-xs bg-slate-700
                      hover:bg-red-900 text-slate-400 hover:text-red-300 transition-colors'
-          title='Clear loop'
         >
           ✕ clear loop
         </button>

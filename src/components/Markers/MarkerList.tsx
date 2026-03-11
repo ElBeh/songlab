@@ -30,7 +30,7 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
 
   const activeMarkerId = [...sortedMarkers]
     .reverse()
-    .find((m) => m.startTime <= currentTime)?.id ?? null;
+    .find((m) => m.startTime <= currentTime + 0.1)?.id ?? null;
 
   const handleColorChange = async (markerId: string, newColor: string) => {
     const marker = markers.find((m) => m.id === markerId);

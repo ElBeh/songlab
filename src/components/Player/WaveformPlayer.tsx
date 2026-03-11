@@ -4,6 +4,7 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useLoopStore } from '../../stores/useLoopStore';
 import { WaveformTimeline } from './WaveformTimeline';
 import { SECTION_COLORS } from '../../utils/sectionColors';
+import { useTempoStore } from '../../stores/useTempoStore';
 
 interface WaveformPlayerProps {
   audioUrl: string;
@@ -38,6 +39,8 @@ export function WaveformPlayer({
   const setAbStart = useLoopStore((state) => state.setAbStart);
   const setLoop = useLoopStore((state) => state.setLoop);
   const toggleAbMode = useLoopStore((state) => state.toggleAbMode);
+  const playbackRate = useTempoStore((state) => state.playbackRate);
+  const preservePitch = useTempoStore((state) => state.preservePitch);
 
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -50,6 +53,12 @@ export function WaveformPlayer({
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
   useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
+
+  useEffect(() => {
+  const ws = wavesurferRef.current;
+  if (!ws) return;
+  ws.setPlaybackRate(playbackRate, preservePitch);
+  }, [playbackRate, preservePitch, wavesurferRef]);
 
   useEffect(() => {
     if (!containerRef.current) return;
