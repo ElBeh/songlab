@@ -17,7 +17,9 @@ function formatTime(seconds: number): string {
 }
 
 export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: MarkerListProps) {
-  const markers = useSongStore((state) => state.markers);
+  const markersBySong = useSongStore((state) => state.markersBySong);
+  const activeSongId = useSongStore((state) => state.activeSongId);
+  const markers = activeSongId ? (markersBySong[activeSongId] ?? []) : [];
   const removeMarker = useSongStore((state) => state.removeMarker);
   const updateMarker = useSongStore((state) => state.updateMarker);
   const setLoop = useLoopStore((state) => state.setLoop);

@@ -58,13 +58,13 @@ export function TransportControls({
   const handleSeekBack = () => {
     const ws = wavesurferRef.current;
     if (!ws) return;
-    ws.setTime(Math.max(0, currentTime - 5));
+    ws.setTime(Math.max(0, currentTime - 1));
   };
 
   const handleSeekForward = () => {
     const ws = wavesurferRef.current;
     if (!ws) return;
-    ws.setTime(Math.min(duration, currentTime + 5));
+    ws.setTime(Math.min(duration, currentTime + 1));
   };
 
   const handleTimeClick = () => {
@@ -89,7 +89,7 @@ export function TransportControls({
     <div className='flex items-center gap-3 flex-wrap'>
       {/* Seek controls */}
       <button onClick={onReset} className='text-slate-300 hover:text-white transition-colors' title='Reset to start'>⏮</button>
-      <button onClick={handleSeekBack} className='text-slate-300 hover:text-white transition-colors' title='Back 5s'>⏪</button>
+      <button onClick={handleSeekBack} className='text-slate-300 hover:text-white transition-colors' title='Back 1s'>⏪</button>
       <button
         onClick={onPlayPause}
         className='w-10 h-10 flex items-center justify-center rounded-full
@@ -97,7 +97,7 @@ export function TransportControls({
       >
         {isPlaying ? '⏸' : '▶'}
       </button>
-      <button onClick={handleSeekForward} className='text-slate-300 hover:text-white transition-colors' title='Forward 5s'>⏩</button>
+      <button onClick={handleSeekForward} className='text-slate-300 hover:text-white transition-colors' title='Forward 1s'>⏩</button>
 
       {/* Time display */}
       <div className='font-mono text-sm text-slate-300'>

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import { useSongStore } from '../../stores/useSongStore';
 import { useLoopStore } from '../../stores/useLoopStore';
@@ -30,7 +30,12 @@ export function WaveformPlayer({
 }: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const waveContainerRef = useRef<HTMLDivElement>(null);
-  const markers = useSongStore((state) => state.markers);
+  const markersBySong = useSongStore((state) => state.markersBySong);
+  const activeSongId = useSongStore((state) => state.activeSongId);
+  const markers = useMemo(
+    () => activeSongId ? (markersBySong[activeSongId] ?? []) : [],
+    [markersBySong, activeSongId]
+  );
   const updateMarker = useSongStore((state) => state.updateMarker);
   const loop = useLoopStore((state) => state.loop);
   const loopEnabled = useLoopStore((state) => state.loopEnabled);

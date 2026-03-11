@@ -42,3 +42,15 @@ export interface SectionTab {
   content: string;  // ASCII tab content
   updatedAt: number;
 }
+
+export interface SetlistEntry {
+  songId: string;
+  title: string;
+}
+
+export interface Setlist {
+  id: string;
+  name: string;
+  entries: SetlistEntry[];
+  createdAt: number;
+}

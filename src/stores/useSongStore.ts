@@ -12,13 +12,17 @@ import {
 interface SongStore {
   // --- State ---
   songs: SongData[];
-  activeSong: SongData | null;
-  markers: SectionMarker[];
+  activeSongId: string | null;
+  markersBySong: Record<string, SectionMarker[]>;
+
+  // --- Derived ---
+  getActiveSong: () => SongData | null;
+  getActiveMarkers: () => SectionMarker[];
 
   // --- Song actions ---
   loadAllSongs: () => Promise<void>;
   addSong: (song: SongData) => Promise<void>;
-  setActiveSong: (song: SongData) => Promise<void>;
+  setActiveSongId: (id: string) => Promise<void>;
   removeSong: (id: string) => Promise<void>;
 
   // --- Marker actions ---
@@ -27,10 +31,20 @@ interface SongStore {
   removeMarker: (id: string) => Promise<void>;
 }
 
-export const useSongStore = create<SongStore>((set) => ({
+export const useSongStore = create<SongStore>((set, get) => ({
   songs: [],
-  activeSong: null,
-  markers: [],
+  activeSongId: null,
+  markersBySong: {},
+
+  getActiveSong: () => {
+    const { songs, activeSongId } = get();
+    return songs.find((s) => s.id === activeSongId) ?? null;
+  },
+
+  getActiveMarkers: () => {
+    const { markersBySong, activeSongId } = get();
+    return activeSongId ? (markersBySong[activeSongId] ?? []) : [];
+  },
 
   loadAllSongs: async () => {
     const songs = await getAllSongs();
@@ -39,43 +53,76 @@ export const useSongStore = create<SongStore>((set) => ({
 
   addSong: async (song) => {
     await saveSong(song);
-    set((state) => ({ songs: [...state.songs, song] }));
+    set((state) => ({
+      songs: state.songs.some((s) => s.id === song.id)
+        ? state.songs
+        : [...state.songs, song],
+    }));
   },
 
-  setActiveSong: async (song) => {
-    const markers = await getMarkersForSong(song.id);
-    set({ activeSong: song, markers: markers.sort((a, b) => a.startTime - b.startTime) });
+  setActiveSongId: async (id) => {
+    const { markersBySong } = get();
+    if (!markersBySong[id]) {
+      const markers = await getMarkersForSong(id);
+      set((state) => ({
+        activeSongId: id,
+        markersBySong: {
+          ...state.markersBySong,
+          [id]: markers.sort((a, b) => a.startTime - b.startTime),
+        },
+      }));
+    } else {
+      set({ activeSongId: id });
+    }
   },
-  
+
   removeSong: async (id) => {
     await deleteSong(id);
     set((state) => ({
       songs: state.songs.filter((s) => s.id !== id),
-      activeSong: state.activeSong?.id === id ? null : state.activeSong,
-      markers: state.activeSong?.id === id ? [] : state.markers,
+      activeSongId: state.activeSongId === id
+        ? (state.songs.find((s) => s.id !== id)?.id ?? null)
+        : state.activeSongId,
+      markersBySong: Object.fromEntries(
+        Object.entries(state.markersBySong).filter(([key]) => key !== id)
+      ),
     }));
   },
 
   addMarker: async (marker) => {
     await saveMarker(marker);
     set((state) => ({
-      markers: [...state.markers, marker].sort((a, b) => a.startTime - b.startTime),
+      markersBySong: {
+        ...state.markersBySong,
+        [marker.songId]: [
+          ...(state.markersBySong[marker.songId] ?? []),
+          marker,
+        ].sort((a, b) => a.startTime - b.startTime),
+      },
     }));
   },
 
   updateMarker: async (marker) => {
     await saveMarker(marker);
     set((state) => ({
-      markers: state.markers
-        .map((m) => (m.id === marker.id ? marker : m))
-        .sort((a, b) => a.startTime - b.startTime),
+      markersBySong: {
+        ...state.markersBySong,
+        [marker.songId]: (state.markersBySong[marker.songId] ?? [])
+          .map((m) => (m.id === marker.id ? marker : m))
+          .sort((a, b) => a.startTime - b.startTime),
+      },
     }));
   },
 
   removeMarker: async (id) => {
     await deleteMarker(id);
     set((state) => ({
-      markers: state.markers.filter((m) => m.id !== id),
+      markersBySong: Object.fromEntries(
+        Object.entries(state.markersBySong).map(([songId, markers]) => [
+          songId,
+          markers.filter((m) => m.id !== id),
+        ])
+      ),
     }));
   },
 }));
