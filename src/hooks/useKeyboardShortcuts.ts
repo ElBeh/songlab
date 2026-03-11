@@ -41,7 +41,7 @@ export function useKeyboardShortcuts({
         case 'ArrowLeft':
           e.preventDefault();
           wavesurferRef.current?.setTime(
-            Math.max(0, (wavesurferRef.current?.getCurrentTime() ?? 0) - 5),
+            Math.max(0, (wavesurferRef.current?.getCurrentTime() ?? 0) - 1),
           );
           break;
         case 'ArrowRight':
@@ -49,7 +49,7 @@ export function useKeyboardShortcuts({
           wavesurferRef.current?.setTime(
             Math.min(
               wavesurferRef.current?.getDuration() ?? 0,
-              (wavesurferRef.current?.getCurrentTime() ?? 0) + 5,
+              (wavesurferRef.current?.getCurrentTime() ?? 0) + 1,
             ),
           );
           break;
