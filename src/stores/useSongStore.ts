@@ -23,7 +23,9 @@ interface SongStore {
   loadAllSongs: () => Promise<void>;
   addSong: (song: SongData) => Promise<void>;
   setActiveSongId: (id: string) => Promise<void>;
+  updateSong: (song: SongData) => Promise<void>;
   removeSong: (id: string) => Promise<void>;
+
 
   // --- Marker actions ---
   addMarker: (marker: SectionMarker) => Promise<void>;
@@ -50,6 +52,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
     const songs = await getAllSongs();
     set({ songs });
   },
+
 
   addSong: async (song) => {
     await saveSong(song);
@@ -88,6 +91,13 @@ export const useSongStore = create<SongStore>((set, get) => ({
       ),
     }));
   },
+
+    updateSong: async (song) => {
+      await saveSong(song);
+      set((state) => ({
+        songs: state.songs.map((s) => (s.id === song.id ? song : s)),
+      }));
+    },
 
   addMarker: async (marker) => {
     await saveMarker(marker);

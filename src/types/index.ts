@@ -21,12 +21,15 @@ export interface SectionMarker {
 }
 
 export interface SongData {
-  id: string;           // uuid
+  id: string;
   title: string;
   fileName: string;
-  fileSize: number;     // bytes
-  duration: number;     // seconds, filled after waveform loads
-  createdAt: number;    // unix timestamp
+  fileSize: number;
+  duration: number;
+  createdAt: number;
+  volume: number;           // 0–1, default 1.0
+  normalizationGain: number; // RMS-based gain factor, default 1.0
+  normalizationEnabled: boolean;
 }
 
 export interface LoopRange {
@@ -35,11 +38,22 @@ export interface LoopRange {
   label?: string; // e.g. section name for display
 }
 
+export type TabSheetType = 'Guitar' | 'Bass' | 'Keys' | 'Vocals' | 'Drums' | 'Other';
+
+export interface TabSheet {
+  id: string;
+  songId: string;
+  name: string;
+  type: TabSheetType;
+  order: number;
+}
+
 export interface SectionTab {
-  id: string;       // same as markerId
+  id: string;
   songId: string;
   markerId: string;
-  content: string;  // ASCII tab content
+  sheetId: string;  // new – links to TabSheet
+  content: string;
   updatedAt: number;
 }
 

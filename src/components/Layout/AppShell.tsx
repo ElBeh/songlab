@@ -11,6 +11,9 @@ import { Sidebar } from './Sidebar';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { analyzeRmsGain } from '../../services/audioAnalysis';
+import { VolumeControl } from '../Player/VolumeControl';
+
 
 export default function AppShell() {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -55,6 +58,9 @@ export default function AppShell() {
     setCurrentTime(0);
     setDuration(0);
 
+    // Analyze loudness
+    const normalizationGain = await analyzeRmsGain(file);
+
     const song = {
       id: `${file.name}-${file.size}`,
       title: file.name.replace(/\.[^.]+$/, ''),
@@ -62,13 +68,17 @@ export default function AppShell() {
       fileSize: file.size,
       duration: 0,
       createdAt: Date.now(),
+      volume: 1.0,
+      normalizationGain,
+      normalizationEnabled: normalizationGain !== 1.0,
     };
 
-    await addSong(song);
-    await setActiveSongId(song.id);
-    await loadTabsForSong(song.id);
-    setAudioUrls((prev) => ({ ...prev, [song.id]: url }));
-  }, [addSong, setActiveSongId, loadTabsForSong]);
+  await addSong(song);
+  await setActiveSongId(song.id);
+  await loadTabsForSong(song.id);
+  await useTabStore.getState().loadSheetsForSong(song.id);
+  setAudioUrls((prev) => ({ ...prev, [song.id]: url }));
+}, [addSong, setActiveSongId, loadTabsForSong]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -204,11 +214,14 @@ export default function AppShell() {
                 <h2 className='font-mono text-slate-300 truncate'>
                   {activeSong?.title ?? 'Unknown'}
                 </h2>
-                <label className='text-xs text-slate-500 hover:text-slate-300
-                                  font-mono cursor-pointer transition-colors'>
-                  change file
-                  <input type='file' accept='audio/*' className='hidden' onChange={handleFileInput} />
-                </label>
+                <div className='flex items-center gap-4'>
+                  <VolumeControl />
+                  <label className='text-xs text-slate-500 hover:text-slate-300
+                                    font-mono cursor-pointer transition-colors'>
+                    change file
+                    <input type='file' accept='audio/*' className='hidden' onChange={handleFileInput} />
+                  </label>
+                </div>
               </div>
 
               <WaveformPlayer

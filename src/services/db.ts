@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { SongData, SectionMarker, SectionTab } from '../types';
+import type { SongData, SectionMarker, SectionTab, TabSheet } from '../types';
 
 // IndexedDB schema – idb uses this for type safety
 interface SongLabDB extends DBSchema {
@@ -17,10 +17,15 @@ interface SongLabDB extends DBSchema {
     value: SectionTab;
     indexes: { 'by-song': string };
   };
+  tabSheets: {
+    key: string;
+    value: TabSheet;
+    indexes: { 'by-song': string };
+  };
 }
 
 const DB_NAME = 'songlab';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 let dbInstance: IDBPDatabase<SongLabDB> | null = null;
 
@@ -38,6 +43,10 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
         const tabStore = db.createObjectStore('tabs', { keyPath: 'id' });
         tabStore.createIndex('by-song', 'songId');
       }
+      if (oldVersion < 4) {
+      const tabSheetStore = db.createObjectStore('tabSheets', { keyPath: 'id' });
+      tabSheetStore.createIndex('by-song', 'songId');
+    }
     },
   });
 
@@ -98,4 +107,19 @@ export async function getTabsForSong(songId: string): Promise<SectionTab[]> {
 export async function deleteTab(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('tabs', id);
+}
+
+export async function saveTabSheet(sheet: TabSheet): Promise<void> {
+  const db = await getDB();
+  await db.put('tabSheets', sheet);
+}
+
+export async function getTabSheetsForSong(songId: string): Promise<TabSheet[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('tabSheets', 'by-song', songId);
+}
+
+export async function deleteTabSheet(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('tabSheets', id);
 }

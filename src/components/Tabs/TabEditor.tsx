@@ -1,47 +1,71 @@
 import { useState } from 'react';
-import type { SectionMarker, SectionTab } from '../../types';
 import { useTabStore } from '../../stores/useTabStore';
+import { SheetBar } from './SheetBar';
+import type { SectionMarker } from '../../types';
 
 interface TabEditorProps {
   marker: SectionMarker;
   songId: string;
 }
 
+const TAB_PLACEHOLDER = `e|-------------------------------|
+B|-------------------------------|
+G|-------------------------------|
+D|-------------------------------|
+A|-------------------------------|
+E|-------------------------------|`;
+
 export function TabEditor({ marker, songId }: TabEditorProps) {
-  const tabs = useTabStore((state) => state.tabs);
+  const sheets = useTabStore((state) => state.sheets);
+  const activeSheetId = useTabStore((state) => state.activeSheetId);
+  const getTabForMarkerAndSheet = useTabStore((state) => state.getTabForMarkerAndSheet);
   const saveTab = useTabStore((state) => state.saveTab);
   const deleteTab = useTabStore((state) => state.deleteTab);
 
-  const existing = tabs[marker.id];
+  const activeSheet = sheets.find((s) => s.id === activeSheetId) ?? null;
+  const existingTab = activeSheetId
+    ? getTabForMarkerAndSheet(marker.id, activeSheetId)
+    : null;
 
-  // Local draft – initialized from store, reset when marker changes
-  const [localContent, setLocalContent] = useState(() => existing?.content ?? '');
-  const [lastMarkerId, setLastMarkerId] = useState(marker.id);
-  const [dirty, setDirty] = useState(false);
+  const [localContent, setLocalContent] = useState(existingTab?.content ?? '');
+  const [lastKey, setLastKey] = useState(`${marker.id}-${activeSheetId}`);
 
-  // Reset when switching to a different marker – no useEffect needed
-  if (marker.id !== lastMarkerId) {
-    setLastMarkerId(marker.id);
-    setLocalContent(tabs[marker.id]?.content ?? '');
-    setDirty(false);
+  // Reset content when marker or sheet changes – no useEffect needed
+  const currentKey = `${marker.id}-${activeSheetId}`;
+  if (currentKey !== lastKey) {
+    setLocalContent(existingTab?.content ?? '');
+    setLastKey(currentKey);
   }
 
+  const dirty = localContent !== (existingTab?.content ?? '');
+
   const handleSave = async () => {
-    const tab: SectionTab = {
-      id: marker.id,
+    if (!activeSheetId) return;
+    await saveTab({
+      id: existingTab?.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       songId,
       markerId: marker.id,
+      sheetId: activeSheetId,
       content: localContent,
       updatedAt: Date.now(),
-    };
-    await saveTab(tab);
-    setDirty(false);
+    });
   };
 
   const handleDelete = async () => {
-    await deleteTab(marker.id);
+    if (!existingTab) return;
+    await deleteTab(existingTab.id);
     setLocalContent('');
-    setDirty(false);
+  };
+
+  const handleExport = () => {
+    if (!activeSheet) return;
+    const blob = new Blob([localContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${marker.label ?? marker.type}-${activeSheet.name}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = () => {
@@ -52,95 +76,76 @@ export function TabEditor({ marker, songId }: TabEditorProps) {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
-        setLocalContent(reader.result as string);
-        setDirty(true);
-      };
+      reader.onload = () => setLocalContent(reader.result as string);
       reader.readAsText(file);
     };
     input.click();
   };
 
-  const handleExport = () => {
-    const blob = new Blob([localContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${marker.label}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <div className='flex flex-col gap-2 h-full'>
-      {/* Header */}
-      <div className='flex flex-col gap-2'>
-        <div className='flex items-center gap-2'>
-          <span
-            className='w-2 h-2 rounded-full'
-            style={{ backgroundColor: marker.color }}
-          />
-          <span className='text-sm font-mono text-slate-300'>{marker.label}</span>
-          {dirty && (
-            <span className='text-xs font-mono text-amber-400'>unsaved</span>
-          )}
-        </div>
+    <div className='flex flex-col gap-2 flex-1'>
+      {/* Sheet bar */}
+      <SheetBar songId={songId} />
 
-        {/* Actions – left aligned */}
-        <div className='flex items-center gap-2'>
-          <button
-            onClick={handleImport}
-            className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                       text-slate-300 rounded transition-colors'
-            title='Import .txt'
-          >
-            ↑ import
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={!localContent}
-            className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                       text-slate-300 rounded transition-colors
-                       disabled:opacity-30 disabled:cursor-not-allowed'
-            title='Export .txt'
-          >
-            ↓ export
-          </button>
-          {existing && (
+      {activeSheetId ? (
+        <>
+          {/* Toolbar */}
+          <div className='flex items-center gap-2'>
             <button
-              onClick={handleDelete}
-              className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-red-900
-                         text-slate-400 hover:text-red-300 rounded transition-colors'
-              title='Delete tab'
+              onClick={handleImport}
+              className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                         text-slate-300 rounded transition-colors'
+              title='Import from .txt'
             >
-              ✕
+              ↑ import
             </button>
-          )}
-          <button
-            onClick={handleSave}
-            disabled={!dirty}
-            className='px-2 py-1 text-xs font-mono bg-indigo-500 hover:bg-indigo-400
-                       text-white rounded transition-colors
-                       disabled:opacity-30 disabled:cursor-not-allowed'
-          >
-            Save
-          </button>
-        </div>
-      </div>
+            <button
+              onClick={handleExport}
+              className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                         text-slate-300 rounded transition-colors'
+              title='Export to .txt'
+            >
+              ↓ export
+            </button>
+            {existingTab && (
+              <button
+                onClick={handleDelete}
+                className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-red-900
+                           text-slate-400 hover:text-red-300 rounded transition-colors'
+              >
+                ✕ delete
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={!dirty}
+              className='px-3 py-1 text-xs font-mono rounded transition-colors
+                         disabled:opacity-30 disabled:cursor-not-allowed'
+              style={{
+                backgroundColor: dirty ? '#6366f1' : '#334155',
+                color: dirty ? '#fff' : '#94a3b8',
+              }}
+            >
+              {dirty ? '● save' : 'saved'}
+            </button>
+          </div>
 
-      {/* Textarea */}
-      <textarea
-        value={localContent}
-        onChange={(e) => {
-          setLocalContent(e.target.value);
-          setDirty(true);
-        }}
-        placeholder={`ASCII tab for "${marker.label}"...\n\ne|-----------------------|\nB|-----------------------|\nG|-----------------------|\nD|-----------------------|\nA|-----------------------|\nE|-----------------------|`}
-        className='flex-1 w-full bg-slate-900 text-slate-200 font-mono text-sm
-                   rounded p-3 outline-none border border-slate-700
-                   focus:border-indigo-500 resize-none leading-relaxed'
-        spellCheck={false}
-      />
+          {/* Textarea */}
+          <textarea
+            value={localContent}
+            onChange={(e) => setLocalContent(e.target.value)}
+            spellCheck={false}
+            placeholder={TAB_PLACEHOLDER}
+            className='flex-1 min-h-48 bg-slate-900 text-slate-200 font-mono text-sm
+                       rounded-lg p-4 border border-slate-700 focus:border-indigo-500
+                       outline-none resize-none leading-relaxed'
+          />
+        </>
+      ) : (
+        <div className='flex items-center justify-center min-h-48 text-slate-600 font-mono text-sm'>
+          Add a sheet above to start editing tabs
+        </div>
+      )}
     </div>
   );
 }

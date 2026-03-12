@@ -1,4 +1,5 @@
 import { useSongStore } from '../../stores/useSongStore';
+import { useTabStore } from '../../stores/useTabStore';
 
 interface SongTabsProps {
   onAddSong: () => void;
@@ -24,7 +25,11 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
               color: isActive ? '#f1f5f9' : '#64748b',
               borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
             }}
-            onClick={() => setActiveSongId(song.id)}
+            onClick={async () => {
+              await setActiveSongId(song.id);
+              await useTabStore.getState().loadTabsForSong(song.id);
+              await useTabStore.getState().loadSheetsForSong(song.id); // neu
+            }}
           >
             <span className='max-w-36 truncate'>{song.title}</span>
             <button

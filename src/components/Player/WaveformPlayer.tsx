@@ -47,6 +47,13 @@ export function WaveformPlayer({
   const playbackRate = useTempoStore((state) => state.playbackRate);
   const preservePitch = useTempoStore((state) => state.preservePitch);
 
+  const songs = useSongStore((state) => state.songs);
+  const activeSong = songs.find((s) => s.id === activeSongId) ?? null;
+  const volume = activeSong?.volume ?? 1;
+  const normalizationGain = (activeSong?.normalizationEnabled ?? true)
+    ? (activeSong?.normalizationGain ?? 1)
+    : 1;
+
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -60,10 +67,26 @@ export function WaveformPlayer({
   useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
 
   useEffect(() => {
-  const ws = wavesurferRef.current;
-  if (!ws) return;
-  ws.setPlaybackRate(playbackRate, preservePitch);
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    ws.setPlaybackRate(playbackRate, preservePitch);
   }, [playbackRate, preservePitch, wavesurferRef]);
+
+  // Apply volume changes while player is active
+  useEffect(() => {
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    const effectiveVolume = volume * normalizationGain;
+    ws.setVolume(Math.min(1, effectiveVolume));
+  }, [volume, normalizationGain, wavesurferRef]);
+
+  // Neuer useEffect nur für Songwechsel:
+  useEffect(() => {
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    const effectiveVolume = volume * normalizationGain;
+    ws.setVolume(Math.min(1, effectiveVolume));
+  }, [activeSongId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -80,11 +103,19 @@ export function WaveformPlayer({
     wavesurferRef.current = ws;
     ws.load(audioUrl);
 
-    ws.on('ready', () => {
-      const d = ws.getDuration();
-      setDuration(d);
-      onReadyRef.current(d);
-    });
+  ws.on('ready', () => {
+    const d = ws.getDuration();
+    setDuration(d);
+
+    // Apply volume on ready using latest store values
+    const { songs, activeSongId: id } = useSongStore.getState();
+    const song = songs.find((s) => s.id === id) ?? null;
+    const v = song?.volume ?? 1;
+    const g = (song?.normalizationEnabled ?? true) ? (song?.normalizationGain ?? 1) : 1;
+    ws.setVolume(Math.min(1, v * g));
+
+    onReadyRef.current(d);
+  });
 
     ws.on('timeupdate', (t) => {
       setCurrentTime(t);

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTempoStore } from '../../stores/useTempoStore';
 
 const PRESETS = [
@@ -11,6 +12,26 @@ export function TempoControls() {
   const preservePitch = useTempoStore((state) => state.preservePitch);
   const setPlaybackRate = useTempoStore((state) => state.setPlaybackRate);
   const togglePreservePitch = useTempoStore((state) => state.togglePreservePitch);
+  const [editing, setEditing] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  const handleValueClick = () => {
+    setInputValue(String(Math.round(playbackRate * 100)));
+    setEditing(true);
+  };
+
+  const handleCommit = () => {
+    const parsed = parseInt(inputValue, 10);
+    if (!isNaN(parsed)) {
+      setPlaybackRate(parsed / 100);
+    }
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleCommit();
+    if (e.key === 'Escape') setEditing(false);
+  };
 
   return (
     <div className='flex items-center gap-3 flex-wrap'>
@@ -42,10 +63,27 @@ export function TempoControls() {
         className='w-32 accent-indigo-500'
       />
 
-      {/* Current value */}
-      <span className='text-xs font-mono text-slate-300 w-10'>
-        {Math.round(playbackRate * 100)}%
-      </span>
+      {/* Current value – click to edit */}
+      {editing ? (
+        <input
+          autoFocus
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          className='w-14 bg-slate-700 text-slate-100 font-mono text-sm
+                     rounded px-1 py-0.5 border border-indigo-500 outline-none'
+          placeholder='%'
+        />
+      ) : (
+        <button
+          onClick={handleValueClick}
+          className='w-10 text-xs font-mono text-slate-300 hover:text-white transition-colors'
+          title='Click to enter value'
+        >
+          {Math.round(playbackRate * 100)}%
+        </button>
+      )}
 
       {/* Divider */}
       <div className='w-px h-6 bg-slate-600 mx-1' />

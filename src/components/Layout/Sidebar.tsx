@@ -15,7 +15,7 @@ interface SidebarProps {
 export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'sections' | 'setlist'>('sections');
   const [setlistName, setSetlistName] = useState('');
-  const [importedSetlist, setImportedSetlist] = useState<Setlist | null>(null);
+  const [importedSetlist] = useState<Setlist | null>(null);
 
   const songs = useSongStore((state) => state.songs);
   const activeSongId = useSongStore((state) => state.activeSongId);
@@ -30,24 +30,25 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
     await exportSong(activeSong);
   };
 
-  const handleImportSong = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.songlab.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const song = await importSong(file);
-        await addSong(song);
-        await setActiveSongId(song.id);
-      } catch (err) {
-        console.error('Import failed:', err);
-      }
-    };
-    input.click();
+const handleImportSong = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      const song = await importSong(file);
+      await addSong(song);
+      await setActiveSongId(song.id);
+      await useTabStore.getState().loadTabsForSong(song.id);
+      await useTabStore.getState().loadSheetsForSong(song.id);
+    } catch (err) {
+      console.error('Import failed:', err);
+    }
   };
-
+  input.click();
+};
   const handleExportSetlist = async () => {
     if (!setlistName.trim()) return;
     await exportSetlist(setlistName.trim(), songs);
@@ -56,13 +57,20 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
   const handleImportSetlist = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.setlist.json';
+    input.accept = '.json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const setlist = await importSetlist(file);
-        setImportedSetlist(setlist);
+        const importedSongs = await importSetlist(file);
+        for (const song of importedSongs) {
+          await addSong(song);
+        }
+        if (importedSongs.length > 0) {
+          await setActiveSongId(importedSongs[0].id);
+          await useTabStore.getState().loadTabsForSong(importedSongs[0].id);
+          await useTabStore.getState().loadSheetsForSong(importedSongs[0].id); // neu
+        }
       } catch (err) {
         console.error('Setlist import failed:', err);
       }
@@ -149,7 +157,11 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                   backgroundColor: song.id === activeSongId ? '#1e293b' : 'transparent',
                   color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8',
                 }}
-                onClick={() => setActiveSongId(song.id)}
+              onClick={async () => {
+                await setActiveSongId(song.id);
+                await useTabStore.getState().loadTabsForSong(song.id);
+                await useTabStore.getState().loadSheetsForSong(song.id);
+              }}
               >
                 <span className='flex-1 text-xs font-mono truncate'>{song.title}</span>
               </div>
