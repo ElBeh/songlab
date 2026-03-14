@@ -41,8 +41,32 @@ export async function importSong(file: File): Promise<SongData> {
         const data: SongExport = JSON.parse(reader.result as string);
         await saveSong(data.song);
         for (const marker of data.markers ?? []) await saveMarker(marker);
-        for (const tab of data.tabs ?? []) await saveTab(tab);
-        for (const sheet of data.sheets ?? []) await saveTabSheet(sheet);
+
+        // Migrate old exports: if no sheets exist, create a default sheet
+        // and assign its id to all tabs that are missing a sheetId
+        let sheets = data.sheets ?? [];
+        const tabs = data.tabs ?? [];
+
+        if (sheets.length === 0 && tabs.length > 0) {
+          const defaultSheet: TabSheet = {
+            id: `default-${data.song.id}`,
+            songId: data.song.id,
+            name: 'Guitar',
+            type: 'Guitar',
+            order: 0,
+          };
+          sheets = [defaultSheet];
+        }
+
+        for (const sheet of sheets) await saveTabSheet(sheet);
+
+        const defaultSheetId = sheets[0]?.id ?? null;
+        for (const tab of tabs) {
+          // Assign default sheetId to tabs from old exports
+          const fixed = tab.sheetId ? tab : { ...tab, sheetId: defaultSheetId! };
+          await saveTab(fixed);
+        }
+
         resolve(data.song);
       } catch {
         reject(new Error('Invalid song file'));

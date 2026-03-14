@@ -62,8 +62,30 @@ export async function importSetlist(file: File): Promise<SongData[]> {
           if (!entry.song) continue;
           await saveSong(entry.song);
           for (const marker of entry.markers ?? []) await saveMarker(marker);
-          for (const tab of entry.tabs ?? []) await saveTab(tab);
-          for (const sheet of entry.sheets ?? []) await saveTabSheet(sheet);
+
+          // Migrate old exports: create default sheet if none exist
+          let sheets = entry.sheets ?? [];
+          const tabs = entry.tabs ?? [];
+
+          if (sheets.length === 0 && tabs.length > 0) {
+            const defaultSheet: TabSheet = {
+              id: `default-${entry.song.id}`,
+              songId: entry.song.id,
+              name: 'Guitar',
+              type: 'Guitar',
+              order: 0,
+            };
+            sheets = [defaultSheet];
+          }
+
+          for (const sheet of sheets) await saveTabSheet(sheet);
+
+          const defaultSheetId = sheets[0]?.id ?? null;
+          for (const tab of tabs) {
+            const fixed = tab.sheetId ? tab : { ...tab, sheetId: defaultSheetId! };
+            await saveTab(fixed);
+          }
+
           importedSongs.push(entry.song);
         }
 

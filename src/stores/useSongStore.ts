@@ -56,11 +56,20 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   addSong: async (song) => {
     await saveSong(song);
-    set((state) => ({
-      songs: state.songs.some((s) => s.id === song.id)
-        ? state.songs
-        : [...state.songs, song],
-    }));
+    set((state) => {
+      const exists = state.songs.some((s) => s.id === song.id);
+      return {
+        songs: exists
+          ? state.songs.map((s) => (s.id === song.id ? song : s))
+          : [...state.songs, song],
+        // Invalidate marker cache so next setActiveSongId reloads from DB
+        markersBySong: exists
+          ? Object.fromEntries(
+              Object.entries(state.markersBySong).filter(([key]) => key !== song.id)
+            )
+          : state.markersBySong,
+      };
+    });
   },
 
   setActiveSongId: async (id) => {
