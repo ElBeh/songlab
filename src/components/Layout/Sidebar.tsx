@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useModeStore } from '../../stores/useModeStore';
 import { MarkerList } from '../Markers/MarkerList';
@@ -20,6 +20,8 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
   const [importedSetlist] = useState<Setlist | null>(null);
   const [editingPauseId, setEditingPauseId] = useState<string | null>(null);
   const [editingPauseValue, setEditingPauseValue] = useState('');
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   const songs = useSongStore((state) => state.songs);
   const songOrder = useSongStore((state) => state.songOrder);
@@ -30,6 +32,7 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
   const addSong = useSongStore((state) => state.addSong);
   const removeSong = useSongStore((state) => state.removeSong);
   const moveItem = useSongStore((state) => state.moveItem);
+  const reorderItem = useSongStore((state) => state.reorderItem);
   const addPause = useSongStore((state) => state.addPause);
   const updatePause = useSongStore((state) => state.updatePause);
   const removePause = useSongStore((state) => state.removePause);
@@ -109,6 +112,39 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
     }
     setEditingPauseId(null);
   };
+
+  // --- Drag & Drop handlers ---
+
+  const handleDragStart = useCallback((e: React.DragEvent, idx: number) => {
+    setDragIndex(idx);
+    e.dataTransfer.effectAllowed = 'move';
+    // Minimal data required for Firefox DnD support
+    e.dataTransfer.setData('text/plain', String(idx));
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIndex === null || dragIndex === idx) {
+      setDropIndex(null);
+      return;
+    }
+    setDropIndex(idx);
+  }, [dragIndex]);
+
+  const handleDrop = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragIndex !== null && dragIndex !== idx) {
+      reorderItem(dragIndex, idx);
+    }
+    setDragIndex(null);
+    setDropIndex(null);
+  }, [dragIndex, reorderItem]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+    setDropIndex(null);
+  }, []);
 
   return (
     <aside className={`${isBand ? 'w-48' : 'w-64'} border-r border-slate-700 flex flex-col overflow-hidden transition-all`}>
@@ -190,11 +226,22 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                 return (
                   <div
                     key={item.songId}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
                     className='flex items-center gap-1 px-2 py-1.5 rounded
                                transition-colors group'
                     style={{
                       backgroundColor: song.id === activeSongId ? '#1e293b' : 'transparent',
                       color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8',
+                      opacity: dragIndex === idx ? 0.4 : 1,
+                      borderTop: dropIndex === idx && dragIndex !== null && dragIndex > idx
+                        ? '2px solid #6366f1' : '2px solid transparent',
+                      borderBottom: dropIndex === idx && dragIndex !== null && dragIndex < idx
+                        ? '2px solid #6366f1' : '2px solid transparent',
+                      cursor: 'grab',
                     }}
                   >
                     {/* Reorder buttons */}
@@ -261,7 +308,20 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
 return (
                 <div
                   key={item.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  onDragEnd={handleDragEnd}
                   className='flex items-center gap-1 px-2 py-1 group'
+                  style={{
+                    opacity: dragIndex === idx ? 0.4 : 1,
+                    borderTop: dropIndex === idx && dragIndex !== null && dragIndex > idx
+                      ? '2px solid #6366f1' : '2px solid transparent',
+                    borderBottom: dropIndex === idx && dragIndex !== null && dragIndex < idx
+                      ? '2px solid #6366f1' : '2px solid transparent',
+                    cursor: 'grab',
+                  }}
                 >
                   {/* Reorder buttons */}
                   <div className='flex flex-col opacity-0 group-hover:opacity-100

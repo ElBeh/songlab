@@ -45,6 +45,7 @@ interface SongStore {
 
   // --- Setlist actions ---
   moveItem: (index: number, direction: 'up' | 'down') => Promise<void>;
+  reorderItem: (fromIndex: number, toIndex: number) => Promise<void>;
   addPause: (afterIndex: number, duration?: number) => Promise<void>;
   updatePause: (id: string, duration: number, label?: string) => Promise<void>;
   removePause: (id: string) => Promise<void>;
@@ -164,6 +165,21 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
     const newOrder = [...songOrder];
     [newOrder[index], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[index]];
+    set({ songOrder: newOrder });
+    await setConfig('songOrder', newOrder);
+  },
+
+  reorderItem: async (fromIndex, toIndex) => {
+    const { songOrder } = get();
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 || fromIndex >= songOrder.length ||
+      toIndex < 0 || toIndex >= songOrder.length
+    ) return;
+
+    const newOrder = [...songOrder];
+    const [moved] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
     set({ songOrder: newOrder });
     await setConfig('songOrder', newOrder);
   },
