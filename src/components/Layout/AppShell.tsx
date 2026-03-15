@@ -214,10 +214,12 @@ export default function AppShell() {
                 <h2 className='font-mono text-slate-300 truncate'>
                   {activeSong?.title ?? 'Unknown'}
                 </h2>
-                <div className='flex items-center gap-4'>
-                  <VolumeControl />
-                  <label className='text-xs text-slate-500 hover:text-slate-300
-                                    font-mono cursor-pointer transition-colors'>
+                <div className='flex items-center gap-3'>
+                  <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center'>
+                    <VolumeControl />
+                  </div>
+                  <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-slate-500
+                                    hover:text-slate-300 font-mono cursor-pointer transition-colors'>
                     change file
                     <input type='file' accept='audio/*' className='hidden' onChange={handleFileInput} />
                   </label>
