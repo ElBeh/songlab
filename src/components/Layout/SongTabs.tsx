@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 
@@ -15,6 +16,7 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
   useSongStore((state) => state.songOrder);
 
   const orderedSongs = getOrderedSongs();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
     <div className='flex items-center gap-1 overflow-x-auto'>
@@ -37,16 +39,33 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
             }}
           >
             <span className='max-w-36 truncate'>{song.title}</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                removeSong(song.id);
-              }}
-              className='text-slate-600 hover:text-red-400 transition-colors text-xs'
-              title='Remove song'
-            >
-              ✕
-            </button>
+            {confirmDeleteId === song.id ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSong(song.id);
+                  setConfirmDeleteId(null);
+                }}
+                onBlur={() => setConfirmDeleteId(null)}
+                className='text-red-400 hover:text-red-300 transition-colors text-xs
+                           font-mono'
+                autoFocus
+                title='Confirm delete'
+              >
+                sure?
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmDeleteId(song.id);
+                }}
+                className='text-slate-600 hover:text-red-400 transition-colors text-xs'
+                title='Remove song'
+              >
+                ✕
+              </button>
+            )}
           </div>
         );
       })}
