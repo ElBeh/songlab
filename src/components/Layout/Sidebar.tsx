@@ -18,12 +18,16 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
   const [importedSetlist] = useState<Setlist | null>(null);
 
   const songs = useSongStore((state) => state.songs);
+  useSongStore((state) => state.songOrder); // subscribe to trigger re-render on reorder
   const activeSongId = useSongStore((state) => state.activeSongId);
   const getActiveSong = useSongStore((state) => state.getActiveSong);
+  const getOrderedSongs = useSongStore((state) => state.getOrderedSongs);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const addSong = useSongStore((state) => state.addSong);
+  const moveSong = useSongStore((state) => state.moveSong);
 
   const activeSong = getActiveSong();
+  const orderedSongs = getOrderedSongs();
 
   const handleExportSong = async () => {
     if (!activeSong) return;
@@ -51,7 +55,7 @@ const handleImportSong = () => {
 };
   const handleExportSetlist = async () => {
     if (!setlistName.trim()) return;
-    await exportSetlist(setlistName.trim(), songs);
+    await exportSetlist(setlistName.trim(), orderedSongs);
   };
 
   const handleImportSetlist = () => {
@@ -148,22 +152,52 @@ const handleImportSong = () => {
             {songs.length === 0 && (
               <p className='text-xs text-slate-600 font-mono'>No songs loaded.</p>
             )}
-            {songs.map((song) => (
+            {orderedSongs.map((song, idx) => (
               <div
                 key={song.id}
-                className='flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer
-                           transition-colors'
+                className='flex items-center gap-1 px-2 py-1.5 rounded
+                           transition-colors group'
                 style={{
                   backgroundColor: song.id === activeSongId ? '#1e293b' : 'transparent',
                   color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8',
                 }}
-              onClick={async () => {
-                await setActiveSongId(song.id);
-                await useTabStore.getState().loadTabsForSong(song.id);
-                await useTabStore.getState().loadSheetsForSong(song.id);
-              }}
               >
-                <span className='flex-1 text-xs font-mono truncate'>{song.title}</span>
+                {/* Reorder buttons */}
+                <div className='flex flex-col opacity-0 group-hover:opacity-100
+                                transition-opacity'>
+                  <button
+                    onClick={() => moveSong(song.id, 'up')}
+                    disabled={idx === 0}
+                    className='text-[10px] leading-none text-slate-500 hover:text-slate-200
+                               disabled:opacity-20 disabled:cursor-not-allowed
+                               transition-colors px-0.5'
+                    title='Move up'
+                  >
+                    ▲
+                  </button>
+                  <button
+                    onClick={() => moveSong(song.id, 'down')}
+                    disabled={idx === orderedSongs.length - 1}
+                    className='text-[10px] leading-none text-slate-500 hover:text-slate-200
+                               disabled:opacity-20 disabled:cursor-not-allowed
+                               transition-colors px-0.5'
+                    title='Move down'
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {/* Song title */}
+                <span
+                  className='flex-1 text-xs font-mono truncate cursor-pointer'
+                  onClick={async () => {
+                    await setActiveSongId(song.id);
+                    await useTabStore.getState().loadTabsForSong(song.id);
+                    await useTabStore.getState().loadSheetsForSong(song.id);
+                  }}
+                >
+                  {song.title}
+                </span>
               </div>
             ))}
           </div>

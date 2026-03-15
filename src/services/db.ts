@@ -22,10 +22,14 @@ interface SongLabDB extends DBSchema {
     value: TabSheet;
     indexes: { 'by-song': string };
   };
+  config: {
+    key: string;
+    value: { key: string; value: unknown };
+  };
 }
 
 const DB_NAME = 'songlab';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbInstance: IDBPDatabase<SongLabDB> | null = null;
 
@@ -47,6 +51,9 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
       const tabSheetStore = db.createObjectStore('tabSheets', { keyPath: 'id' });
       tabSheetStore.createIndex('by-song', 'songId');
     }
+      if (oldVersion < 5) {
+        db.createObjectStore('config', { keyPath: 'key' });
+      }
     },
   });
 
@@ -122,4 +129,17 @@ export async function getTabSheetsForSong(songId: string): Promise<TabSheet[]> {
 export async function deleteTabSheet(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('tabSheets', id);
+}
+
+// --- Config (key-value) ---
+
+export async function getConfig<T>(key: string): Promise<T | undefined> {
+  const db = await getDB();
+  const entry = await db.get('config', key);
+  return entry?.value as T | undefined;
+}
+
+export async function setConfig<T>(key: string, value: T): Promise<void> {
+  const db = await getDB();
+  await db.put('config', { key, value });
 }

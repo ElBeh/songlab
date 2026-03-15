@@ -6,14 +6,19 @@ interface SongTabsProps {
 }
 
 export function SongTabs({ onAddSong }: SongTabsProps) {
-  const songs = useSongStore((state) => state.songs);
+  const getOrderedSongs = useSongStore((state) => state.getOrderedSongs);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const removeSong = useSongStore((state) => state.removeSong);
 
+  // Subscribe to songOrder so tabs re-render on reorder
+  useSongStore((state) => state.songOrder);
+
+  const orderedSongs = getOrderedSongs();
+
   return (
     <div className='flex items-center gap-1 overflow-x-auto'>
-      {songs.map((song) => {
+      {orderedSongs.map((song) => {
         const isActive = song.id === activeSongId;
         return (
           <div
