@@ -12,9 +12,10 @@ interface SidebarProps {
   onSeekTo: (time: number) => void;
   duration: number;
   currentTime: number;
+  isViewer?: boolean;
 }
 
-export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
+export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'sections' | 'setlist'>('sections');
   const [setlistName, setSetlistName] = useState('');
   const [importedSetlist] = useState<Setlist | null>(null);
@@ -226,11 +227,11 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                 return (
                   <div
                     key={item.songId}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, idx)}
-                    onDragOver={(e) => handleDragOver(e, idx)}
-                    onDrop={(e) => handleDrop(e, idx)}
-                    onDragEnd={handleDragEnd}
+                    draggable={!isViewer}
+                    onDragStart={isViewer ? undefined : (e) => handleDragStart(e, idx)}
+                    onDragOver={isViewer ? undefined : (e) => handleDragOver(e, idx)}
+                    onDrop={isViewer ? undefined : (e) => handleDrop(e, idx)}
+                    onDragEnd={isViewer ? undefined : handleDragEnd}
                     className='flex items-center gap-1 px-2 py-1.5 rounded
                                transition-colors group'
                     style={{
@@ -241,10 +242,11 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                         ? '2px solid #6366f1' : '2px solid transparent',
                       borderBottom: dropIndex === idx && dragIndex !== null && dragIndex < idx
                         ? '2px solid #6366f1' : '2px solid transparent',
-                      cursor: 'grab',
+                      cursor: isViewer ? 'default' : 'grab',
                     }}
                   >
                     {/* Reorder buttons */}
+                    {!isViewer && (
                     <div className='flex flex-col opacity-0 group-hover:opacity-100
                                     transition-opacity'>
                       <button
@@ -268,6 +270,7 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                         ▼
                       </button>
                     </div>
+                    )}
 
                     {/* Dummy indicator */}
                     {song.isDummy && (
@@ -279,7 +282,7 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                     {/* Song title */}
                     <span
                       className='flex-1 text-xs font-mono truncate cursor-pointer'
-                      onClick={async () => {
+                      onClick={isViewer ? undefined : async () => {
                         await setActiveSongId(song.id);
                         await useTabStore.getState().loadTabsForSong(song.id);
                         await useTabStore.getState().loadSheetsForSong(song.id);
@@ -289,6 +292,7 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                     </span>
 
                     {/* Delete button */}
+                    {!isViewer && (
                     <button
                       onClick={() => {
                         addToast(`Removed "${song.title}"`, 'info');
@@ -300,11 +304,25 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
                     >
                       ✕
                     </button>
+                    )}
                   </div>
                 );
               }
 
               // Pause item
+              if (isViewer) {
+                return (
+                  <div key={item.id} className='flex items-center gap-1 px-2 py-1'>
+                    <div className='flex-1 flex items-center gap-2'>
+                      <div className='flex-1 h-px bg-slate-700' />
+                      <span className='text-[10px] font-mono text-slate-600 whitespace-nowrap'>
+                        {item.duration}s
+                      </span>
+                      <div className='flex-1 h-px bg-slate-700' />
+                    </div>
+                  </div>
+                );
+              }
 return (
                 <div
                   key={item.id}

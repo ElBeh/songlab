@@ -6,7 +6,7 @@ interface DummyWaveformProps {
   duration: number;
   currentTime: number;
   height?: number;
-  onSeek: (time: number) => void;
+  onSeek?: (time: number) => void;
 }
 
 /**
@@ -30,7 +30,7 @@ export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: Du
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const el = containerRef.current;
-    if (!el || !duration) return;
+    if (!el || !duration || !onSeek) return;
     const rect = el.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     onSeek(percent * duration);

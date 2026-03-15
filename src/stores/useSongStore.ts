@@ -11,6 +11,7 @@ import {
   setConfig,
   deleteAudioFile,
 } from '../services/db';
+import { emitMarkerSave, emitMarkerDelete } from '../services/syncEmitter';
 
 // Helper: migrate legacy string[] order to SetlistItem[]
 function migrateOrder(raw: unknown, fallbackIds: string[]): SetlistItem[] {
@@ -226,6 +227,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   addMarker: async (marker) => {
     await saveMarker(marker);
+    emitMarkerSave(marker);
     set((state) => ({
       markersBySong: {
         ...state.markersBySong,
@@ -239,6 +241,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   updateMarker: async (marker) => {
     await saveMarker(marker);
+    emitMarkerSave(marker);
     set((state) => ({
       markersBySong: {
         ...state.markersBySong,
@@ -250,7 +253,11 @@ export const useSongStore = create<SongStore>((set, get) => ({
   },
 
   removeMarker: async (id) => {
+    // Find songId before deleting (needed for sync broadcast)
+    const songId = Object.entries(get().markersBySong)
+      .find(([, markers]) => markers.some((m) => m.id === id))?.[0] ?? '';
     await deleteMarker(id);
+    emitMarkerDelete(id, songId);
     set((state) => ({
       markersBySong: Object.fromEntries(
         Object.entries(state.markersBySong).map(([songId, markers]) => [

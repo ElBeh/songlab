@@ -22,6 +22,11 @@ import { useAudioFile } from '../../hooks/useAudioFile';
 import { useActiveMarkerTracker } from '../../hooks/useActiveMarkerTracker';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useSetlistAdvance } from '../../hooks/useSetlistAdvance';
+import { useSyncSession } from '../../hooks/useSyncSession';
+import { useSyncBroadcast } from '../../hooks/useSyncBroadcast';
+import { useSyncStore } from '../../stores/useSyncStore';
+import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
+import { SyncStatus } from './SyncStatus';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -38,6 +43,29 @@ export default function AppShell() {
   const isBand = mode === 'band';
 
   const isDummy = activeSong?.isDummy ?? false;
+
+  // --- Band Sync ---
+  const syncRole = useSyncStore((s) => s.role);
+  const syncStatus = useSyncStore((s) => s.status);
+  const isViewer = syncStatus === 'connected' && syncRole === 'viewer';
+
+  // Viewer: always force band mode
+  useEffect(() => {
+    if (isViewer) {
+      useModeStore.getState().setMode('band');
+    }
+  }, [isViewer]);
+
+  const syncSession = useSyncSession({
+    onSongSelect: useCallback(async (songId: string) => {
+      await useSongStore.getState().setActiveSongId(songId);
+      await useTabStore.getState().loadTabsForSong(songId);
+      await useTabStore.getState().loadSheetsForSong(songId);
+    }, []),
+    onPlaybackSync: useCallback(() => {
+      // Playback sync handled via syncedTime/syncedIsPlaying in useSyncStore
+    }, []),
+  });
 
   // --- Setlist advance (band mode) ---
   const pendingAutoPlayRef = useRef(false);
@@ -81,14 +109,37 @@ export default function AppShell() {
   });
 
   // Unified playback values
-  const isPlaying = isDummy ? dummyPlayback.isPlaying : playback.isPlaying;
-  const currentTime = isDummy ? dummyPlayback.currentTime : playback.currentTime;
-  const duration = isDummy ? dummyPlayback.duration : playback.duration;
+  const _isPlaying = isDummy ? dummyPlayback.isPlaying : playback.isPlaying;
+  const _currentTime = isDummy ? dummyPlayback.currentTime : playback.currentTime;
+  const _duration = isDummy ? dummyPlayback.duration : playback.duration;
   const songLoop = isDummy ? dummyPlayback.songLoop : playback.songLoop;
   const handlePlayPause = isDummy ? dummyPlayback.handlePlayPause : playback.handlePlayPause;
   const handleSeekTo = isDummy ? dummyPlayback.handleSeekTo : playback.handleSeekTo;
   const handleReset = isDummy ? dummyPlayback.handleReset : playback.handleReset;
   const toggleSongLoop = isDummy ? dummyPlayback.toggleSongLoop : playback.toggleSongLoop;
+
+  // Viewer overrides: use synced playback from host
+  const syncedTime = useSyncStore((s) => s.syncedTime);
+  const syncedIsPlaying = useSyncStore((s) => s.syncedIsPlaying);
+  const syncedCountdown = useSyncStore((s) => s.syncedCountdown);
+  const syncedAutoAdvance = useSyncStore((s) => s.syncedAutoAdvance);
+  const isPlaying = isViewer ? syncedIsPlaying : _isPlaying;
+  const currentTime = isViewer ? syncedTime : _currentTime;
+  // Viewer has no wavesurfer → duration comes from the song metadata
+  const duration = isViewer ? (activeSong?.duration ?? 0) : _duration;
+
+  // Viewer: track active marker from synced time
+  useEffect(() => {
+    if (!isViewer) return;
+    onMarkerTimeUpdate(currentTime);
+  }, [isViewer, currentTime, onMarkerTimeUpdate]);
+
+  // Host: broadcast playback state to peers
+  useSyncBroadcast({
+    isPlaying: _isPlaying,
+    currentTime: _currentTime,
+    countdownRemaining: setlistAdvance.isCountingDown ? setlistAdvance.countdownRemaining : null,
+  });
 
   // --- Audio file handling ---
   const audioFile = useAudioFile({
@@ -155,6 +206,41 @@ export default function AppShell() {
     audioFile.loadPersistedAudio(activeSongId);
   }, [activeSongId, isDummy, audioFile]);
 
+  // Host: push full song data to viewers on song switch
+  // Use a small delay to ensure tabs/sheets are loaded first
+  const sheets = useTabStore((s) => s.sheets);
+  const tabs = useTabStore((s) => s.tabs);
+  useEffect(() => {
+    if (!activeSongId || !activeSong) return;
+    if (syncStatus !== 'connected' || syncRole !== 'host') return;
+
+    // Debounce: wait for tabs/sheets to settle after song switch
+    const timer = setTimeout(() => {
+      const markers = useSongStore.getState().getActiveMarkers();
+      const { tabs: currentTabs, sheets: currentSheets } = useTabStore.getState();
+      const songTabs = Object.values(currentTabs).filter((t) => t.songId === activeSongId);
+
+      emitSongData({
+        song: activeSong,
+        markers,
+        tabs: songTabs,
+        sheets: currentSheets.filter((s) => s.songId === activeSongId),
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [activeSongId, activeSong, syncStatus, syncRole, sheets, tabs]);
+
+  // Host: push setlist to viewers on connect + when songs/order change
+  const songs = useSongStore((s) => s.songs);
+  const songOrder = useSongStore((s) => s.songOrder);
+  useEffect(() => {
+    if (syncStatus !== 'connected' || syncRole !== 'host') return;
+    if (songs.length === 0) return;
+
+    emitSetlistSync({ songs, songOrder });
+  }, [songs, songOrder, syncStatus, syncRole]);
+
   // --- Add marker handler ---
   const handleAddMarker = useCallback(() => {
     if (!audioFile.audioUrl && !isDummy) return;
@@ -191,7 +277,8 @@ export default function AppShell() {
   });
 
   // Is there an active song with audio (or dummy)?
-  const hasPlayer = isDummy || !!audioFile.audioUrl;
+  // Viewers always show the player when a song is synced (no local audio needed)
+  const hasPlayer = isViewer ? !!activeSong : (isDummy || !!audioFile.audioUrl);
 
   // --- Render ---
 
@@ -200,9 +287,10 @@ export default function AppShell() {
       {/* Header */}
       <header className='px-6 py-3 border-b border-slate-700 flex items-center gap-3'>
         <span className='text-indigo-400 text-xl'>🎸</span>
-        <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab v0.7</h1>
+        <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
 
-        {/* Mode toggle – segmented control */}
+        {/* Mode toggle – segmented control (hidden for viewers) */}
+        {!isViewer && (
         <div className='flex bg-slate-800 rounded-lg p-0.5 font-mono text-xs'>
           <button
             onClick={() => useModeStore.getState().setMode('practice')}
@@ -225,11 +313,13 @@ export default function AppShell() {
             🎤 Band
           </button>
         </div>
+        )}
 
         <div className='flex-1 overflow-x-auto'>
           <SongTabs
             onAddSong={() => document.getElementById('file-input')?.click()}
             onCreateDummy={() => setShowDummyDialog(true)}
+            isViewer={isViewer}
           />
         </div>
 
@@ -240,6 +330,11 @@ export default function AppShell() {
           className='hidden'
           onChange={audioFile.handleFileInput}
         />
+
+        <SyncStatus
+          onConnect={syncSession.connect}
+          onDisconnect={syncSession.disconnect}
+        />
       </header>
 
       <div className='flex flex-1 overflow-hidden'>
@@ -247,6 +342,7 @@ export default function AppShell() {
           onSeekTo={handleSeekTo}
           duration={duration}
           currentTime={currentTime}
+          isViewer={isViewer}
         />
 
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto'>
@@ -297,6 +393,19 @@ export default function AppShell() {
                 </h2>
                 <div className='flex-1 flex justify-center'>
                   {isBand && (
+                    isViewer ? (
+                      <div
+                        className='rounded-lg px-6 py-2 font-mono text-sm'
+                        style={{
+                          backgroundColor: syncedAutoAdvance ? '#166534' : '#334155',
+                          color: syncedAutoAdvance ? '#bbf7d0' : '#94a3b8',
+                          border: syncedAutoAdvance ? '1px solid #22c55e' : '1px solid #475569',
+                          opacity: 0.7,
+                        }}
+                      >
+                        {syncedAutoAdvance ? '▸ Auto-play next song' : '▸ Manual next song'}
+                      </div>
+                    ) : (
                     <button
                       onClick={() => useModeStore.getState().setAutoAdvance(!autoAdvance)}
                       className='rounded-lg px-6 py-2 font-mono text-sm transition-colors'
@@ -309,12 +418,13 @@ export default function AppShell() {
                     >
                       {autoAdvance ? '▸ Auto-play next song' : '▸ Manual next song'}
                     </button>
+                    )
                   )}
                 </div>
                 <div className='flex items-center gap-3'>
 
-                  {/* Band mode: compact play/pause + reset */}
-                  {isBand && (
+                  {/* Band mode: compact play/pause + reset (host only) */}
+                  {isBand && !isViewer && (
                     <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-3'>
                       <button
                         onClick={handlePlayPause}
@@ -348,7 +458,7 @@ export default function AppShell() {
                     </div>
                   )}
 
-                  {!isDummy && (
+                  {!isDummy && !isViewer && (
                     <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center'>
                       <VolumeControl />
                     </div>
@@ -385,12 +495,12 @@ export default function AppShell() {
               </div>
 
               {/* Waveform */}
-              {isDummy ? (
+              {(isDummy || isViewer) ? (
                 <DummyWaveform
                   duration={duration}
                   currentTime={currentTime}
                   height={isBand ? 64 : 96}
-                  onSeek={handleSeekTo}
+                  onSeek={isViewer ? undefined : handleSeekTo}
                 />
               ) : (
                 <WaveformPlayer
@@ -404,7 +514,7 @@ export default function AppShell() {
               )}
 
               {/* Countdown overlay (band mode auto-advance) */}
-              {setlistAdvance.isCountingDown && (
+              {setlistAdvance.isCountingDown && !isViewer && (
                 <div className='flex items-center gap-3'>
                   <div className='bg-slate-800 rounded-lg px-4 py-2 font-mono text-sm
                                   text-indigo-400'>
@@ -417,6 +527,15 @@ export default function AppShell() {
                   >
                     skip →
                   </button>
+                </div>
+              )}
+              {/* Viewer countdown (synced from host) */}
+              {isViewer && syncedCountdown !== null && (
+                <div className='flex items-center gap-3'>
+                  <div className='bg-slate-800 rounded-lg px-4 py-2 font-mono text-sm
+                                  text-indigo-400'>
+                    Next song in {syncedCountdown}s
+                  </div>
                 </div>
               )}
 
@@ -517,6 +636,7 @@ export default function AppShell() {
                       currentTime={currentTime}
                       isPlaying={isPlaying}
                       sectionEnd={selectedMarkerEnd}
+                      isViewer={isViewer}
                     />
                   )}
                 </div>

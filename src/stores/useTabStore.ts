@@ -8,6 +8,12 @@ import {
   getTabSheetsForSong,
   deleteTabSheet,
 } from '../services/db';
+import {
+  emitTabSave,
+  emitTabDelete,
+  emitSheetSave,
+  emitSheetDelete,
+} from '../services/syncEmitter';
 
 interface TabStore {
   // --- State ---
@@ -50,13 +56,17 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
   saveTab: async (tab) => {
     await saveTab(tab);
+    emitTabSave(tab);
     set((state) => ({
       tabs: { ...state.tabs, [`${tab.markerId}-${tab.sheetId}`]: tab },
     }));
   },
 
   deleteTab: async (id) => {
+    // Find songId before deleting (needed for sync broadcast)
+    const tab = Object.values(get().tabs).find((t) => t.id === id);
     await deleteTab(id);
+    if (tab) emitTabDelete(id, tab.songId);
     set((state) => {
       const updated = { ...state.tabs };
       for (const key in updated) {
@@ -74,6 +84,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
   addSheet: async (sheet) => {
     await saveTabSheet(sheet);
+    emitSheetSave(sheet);
     set((state) => ({
       sheets: [...state.sheets, sheet].sort((a, b) => a.order - b.order),
       activeSheetId: state.activeSheetId ?? sheet.id,
@@ -82,6 +93,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
   updateSheet: async (sheet) => {
     await saveTabSheet(sheet);
+    emitSheetSave(sheet);
     set((state) => ({
       sheets: state.sheets
         .map((s) => (s.id === sheet.id ? sheet : s))
@@ -90,7 +102,9 @@ export const useTabStore = create<TabStore>((set, get) => ({
   },
 
   removeSheet: async (id) => {
+    const sheet = get().sheets.find((s) => s.id === id);
     await deleteTabSheet(id);
+    if (sheet) emitSheetDelete(id, sheet.songId);
     set((state) => {
       const sheets = state.sheets.filter((s) => s.id !== id);
       return {

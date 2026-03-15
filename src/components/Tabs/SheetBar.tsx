@@ -11,9 +11,10 @@ function generateId(): string {
 
 interface SheetBarProps {
   songId: string;
+  isViewer?: boolean;
 }
 
-export function SheetBar({ songId }: SheetBarProps) {
+export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
   const sheets = useTabStore((state) => state.sheets);
   const activeSheetId = useTabStore((state) => state.activeSheetId);
   const setActiveSheet = useTabStore((state) => state.setActiveSheet);
@@ -86,6 +87,8 @@ export function SheetBar({ songId }: SheetBarProps) {
 
           {/* Edit + Delete – visible on hover */}
           <span className='text-slate-600 text-xs ml-1'>({sheet.type})</span>
+          {!isViewer && (
+          <>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -109,6 +112,8 @@ export function SheetBar({ songId }: SheetBarProps) {
           >
             ✕
           </button>
+          </>
+          )}
         </div>
       ))}
 

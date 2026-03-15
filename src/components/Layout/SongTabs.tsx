@@ -6,9 +6,10 @@ import { useToastStore } from '../../stores/useToastStore';
 interface SongTabsProps {
   onAddSong: () => void;
   onCreateDummy: () => void;
+  isViewer?: boolean;
 }
 
-export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
+export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps) {
   const getOrderedSongs = useSongStore((state) => state.getOrderedSongs);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
@@ -44,14 +45,14 @@ export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
         return (
           <div
             key={song.id}
-            className='flex items-center gap-2 px-3 py-1.5 rounded-t-lg font-mono
-                       text-sm cursor-pointer transition-colors shrink-0'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg font-mono
+                        text-sm transition-colors shrink-0 ${isViewer ? 'cursor-default' : 'cursor-pointer'}`}
             style={{
               backgroundColor: isActive ? '#1e293b' : '#0f172a',
               color: isActive ? '#f1f5f9' : '#64748b',
               borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
             }}
-            onClick={async () => {
+            onClick={isViewer ? undefined : async () => {
               await setActiveSongId(song.id);
               await useTabStore.getState().loadTabsForSong(song.id);
               await useTabStore.getState().loadSheetsForSong(song.id); // neu
@@ -61,7 +62,7 @@ export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
               <span className='text-[10px] text-slate-600' title='No audio file'>📝</span>
             )}
             <span className='max-w-36 truncate'>{song.title}</span>
-            {confirmDeleteId === song.id ? (
+            {!isViewer && (confirmDeleteId === song.id ? (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -88,12 +89,14 @@ export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
               >
                 ✕
               </button>
-            )}
+            ))}
           </div>
         );
       })}
 
       {/* Add song dropdown */}
+      {!isViewer && (
+      <>
       <div className='shrink-0'>
         <button
           ref={btnRef}
@@ -133,6 +136,8 @@ export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
             📝 Create without audio
           </button>
         </div>
+      )}
+      </>
       )}
     </div>
   );

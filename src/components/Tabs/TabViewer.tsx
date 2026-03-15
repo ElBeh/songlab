@@ -8,9 +8,10 @@ interface TabViewerProps {
   currentTime: number;
   isPlaying: boolean;
   sectionEnd: number;
+  isViewer?: boolean;
 }
 
-export function TabViewer({ marker, currentTime, isPlaying, sectionEnd }: TabViewerProps) {
+export function TabViewer({ marker, currentTime, isPlaying, sectionEnd, isViewer = false }: TabViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeSheetId = useTabStore((state) => state.activeSheetId);
@@ -34,7 +35,7 @@ export function TabViewer({ marker, currentTime, isPlaying, sectionEnd }: TabVie
   return (
     <div className='flex flex-col gap-2 flex-1'>
       {/* Sheet bar */}
-      <SheetBar songId={marker.songId} />
+      <SheetBar songId={marker.songId} isViewer={isViewer} />
 
       <div
         ref={scrollRef}
