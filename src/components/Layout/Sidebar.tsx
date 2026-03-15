@@ -26,7 +26,7 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const addSong = useSongStore((state) => state.addSong);
   const moveSong = useSongStore((state) => state.moveSong);
-
+  const removeSong = useSongStore((state) => state.removeSong);
   const activeSong = getActiveSong();
   const orderedSongs = getOrderedSongs();
   const addToast = useToastStore((state) => state.addToast);
@@ -195,6 +195,11 @@ const handleImportSong = () => {
                   </button>
                 </div>
 
+                {/* Dummy indicator */}
+                {song.isDummy && (
+                  <span className='text-[10px] text-slate-600' title='No audio file'>📝</span>
+                )}
+
                 {/* Song title */}
                 <span
                   className='flex-1 text-xs font-mono truncate cursor-pointer'
@@ -206,6 +211,19 @@ const handleImportSong = () => {
                 >
                   {song.title}
                 </span>
+
+                {/* Delete button */}
+                <button
+                  onClick={() => {
+                    addToast(`Removed "${song.title}"`, 'info');
+                    removeSong(song.id);
+                  }}
+                  className='text-slate-600 hover:text-red-400 transition-colors text-xs
+                             opacity-0 group-hover:opacity-100'
+                  title='Remove song'
+                >
+                  ✕
+                </button>
               </div>
             ))}
           </div>

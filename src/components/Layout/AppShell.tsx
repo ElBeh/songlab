@@ -285,7 +285,7 @@ export default function AppShell() {
                       className='text-sm font-mono text-slate-300 hover:text-white
                                  transition-colors'
                     >
-                      + Add Marker
+                      + Add Section
                     </button>
                   </div>
                 )}

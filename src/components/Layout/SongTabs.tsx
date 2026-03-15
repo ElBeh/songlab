@@ -57,6 +57,9 @@ export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
               await useTabStore.getState().loadSheetsForSong(song.id); // neu
             }}
           >
+            {song.isDummy && (
+              <span className='text-[10px] text-slate-600' title='No audio file'>📝</span>
+            )}
             <span className='max-w-36 truncate'>{song.title}</span>
             {confirmDeleteId === song.id ? (
               <button
