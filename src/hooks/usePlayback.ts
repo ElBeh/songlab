@@ -4,9 +4,11 @@ import type WaveSurfer from 'wavesurfer.js';
 interface UsePlaybackOptions {
   /** Called on every timeupdate with the current time in seconds */
   onTimeUpdate?: (time: number) => void;
+  /** Called when playback reaches the end (and song loop is off) */
+  onFinish?: () => void;
 }
 
-export function usePlayback({ onTimeUpdate }: UsePlaybackOptions = {}) {
+export function usePlayback({ onTimeUpdate, onFinish }: UsePlaybackOptions = {}) {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,8 +49,9 @@ export function usePlayback({ onTimeUpdate }: UsePlaybackOptions = {}) {
       setIsPlaying(true);
     } else {
       setIsPlaying(false);
+      onFinish?.();
     }
-  }, [songLoop]);
+  }, [songLoop, onFinish]);
 
   const toggleSongLoop = useCallback(() => {
     setSongLoop((v) => !v);

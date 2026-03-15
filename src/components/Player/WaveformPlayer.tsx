@@ -7,6 +7,7 @@ import { useTempoStore } from '../../stores/useTempoStore';
 
 interface WaveformPlayerProps {
   audioUrl: string;
+  height?: number;
   onReady: (duration: number) => void;
   onTimeUpdate: (currentTime: number) => void;
   onFinish: () => void;
@@ -22,6 +23,7 @@ interface DragState {
 
 export function WaveformPlayer({
   audioUrl,
+  height = 96,
   onReady,
   onTimeUpdate,
   onFinish,
@@ -87,6 +89,13 @@ export function WaveformPlayer({
     ws.setVolume(Math.min(1, effectiveVolume));
   }, [activeSongId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apply height changes dynamically
+  useEffect(() => {
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    ws.setOptions({ height });
+  }, [height, wavesurferRef]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -95,7 +104,7 @@ export function WaveformPlayer({
       waveColor: '#475569',
       progressColor: '#94a3b8',
       cursorColor: '#ffffff',
-      height: 96,
+      height: height,
       normalize: true,
     });
 
@@ -397,7 +406,7 @@ export function WaveformPlayer({
         />
         <div
           className='absolute top-0 left-0 w-full'
-          style={{ height: '96px', zIndex: 1, pointerEvents: 'none' }}
+          style={{ height: `${height}px`, zIndex: 1, pointerEvents: 'none' }}
         >
           <div className='relative w-full h-full' style={{ pointerEvents: 'none' }}>
             {loopOverlay}

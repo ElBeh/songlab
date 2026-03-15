@@ -63,6 +63,20 @@ export interface SetlistEntry {
   title: string;
 }
 
+export interface SetlistPause {
+  type: 'pause';
+  id: string;
+  duration: number;   // seconds
+  label?: string;
+}
+
+export interface SetlistSong {
+  type: 'song';
+  songId: string;
+}
+
+export type SetlistItem = SetlistSong | SetlistPause;
+
 export interface Setlist {
   id: string;
   name: string;

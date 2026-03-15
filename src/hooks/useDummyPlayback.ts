@@ -3,6 +3,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 interface UseDummyPlaybackOptions {
   duration: number;
   onTimeUpdate?: (time: number) => void;
+  /** Called when playback reaches the end (and song loop is off) */
+  onFinish?: () => void;
 }
 
 /**
@@ -10,7 +12,7 @@ interface UseDummyPlaybackOptions {
  * Uses requestAnimationFrame to advance a virtual playhead in real time.
  * Return shape mirrors usePlayback so AppShell can switch seamlessly.
  */
-export function useDummyPlayback({ duration, onTimeUpdate }: UseDummyPlaybackOptions) {
+export function useDummyPlayback({ duration, onTimeUpdate, onFinish }: UseDummyPlaybackOptions) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [songLoop, setSongLoop] = useState(false);
@@ -61,6 +63,7 @@ export function useDummyPlayback({ duration, onTimeUpdate }: UseDummyPlaybackOpt
           setCurrentTime(duration);
           onTimeUpdate?.(duration);
           setIsPlaying(false);
+          onFinish?.();
           return;
         }
       } else {
@@ -74,7 +77,7 @@ export function useDummyPlayback({ duration, onTimeUpdate }: UseDummyPlaybackOpt
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, duration, onTimeUpdate]);
+  }, [isPlaying, duration, onTimeUpdate, onFinish]);
 
   const handlePlayPause = useCallback(() => {
     setIsPlaying((v) => !v);

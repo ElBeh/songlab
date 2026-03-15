@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { WaveformPlayer } from '../Player/WaveformPlayer';
 import { DummyWaveform } from '../Player/DummyWaveform';
 import { TransportControls } from '../Player/TransportControls';
@@ -14,11 +14,13 @@ import { VolumeControl } from '../Player/VolumeControl';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
+import { useModeStore } from '../../stores/useModeStore';
 import { usePlayback } from '../../hooks/usePlayback';
 import { useDummyPlayback } from '../../hooks/useDummyPlayback';
 import { useAudioFile } from '../../hooks/useAudioFile';
 import { useActiveMarkerTracker } from '../../hooks/useActiveMarkerTracker';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useSetlistAdvance } from '../../hooks/useSetlistAdvance';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -30,7 +32,32 @@ export default function AppShell() {
   const setActiveMarker = useTabStore((state) => state.setActiveMarker);
   const addToast = useToastStore((state) => state.addToast);
 
+  const mode = useModeStore((state) => state.mode);
+  const autoAdvance = useModeStore((state) => state.autoAdvance);
+  const isBand = mode === 'band';
+
   const isDummy = activeSong?.isDummy ?? false;
+
+  // --- Setlist advance (band mode) ---
+  const pendingAutoPlayRef = useRef(false);
+  const setlistAdvance = useSetlistAdvance({
+    onPlay: () => {
+      // If wavesurfer is ready (song already loaded during countdown), play directly
+      const ws = playback.wavesurferRef.current;
+      const nextSong = useSongStore.getState().getActiveSong();
+      if (nextSong?.isDummy) {
+        dummyPlayback.setCurrentTime(0);
+        dummyPlayback.setIsPlaying(true);
+      } else if (ws) {
+        ws.setTime(0);
+        ws.play();
+        playback.setIsPlaying(true);
+      } else {
+        // Song not loaded yet (immediate advance, no countdown) — defer to handleReady
+        pendingAutoPlayRef.current = true;
+      }
+    },
+  });
 
   // --- Marker auto-tracking callback ---
   const onMarkerTimeUpdate = useCallback((t: number) => {
@@ -44,10 +71,12 @@ export default function AppShell() {
   // --- Playback hooks (both always called, React rules) ---
   const playback = usePlayback({
     onTimeUpdate: isDummy ? undefined : onMarkerTimeUpdate,
+    onFinish: isDummy ? undefined : setlistAdvance.handleSongFinish,
   });
   const dummyPlayback = useDummyPlayback({
     duration: activeSong?.duration ?? 0,
     onTimeUpdate: isDummy ? onMarkerTimeUpdate : undefined,
+    onFinish: isDummy ? setlistAdvance.handleSongFinish : undefined,
   });
 
   // Unified playback values
@@ -96,7 +125,26 @@ export default function AppShell() {
     if (song.duration !== d) {
       useSongStore.getState().updateSong({ ...song, duration: d });
     }
-  }, [baseHandleReady, addToast]);
+
+    // Auto-play after setlist advance (band mode)
+    if (pendingAutoPlayRef.current) {
+      pendingAutoPlayRef.current = false;
+      // Small delay to let wavesurfer settle
+      setTimeout(() => {
+        playback.wavesurferRef.current?.play();
+        playback.setIsPlaying(true);
+      }, 100);
+    }
+  }, [baseHandleReady, addToast, playback]);
+
+  // Auto-play dummy songs after setlist advance (band mode)
+  const activeSongId = useSongStore((state) => state.activeSongId);
+  useEffect(() => {
+    if (pendingAutoPlayRef.current && isDummy) {
+      pendingAutoPlayRef.current = false;
+      dummyPlayback.handlePlayPause();
+    }
+  }, [activeSongId, isDummy, dummyPlayback]);
 
   // --- Add marker handler ---
   const handleAddMarker = useCallback(() => {
@@ -133,6 +181,9 @@ export default function AppShell() {
     duration: isDummy ? duration : undefined,
   });
 
+  // Is there an active song with audio (or dummy)?
+  const hasPlayer = isDummy || !!audioFile.audioUrl;
+
   // --- Render ---
 
   return (
@@ -141,6 +192,30 @@ export default function AppShell() {
       <header className='px-6 py-3 border-b border-slate-700 flex items-center gap-3'>
         <span className='text-indigo-400 text-xl'>🎸</span>
         <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
+
+        {/* Mode toggle – segmented control */}
+        <div className='flex bg-slate-800 rounded-lg p-0.5 font-mono text-xs'>
+          <button
+            onClick={() => useModeStore.getState().setMode('practice')}
+            className='px-3 py-1 rounded-md transition-colors'
+            style={{
+              backgroundColor: !isBand ? '#6366f1' : 'transparent',
+              color: !isBand ? '#fff' : '#64748b',
+            }}
+          >
+            🎸 Practice
+          </button>
+          <button
+            onClick={() => useModeStore.getState().setMode('band')}
+            className='px-3 py-1 rounded-md transition-colors'
+            style={{
+              backgroundColor: isBand ? '#6366f1' : 'transparent',
+              color: isBand ? '#fff' : '#64748b',
+            }}
+          >
+            🎤 Band
+          </button>
+        </div>
 
         <div className='flex-1 overflow-x-auto'>
           <SongTabs
@@ -166,8 +241,8 @@ export default function AppShell() {
         />
 
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto'>
-          {/* Drop zone (only when no active song or real song without audio) */}
-          {!isDummy && !audioFile.audioUrl && (
+          {/* Drop zone (only in practice mode when no active song) */}
+          {!isBand && !hasPlayer && (
             <div
               onDrop={audioFile.handleDrop}
               onDragOver={audioFile.handleDragOver}
@@ -201,46 +276,87 @@ export default function AppShell() {
           )}
 
           {/* Player (dummy or real) */}
-          {(isDummy || audioFile.audioUrl) && activeSong && (
+          {hasPlayer && activeSong && (
             <>
               {/* Title bar */}
-              <div className='flex items-center justify-between'>
+                <div className='flex items-center'>
                 <h2 className='font-mono text-slate-300 truncate'>
                   {activeSong.title}
                   {isDummy && (
                     <span className='ml-2 text-xs text-slate-500'>(no audio)</span>
                   )}
                 </h2>
+                <div className='flex-1 flex justify-center'>
+                  {isBand && (
+                    <button
+                      onClick={() => useModeStore.getState().setAutoAdvance(!autoAdvance)}
+                      className='rounded-lg px-6 py-2 font-mono text-sm transition-colors'
+                      style={{
+                        backgroundColor: autoAdvance ? '#166534' : '#334155',
+                        color: autoAdvance ? '#bbf7d0' : '#94a3b8',
+                        border: autoAdvance ? '1px solid #22c55e' : '1px solid #475569',
+                      }}
+                      title='Toggle auto-advance to next song'
+                    >
+                      {autoAdvance ? '▸ Auto-play next song' : '▸ Manual next song'}
+                    </button>
+                  )}
+                </div>
                 <div className='flex items-center gap-3'>
+
+                  {/* Band mode: compact play/pause + reset */}
+                  {isBand && (
+                    <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-3'>
+                      <button
+                        onClick={handlePlayPause}
+                        className='w-8 h-8 flex items-center justify-center rounded-full
+                                   bg-indigo-500 hover:bg-indigo-400 text-white
+                                   transition-colors text-sm'
+                      >
+                        {isPlaying ? '⏸' : '▶'}
+                      </button>
+                      <button
+                        onClick={handleReset}
+                        className='text-slate-300 hover:text-white transition-colors'
+                        title='Reset to start'
+                      >
+                        ⏮
+                      </button>
+                    </div>
+                  )}
+
                   {!isDummy && (
                     <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center'>
                       <VolumeControl />
                     </div>
                   )}
-                  {isDummy ? (
-                    <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-indigo-400
-                                      hover:text-indigo-300 font-mono cursor-pointer
-                                      transition-colors'>
-                      attach audio file
-                      <input
-                        type='file'
-                        accept='audio/*'
-                        className='hidden'
-                        onChange={handleUpgradeFile}
-                      />
-                    </label>
-                  ) : (
-                    <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-slate-500
-                                      hover:text-slate-300 font-mono cursor-pointer
-                                      transition-colors'>
-                      change file
-                      <input
-                        type='file'
-                        accept='audio/*'
-                        className='hidden'
-                        onChange={audioFile.handleFileInput}
-                      />
-                    </label>
+
+                  {!isBand && (
+                    isDummy ? (
+                      <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-indigo-400
+                                        hover:text-indigo-300 font-mono cursor-pointer
+                                        transition-colors'>
+                        attach audio file
+                        <input
+                          type='file'
+                          accept='audio/*'
+                          className='hidden'
+                          onChange={handleUpgradeFile}
+                        />
+                      </label>
+                    ) : (
+                      <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-slate-500
+                                        hover:text-slate-300 font-mono cursor-pointer
+                                        transition-colors'>
+                        change file
+                        <input
+                          type='file'
+                          accept='audio/*'
+                          className='hidden'
+                          onChange={audioFile.handleFileInput}
+                        />
+                      </label>
+                    )
                   )}
                 </div>
               </div>
@@ -250,11 +366,13 @@ export default function AppShell() {
                 <DummyWaveform
                   duration={duration}
                   currentTime={currentTime}
+                  height={isBand ? 64 : 96}
                   onSeek={handleSeekTo}
                 />
               ) : (
                 <WaveformPlayer
                   audioUrl={audioFile.audioUrl!}
+                  height={isBand ? 64 : 96}
                   onReady={handleReady}
                   onTimeUpdate={playback.handleTimeUpdate}
                   onFinish={playback.handleFinish}
@@ -262,43 +380,62 @@ export default function AppShell() {
                 />
               )}
 
-              {/* Controls */}
-              <div className='flex items-stretch gap-3 flex-wrap'>
-                <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
-                  <TransportControls
-                    wavesurferRef={playback.wavesurferRef}
-                    onSeek={isDummy ? handleSeekTo : undefined}
-                    currentTime={currentTime}
-                    duration={duration}
-                    isPlaying={isPlaying}
-                    onPlayPause={handlePlayPause}
-                    songLoop={songLoop}
-                    onSongLoopToggle={toggleSongLoop}
-                    onReset={handleReset}
-                  />
+              {/* Countdown overlay (band mode auto-advance) */}
+              {setlistAdvance.isCountingDown && (
+                <div className='flex items-center gap-3'>
+                  <div className='bg-slate-800 rounded-lg px-4 py-2 font-mono text-sm
+                                  text-indigo-400'>
+                    Next song in {setlistAdvance.countdownRemaining}s
+                  </div>
+                  <button
+                    onClick={setlistAdvance.skipCountdown}
+                    className='bg-slate-800 rounded-lg px-4 py-2 font-mono text-xs
+                               text-slate-400 hover:text-white transition-colors'
+                  >
+                    skip →
+                  </button>
                 </div>
+              )}
 
-                {!showMarkerForm && (
+              {/* Controls – practice mode only */}
+              {!isBand && (
+                <div className='flex items-stretch gap-3 flex-wrap'>
                   <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
-                    <button
-                      onClick={handleAddMarker}
-                      className='text-sm font-mono text-slate-300 hover:text-white
-                                 transition-colors'
-                    >
-                      + Add Section
-                    </button>
+                    <TransportControls
+                      wavesurferRef={playback.wavesurferRef}
+                      onSeek={isDummy ? handleSeekTo : undefined}
+                      currentTime={currentTime}
+                      duration={duration}
+                      isPlaying={isPlaying}
+                      onPlayPause={handlePlayPause}
+                      songLoop={songLoop}
+                      onSongLoopToggle={toggleSongLoop}
+                      onReset={handleReset}
+                    />
                   </div>
-                )}
 
-                {!isDummy && (
-                  <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
-                    <TempoControls />
-                  </div>
-                )}
-              </div>
+                  {!showMarkerForm && (
+                    <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                      <button
+                        onClick={handleAddMarker}
+                        className='text-sm font-mono text-slate-300 hover:text-white
+                                   transition-colors'
+                      >
+                        + Add Marker
+                      </button>
+                    </div>
+                  )}
 
-              {/* MarkerForm */}
-              {showMarkerForm && (
+                  {!isDummy && (
+                    <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                      <TempoControls />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MarkerForm – practice mode only */}
+              {!isBand && showMarkerForm && (
                 <MarkerForm
                   currentTime={currentTime}
                   songId={activeSong.id}
@@ -317,10 +454,12 @@ export default function AppShell() {
                 />
               )}
 
-              {/* Keyboard shortcut hints */}
-              <p className='text-xs text-slate-600 font-mono'>
-                Space: play/pause · M: add marker · ←/→: seek 1s · L: loop toggle
-              </p>
+              {/* Keyboard shortcut hints – practice mode only */}
+              {!isBand && (
+                <p className='text-xs text-slate-600 font-mono'>
+                  Space: play/pause · M: add marker · ←/→: seek 1s · L: loop toggle
+                </p>
+              )}
 
               {/* Tab section */}
               {selectedMarker && (
@@ -331,21 +470,23 @@ export default function AppShell() {
                       <h3 className='text-xs font-mono text-slate-400 uppercase tracking-widest'>
                         Tab
                       </h3>
-                      <button
-                        onClick={() => setEditMode((v) => !v)}
-                        className='self-start px-3 py-1 text-sm font-mono rounded
-                                   transition-colors'
-                        style={{
-                          backgroundColor: editMode ? '#6366f1' : '#475569',
-                          color: editMode ? '#fff' : '#cbd5e1',
-                        }}
-                      >
-                        {editMode ? '👁 View Tab' : '✎ Edit Tab'}
-                      </button>
+                      {!isBand && (
+                        <button
+                          onClick={() => setEditMode((v) => !v)}
+                          className='self-start px-3 py-1 text-sm font-mono rounded
+                                     transition-colors'
+                          style={{
+                            backgroundColor: editMode ? '#6366f1' : '#475569',
+                            color: editMode ? '#fff' : '#cbd5e1',
+                          }}
+                        >
+                          {editMode ? '👁 View Tab' : '✎ Edit Tab'}
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {editMode ? (
+                  {!isBand && editMode ? (
                     <TabEditor marker={selectedMarker} songId={activeSong.id} />
                   ) : (
                     <TabViewer

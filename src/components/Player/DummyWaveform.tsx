@@ -5,6 +5,7 @@ import { WaveformTimeline } from './WaveformTimeline';
 interface DummyWaveformProps {
   duration: number;
   currentTime: number;
+  height?: number;
   onSeek: (time: number) => void;
 }
 
@@ -12,7 +13,7 @@ interface DummyWaveformProps {
  * Static waveform placeholder for dummy songs (no audio file).
  * Displays marker overlays, a clickable seek area, and a playhead cursor.
  */
-export function DummyWaveform({ duration, currentTime, onSeek }: DummyWaveformProps) {
+export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: DummyWaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markersBySong = useSongStore((state) => state.markersBySong);
   const activeSongId = useSongStore((state) => state.activeSongId);
@@ -81,7 +82,7 @@ export function DummyWaveform({ duration, currentTime, onSeek }: DummyWaveformPr
       <div
         ref={containerRef}
         className='relative w-full cursor-pointer'
-        style={{ height: '96px' }}
+        style={{ height: `${height}px` }}
         onClick={handleClick}
       >
         {/* Static placeholder bars */}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTabStore } from '../../stores/useTabStore';
 import type { TabSheetType } from '../../types';
+import { useModeStore } from '../../stores/useModeStore';
 
 const SHEET_TYPES: TabSheetType[] = ['Guitar', 'Bass', 'Keys', 'Vocals', 'Other'];
 
@@ -19,6 +20,7 @@ export function SheetBar({ songId }: SheetBarProps) {
   const addSheet = useTabStore((state) => state.addSheet);
   const updateSheet = useTabStore((state) => state.updateSheet);
   const removeSheet = useTabStore((state) => state.removeSheet);
+  const isBand = useModeStore((state) => state.mode) === 'band';
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -111,6 +113,8 @@ export function SheetBar({ songId }: SheetBarProps) {
       ))}
 
       {/* Add sheet */}
+      {!isBand && (
+        <>
       {showAddForm ? (
         <div className='flex items-center gap-2 px-2 py-1 bg-slate-800 rounded-lg shrink-0'>
           <input
@@ -157,6 +161,8 @@ export function SheetBar({ songId }: SheetBarProps) {
         >
           + sheet
         </button>
+      )}
+      </>
       )}
     </div>
   );

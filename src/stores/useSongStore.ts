@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SongData, SectionMarker } from '../types';
+import type { SongData, SectionMarker, SetlistItem } from '../types';
 import {
   saveSong,
   getAllSongs,
@@ -11,10 +11,23 @@ import {
   setConfig,
 } from '../services/db';
 
+// Helper: migrate legacy string[] order to SetlistItem[]
+function migrateOrder(raw: unknown, fallbackIds: string[]): SetlistItem[] {
+  if (!Array.isArray(raw)) {
+    return fallbackIds.map((id) => ({ type: 'song' as const, songId: id }));
+  }
+  // Already migrated?
+  if (raw.length > 0 && typeof raw[0] === 'object') {
+    return raw as SetlistItem[];
+  }
+  // Legacy string[]
+  return (raw as string[]).map((id) => ({ type: 'song' as const, songId: id }));
+}
+
 interface SongStore {
   // --- State ---
   songs: SongData[];
-  songOrder: string[];  // song IDs in user-defined order
+  songOrder: SetlistItem[];
   activeSongId: string | null;
   markersBySong: Record<string, SectionMarker[]>;
 
@@ -29,8 +42,12 @@ interface SongStore {
   setActiveSongId: (id: string) => Promise<void>;
   updateSong: (song: SongData) => Promise<void>;
   removeSong: (id: string) => Promise<void>;
-  moveSong: (id: string, direction: 'up' | 'down') => Promise<void>;
 
+  // --- Setlist actions ---
+  moveItem: (index: number, direction: 'up' | 'down') => Promise<void>;
+  addPause: (afterIndex: number, duration?: number) => Promise<void>;
+  updatePause: (id: string, duration: number, label?: string) => Promise<void>;
+  removePause: (id: string) => Promise<void>;
 
   // --- Marker actions ---
   addMarker: (marker: SectionMarker) => Promise<void>;
@@ -57,13 +74,14 @@ export const useSongStore = create<SongStore>((set, get) => ({
   getOrderedSongs: () => {
     const { songs, songOrder } = get();
     const songMap = new Map(songs.map((s) => [s.id, s]));
-    // Songs in explicit order first, then any remaining (newly added) at the end
     const ordered: SongData[] = [];
-    for (const id of songOrder) {
-      const song = songMap.get(id);
-      if (song) {
-        ordered.push(song);
-        songMap.delete(id);
+    for (const item of songOrder) {
+      if (item.type === 'song') {
+        const song = songMap.get(item.songId);
+        if (song) {
+          ordered.push(song);
+          songMap.delete(item.songId);
+        }
       }
     }
     // Append songs not yet in the order array
@@ -73,12 +91,13 @@ export const useSongStore = create<SongStore>((set, get) => ({
     return ordered;
   },
 
-loadAllSongs: async () => {
+  loadAllSongs: async () => {
     const raw = await getAllSongs();
     // Migrate legacy songs that predate the isDummy field
     const songs = raw.map((s) => ({ ...s, isDummy: s.isDummy ?? false }));
-    const savedOrder = await getConfig<string[]>('songOrder');
-    set({ songs, songOrder: savedOrder ?? songs.map((s) => s.id) });
+    const savedOrder = await getConfig<unknown>('songOrder');
+    const songOrder = migrateOrder(savedOrder, songs.map((s) => s.id));
+    set({ songs, songOrder });
   },
 
   addSong: async (song) => {
@@ -87,13 +106,12 @@ loadAllSongs: async () => {
       const exists = state.songs.some((s) => s.id === song.id);
       const newOrder = exists
         ? state.songOrder
-        : [...state.songOrder, song.id];
+        : [...state.songOrder, { type: 'song' as const, songId: song.id }];
       return {
         songs: exists
           ? state.songs.map((s) => (s.id === song.id ? song : s))
           : [...state.songs, song],
         songOrder: newOrder,
-        // Invalidate marker cache so next setActiveSongId reloads from DB
         markersBySong: exists
           ? Object.fromEntries(
               Object.entries(state.markersBySong).filter(([key]) => key !== song.id)
@@ -124,7 +142,9 @@ loadAllSongs: async () => {
     await deleteSong(id);
     set((state) => ({
       songs: state.songs.filter((s) => s.id !== id),
-      songOrder: state.songOrder.filter((sid) => sid !== id),
+      songOrder: state.songOrder.filter(
+        (item) => !(item.type === 'song' && item.songId === id),
+      ),
       activeSongId: state.activeSongId === id
         ? (state.songs.find((s) => s.id !== id)?.id ?? null)
         : state.activeSongId,
@@ -135,25 +155,56 @@ loadAllSongs: async () => {
     await setConfig('songOrder', get().songOrder);
   },
 
-  moveSong: async (id, direction) => {
+  // --- Setlist actions ---
+
+  moveItem: async (index, direction) => {
     const { songOrder } = get();
-    const idx = songOrder.indexOf(id);
-    if (idx === -1) return;
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= songOrder.length) return;
 
     const newOrder = [...songOrder];
-    [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
+    [newOrder[index], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[index]];
     set({ songOrder: newOrder });
     await setConfig('songOrder', newOrder);
   },
 
-    updateSong: async (song) => {
-      await saveSong(song);
-      set((state) => ({
-        songs: state.songs.map((s) => (s.id === song.id ? song : s)),
-      }));
-    },
+  addPause: async (afterIndex, duration = 5) => {
+    const id = `pause-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const pause: SetlistItem = { type: 'pause', id, duration };
+    set((state) => {
+      const newOrder = [...state.songOrder];
+      newOrder.splice(afterIndex + 1, 0, pause);
+      return { songOrder: newOrder };
+    });
+    await setConfig('songOrder', get().songOrder);
+  },
+
+  updatePause: async (id, duration, label) => {
+    set((state) => ({
+      songOrder: state.songOrder.map((item) =>
+        item.type === 'pause' && item.id === id
+          ? { ...item, duration, ...(label !== undefined && { label }) }
+          : item,
+      ),
+    }));
+    await setConfig('songOrder', get().songOrder);
+  },
+
+  removePause: async (id) => {
+    set((state) => ({
+      songOrder: state.songOrder.filter(
+        (item) => !(item.type === 'pause' && item.id === id),
+      ),
+    }));
+    await setConfig('songOrder', get().songOrder);
+  },
+
+  updateSong: async (song) => {
+    await saveSong(song);
+    set((state) => ({
+      songs: state.songs.map((s) => (s.id === song.id ? song : s)),
+    }));
+  },
 
   addMarker: async (marker) => {
     await saveMarker(marker);
