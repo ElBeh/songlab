@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import { useLoopStore } from '../stores/useLoopStore';
 
 interface UsePlaybackOptions {
   /** Called on every timeupdate with the current time in seconds */
@@ -44,6 +45,18 @@ export function usePlayback({ onTimeUpdate, onFinish }: UsePlaybackOptions = {})
 
   const handleFinish = useCallback(() => {
     if (songLoop) {
+      const { incrementLoopCount, loopTarget } = useLoopStore.getState();
+      incrementLoopCount();
+      // Read actual count after increment
+      const newCount = useLoopStore.getState().loopCount;
+      // Stop if target reached
+      if (loopTarget !== null && newCount >= loopTarget) {
+        setSongLoop(false);
+        useLoopStore.getState().resetLoopCount();
+        setIsPlaying(false);
+        onFinish?.();
+        return;
+      }
       wavesurferRef.current?.setTime(0);
       wavesurferRef.current?.play();
       setIsPlaying(true);
@@ -55,6 +68,7 @@ export function usePlayback({ onTimeUpdate, onFinish }: UsePlaybackOptions = {})
 
   const toggleSongLoop = useCallback(() => {
     setSongLoop((v) => !v);
+    useLoopStore.getState().resetLoopCount();
   }, []);
 
   return {

@@ -130,8 +130,16 @@ export function WaveformPlayer({
       onTimeUpdateRef.current(t);
 
       // Loop logic
-      const { loop: l, loopEnabled: le } = useLoopStore.getState();
+      const { loop: l, loopEnabled: le, loopTarget: lt } = useLoopStore.getState();
       if (le && l && t >= l.end) {
+        useLoopStore.getState().incrementLoopCount();
+        // Read actual count after increment
+        const newCount = useLoopStore.getState().loopCount;
+        // Stop if target reached
+        if (lt !== null && newCount >= lt) {
+          useLoopStore.getState().toggleLoop();
+          return;
+        }
         ws.setTime(l.start);
       }
     });
@@ -148,7 +156,8 @@ export function WaveformPlayer({
       ws.destroy();
       wavesurferRef.current = null;
     };
-  }, [audioUrl, wavesurferRef]);
+  }, [audioUrl, wavesurferRef]);  // eslint-disable-line react-hooks/exhaustive-deps
+                                  // height intentionally excluded – handled dynamically via setOptions in a separate effect
 
   const getPercentFromEvent = useCallback((e: MouseEvent): number => {
     const rect = waveContainerRef.current?.getBoundingClientRect();

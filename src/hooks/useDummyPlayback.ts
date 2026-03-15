@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useLoopStore } from '../stores/useLoopStore';
 
 interface UseDummyPlaybackOptions {
   duration: number;
@@ -55,6 +56,22 @@ export function useDummyPlayback({ duration, onTimeUpdate, onFinish }: UseDummyP
 
       if (newTime >= duration) {
         if (songLoopRef.current) {
+          const { incrementLoopCount, loopTarget } = useLoopStore.getState();
+          incrementLoopCount();
+          // Read actual count after increment
+          const newCount = useLoopStore.getState().loopCount;
+          // Stop if target reached
+          if (loopTarget !== null && newCount >= loopTarget) {
+            songLoopRef.current = false;
+            setSongLoop(false);
+            useLoopStore.getState().resetLoopCount();
+            currentTimeRef.current = duration;
+            setCurrentTime(duration);
+            onTimeUpdate?.(duration);
+            setIsPlaying(false);
+            onFinish?.();
+            return;
+          }
           currentTimeRef.current = 0;
           setCurrentTime(0);
           onTimeUpdate?.(0);
@@ -98,6 +115,7 @@ export function useDummyPlayback({ duration, onTimeUpdate, onFinish }: UseDummyP
 
   const toggleSongLoop = useCallback(() => {
     setSongLoop((v) => !v);
+    useLoopStore.getState().resetLoopCount();
   }, []);
 
   return {

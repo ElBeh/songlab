@@ -3,6 +3,7 @@ import { WaveformPlayer } from '../Player/WaveformPlayer';
 import { DummyWaveform } from '../Player/DummyWaveform';
 import { TransportControls } from '../Player/TransportControls';
 import { TempoControls } from '../Player/TempoControls';
+import { LoopControls } from '../Player/LoopControls';
 import { MarkerForm } from '../Markers/MarkerForm';
 import { TabEditor } from '../Tabs/TabEditor';
 import { TabViewer } from '../Tabs/TabViewer';
@@ -330,6 +331,20 @@ export default function AppShell() {
                       >
                         ⏮
                       </button>
+                      <div className='w-px h-6 bg-slate-600' />
+                      <button
+                        onClick={toggleSongLoop}
+                        className='px-3 py-1 rounded font-mono text-xs transition-colors'
+                        style={{
+                          backgroundColor: songLoop ? '#22c55e' : '#334155',
+                          color: songLoop ? '#fff' : '#94a3b8',
+                        }}
+                        title='Loop entire song'
+                      >
+                        🔁 song
+                      </button>
+                      <div className='w-px h-6 bg-slate-600' />
+                      <LoopControls songLoop={songLoop} />
                     </div>
                   )}
 

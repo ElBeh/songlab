@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import { useLoopStore } from '../../stores/useLoopStore';
+import { LoopControls } from './LoopControls';
 
 interface TransportControlsProps {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
@@ -48,14 +48,6 @@ export function TransportControls({
 }: TransportControlsProps) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
-
-  const loop = useLoopStore((state) => state.loop);
-  const loopEnabled = useLoopStore((state) => state.loopEnabled);
-  const abMode = useLoopStore((state) => state.abMode);
-  const abStart = useLoopStore((state) => state.abStart);
-  const toggleLoop = useLoopStore((state) => state.toggleLoop);
-  const toggleAbMode = useLoopStore((state) => state.toggleAbMode);
-  const clearLoop = useLoopStore((state) => state.clearLoop);
 
   const seekTo = (time: number) => {
     const clamped = Math.max(0, Math.min(duration, time));
@@ -135,57 +127,7 @@ export function TransportControls({
         🔁 song
       </button>
 
-      {/* A/B Mode toggle */}
-      <button
-        onClick={toggleAbMode}
-        className='px-3 py-1 rounded font-mono text-xs transition-colors'
-        style={{
-          backgroundColor: abMode ? '#f59e0b' : '#334155',
-          color: abMode ? '#000' : '#94a3b8',
-        }}
-        title='Toggle A/B mode'
-      >
-        {abMode ? (abStart === null ? '▸ click A' : '▸ click B') : 'A/B'}
-      </button>
-
-      {/* Loop toggle */}
-      <button
-        onClick={toggleLoop}
-        disabled={!loop}
-        className='px-3 py-1 rounded font-mono text-xs transition-colors
-                   disabled:opacity-30 disabled:cursor-not-allowed'
-        style={{
-          backgroundColor: loopEnabled ? '#6366f1' : '#334155',
-          color: loopEnabled ? '#fff' : '#94a3b8',
-        }}
-        title='Toggle loop (L)'
-      >
-        ↺ Loop
-      </button>
-
-      {/* Active loop info */}
-      {loop && (
-        <span className='text-xs font-mono text-slate-400'>
-          {loop.label && (
-            <span className='mr-1.5 px-1.5 py-0.5 rounded text-white text-xs'
-              style={{ backgroundColor: '#6366f1' }}>
-              {loop.label}
-            </span>
-          )}
-          {formatTime(loop.start)} – {formatTime(loop.end)}
-        </span>
-      )}
-
-      {/* Clear loop */}
-      {loop && (
-        <button
-          onClick={clearLoop}
-          className='px-3 py-1 rounded font-mono text-xs bg-slate-700
-                     hover:bg-red-900 text-slate-400 hover:text-red-300 transition-colors'
-        >
-          ✕ clear loop
-        </button>
-      )}
+      <LoopControls songLoop={songLoop} />
     </div>
   );
 }
