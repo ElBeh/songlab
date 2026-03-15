@@ -14,6 +14,7 @@ import { usePlayback } from '../../hooks/usePlayback';
 import { useAudioFile } from '../../hooks/useAudioFile';
 import { useActiveMarkerTracker } from '../../hooks/useActiveMarkerTracker';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { ToastContainer } from './Toast';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -252,6 +253,7 @@ export default function AppShell() {
           )}
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }

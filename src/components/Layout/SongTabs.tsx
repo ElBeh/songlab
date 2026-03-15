@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
+import { useToastStore } from '../../stores/useToastStore';
 
 interface SongTabsProps {
   onAddSong: () => void;
@@ -17,6 +18,7 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
 
   const orderedSongs = getOrderedSongs();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const addToast = useToastStore((state) => state.addToast);
 
   return (
     <div className='flex items-center gap-1 overflow-x-auto'>
@@ -43,6 +45,7 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  addToast(`Removed "${song.title}"`, 'info');
                   removeSong(song.id);
                   setConfirmDeleteId(null);
                 }}

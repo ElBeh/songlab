@@ -5,6 +5,7 @@ import { exportSong, importSong } from '../../services/exportImport';
 import { exportSetlist, importSetlist } from '../../services/setlistService';
 import type { Setlist } from '../../types';
 import { useTabStore } from '../../stores/useTabStore';
+import { useToastStore } from '../../stores/useToastStore';
 
 interface SidebarProps {
   onSeekTo: (time: number) => void;
@@ -28,10 +29,12 @@ export function Sidebar({ onSeekTo, duration, currentTime }: SidebarProps) {
 
   const activeSong = getActiveSong();
   const orderedSongs = getOrderedSongs();
+  const addToast = useToastStore((state) => state.addToast);
 
   const handleExportSong = async () => {
     if (!activeSong) return;
     await exportSong(activeSong);
+    addToast(`Exported "${activeSong.title}"`, 'success');
   };
 
 const handleImportSong = () => {
@@ -47,8 +50,10 @@ const handleImportSong = () => {
       await setActiveSongId(song.id);
       await useTabStore.getState().loadTabsForSong(song.id);
       await useTabStore.getState().loadSheetsForSong(song.id);
+      addToast(`Imported "${song.title}"`, 'success');
     } catch (err) {
       console.error('Import failed:', err);
+      addToast('Song import failed', 'error');
     }
   };
   input.click();
@@ -56,6 +61,7 @@ const handleImportSong = () => {
   const handleExportSetlist = async () => {
     if (!setlistName.trim()) return;
     await exportSetlist(setlistName.trim(), orderedSongs);
+    addToast(`Exported setlist "${setlistName.trim()}"`, 'success');
   };
 
   const handleImportSetlist = () => {
@@ -73,10 +79,12 @@ const handleImportSong = () => {
         if (importedSongs.length > 0) {
           await setActiveSongId(importedSongs[0].id);
           await useTabStore.getState().loadTabsForSong(importedSongs[0].id);
-          await useTabStore.getState().loadSheetsForSong(importedSongs[0].id); // neu
+          await useTabStore.getState().loadSheetsForSong(importedSongs[0].id);
         }
+        addToast(`Imported ${importedSongs.length} song(s)`, 'success');
       } catch (err) {
         console.error('Setlist import failed:', err);
+        addToast('Setlist import failed', 'error');
       }
     };
     input.click();

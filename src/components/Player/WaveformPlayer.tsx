@@ -373,7 +373,7 @@ export function WaveformPlayer({
               <span
                 className='absolute top-1 left-2 text-xs font-mono whitespace-nowrap
                            px-1.5 py-0.5 rounded pointer-events-none'
-                style={{ backgroundColor: SECTION_COLORS[marker.type], color: '#fff' }}
+                style={{ backgroundColor: marker.color, color: '#fff' }}
               >
                 {marker.label}
               </span>
