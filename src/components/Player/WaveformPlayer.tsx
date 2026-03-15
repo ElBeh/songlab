@@ -3,7 +3,6 @@ import WaveSurfer from 'wavesurfer.js';
 import { useSongStore } from '../../stores/useSongStore';
 import { useLoopStore } from '../../stores/useLoopStore';
 import { WaveformTimeline } from './WaveformTimeline';
-import { SECTION_COLORS } from '../../utils/sectionColors';
 import { useTempoStore } from '../../stores/useTempoStore';
 
 interface WaveformPlayerProps {

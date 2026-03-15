@@ -6,14 +6,17 @@ import { analyzeRmsGain } from '../services/audioAnalysis';
 interface UseAudioFileOptions {
   /** Called after a new file is loaded, before wavesurfer picks it up */
   onFileLoaded?: () => void;
+  /** Called after a dummy song is upgraded with an audio file */
+  onUpgraded?: () => void;
 }
 
-export function useAudioFile({ onFileLoaded }: UseAudioFileOptions = {}) {
+export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions = {}) {
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState(false);
 
   const activeSongId = useSongStore((state) => state.activeSongId);
   const addSong = useSongStore((state) => state.addSong);
+  const updateSong = useSongStore((state) => state.updateSong);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const loadTabsForSong = useTabStore((state) => state.loadTabsForSong);
 
@@ -40,6 +43,7 @@ export function useAudioFile({ onFileLoaded }: UseAudioFileOptions = {}) {
       volume: existingSong?.volume ?? 1.0,
       normalizationGain: existingSong?.normalizationGain ?? normalizationGain,
       normalizationEnabled: existingSong?.normalizationEnabled ?? (normalizationGain !== 1.0),
+      isDummy: false,
     };
 
     await addSong(song);
@@ -70,6 +74,28 @@ export function useAudioFile({ onFileLoaded }: UseAudioFileOptions = {}) {
     setIsDragging(false);
   }, []);
 
+  /** Attach a real audio file to an existing dummy song (upgrade flow) */
+  const upgradeDummySong = useCallback(async (file: File, dummySongId: string) => {
+    const url = URL.createObjectURL(file);
+    const normalizationGain = await analyzeRmsGain(file);
+
+    const existing = useSongStore.getState().songs.find((s) => s.id === dummySongId);
+    if (!existing) return;
+
+    const upgraded = {
+      ...existing,
+      fileName: file.name,
+      fileSize: file.size,
+      normalizationGain,
+      normalizationEnabled: normalizationGain !== 1.0,
+      isDummy: false,
+    };
+
+    await updateSong(upgraded);
+    setAudioUrls((prev) => ({ ...prev, [dummySongId]: url }));
+    onUpgraded?.();
+  }, [updateSong, onUpgraded]);
+
   return {
     audioUrl,
     isDragging,
@@ -78,5 +104,6 @@ export function useAudioFile({ onFileLoaded }: UseAudioFileOptions = {}) {
     handleFileInput,
     handleDragOver,
     handleDragLeave,
+    upgradeDummySong,
   };
 }

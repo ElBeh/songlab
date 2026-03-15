@@ -30,6 +30,7 @@ export interface SongData {
   volume: number;           // 0–1, default 1.0
   normalizationGain: number; // RMS-based gain factor, default 1.0
   normalizationEnabled: boolean;
+  isDummy: boolean;           // true = no audio file, simulated playback
 }
 
 export interface LoopRange {

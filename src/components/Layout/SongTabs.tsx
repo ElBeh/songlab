@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 
 interface SongTabsProps {
   onAddSong: () => void;
+  onCreateDummy: () => void;
 }
 
-export function SongTabs({ onAddSong }: SongTabsProps) {
+export function SongTabs({ onAddSong, onCreateDummy }: SongTabsProps) {
   const getOrderedSongs = useSongStore((state) => state.getOrderedSongs);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
@@ -18,7 +19,23 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
 
   const orderedSongs = getOrderedSongs();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const addToast = useToastStore((state) => state.addToast);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu]);
 
   return (
     <div className='flex items-center gap-1 overflow-x-auto'>
@@ -73,15 +90,47 @@ export function SongTabs({ onAddSong }: SongTabsProps) {
         );
       })}
 
-      {/* Add song button */}
-      <button
-        onClick={onAddSong}
-        className='px-3 py-1.5 rounded-t-lg font-mono text-sm text-slate-500
-                   hover:text-slate-300 transition-colors shrink-0'
-        title='Load new song'
-      >
-        + song
-      </button>
+      {/* Add song dropdown */}
+      <div className='shrink-0'>
+        <button
+          ref={btnRef}
+          onClick={() => {
+            if (btnRef.current) {
+              const rect = btnRef.current.getBoundingClientRect();
+              setMenuPos({ top: rect.bottom + 4, left: rect.left });
+            }
+            setShowMenu((v) => !v);
+          }}
+          className='px-3 py-1.5 rounded-t-lg font-mono text-lg text-slate-500
+                     hover:text-slate-300 transition-colors'
+          title='Add song'
+        >
+          +
+        </button>
+      </div>
+      {showMenu && (
+        <div
+          ref={menuRef}
+          className='fixed bg-slate-800 border border-slate-700
+                     rounded-lg shadow-xl py-1 z-50 min-w-44'
+          style={{ top: menuPos.top, left: menuPos.left }}
+        >
+          <button
+            onClick={() => { setShowMenu(false); onAddSong(); }}
+            className='w-full text-left px-4 py-2 text-sm font-mono text-slate-300
+                       hover:bg-slate-700 hover:text-white transition-colors'
+          >
+            🎵 Load audio file
+          </button>
+          <button
+            onClick={() => { setShowMenu(false); onCreateDummy(); }}
+            className='w-full text-left px-4 py-2 text-sm font-mono text-slate-300
+                       hover:bg-slate-700 hover:text-white transition-colors'
+          >
+            📝 Create without audio
+          </button>
+        </div>
+      )}
     </div>
   );
 }

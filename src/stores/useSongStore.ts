@@ -73,12 +73,13 @@ export const useSongStore = create<SongStore>((set, get) => ({
     return ordered;
   },
 
-  loadAllSongs: async () => {
-    const songs = await getAllSongs();
+loadAllSongs: async () => {
+    const raw = await getAllSongs();
+    // Migrate legacy songs that predate the isDummy field
+    const songs = raw.map((s) => ({ ...s, isDummy: s.isDummy ?? false }));
     const savedOrder = await getConfig<string[]>('songOrder');
     set({ songs, songOrder: savedOrder ?? songs.map((s) => s.id) });
   },
-
 
   addSong: async (song) => {
     await saveSong(song);

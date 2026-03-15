@@ -4,6 +4,7 @@ import { useLoopStore } from '../../stores/useLoopStore';
 
 interface TransportControlsProps {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
+  onSeek?: (time: number) => void;    // ← neu
   currentTime: number;
   duration: number;
   isPlaying: boolean;
@@ -36,6 +37,7 @@ function parseTimeInput(input: string): number | null {
 
 export function TransportControls({
   wavesurferRef,
+  onSeek,
   currentTime,
   duration,
   isPlaying,
@@ -55,29 +57,27 @@ export function TransportControls({
   const toggleAbMode = useLoopStore((state) => state.toggleAbMode);
   const clearLoop = useLoopStore((state) => state.clearLoop);
 
-  const handleSeekBack = () => {
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    ws.setTime(Math.max(0, currentTime - 1));
+  const seekTo = (time: number) => {
+    const clamped = Math.max(0, Math.min(duration, time));
+    if (wavesurferRef.current) {
+      wavesurferRef.current.setTime(clamped);
+    } else {
+      onSeek?.(clamped);
+    }
   };
 
-  const handleSeekForward = () => {
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    ws.setTime(Math.min(duration, currentTime + 1));
+  const handleSeekBack = () => seekTo(currentTime - 1);
+  const handleSeekForward = () => seekTo(currentTime + 1);
+
+  const handleTimeCommit = () => {
+    const seconds = parseTimeInput(inputValue);
+    if (seconds !== null) seekTo(seconds);
+    setEditing(false);
   };
 
   const handleTimeClick = () => {
     setInputValue(formatTime(currentTime));
     setEditing(true);
-  };
-
-  const handleTimeCommit = () => {
-    const seconds = parseTimeInput(inputValue);
-    if (seconds !== null) {
-      wavesurferRef.current?.setTime(Math.max(0, Math.min(duration, seconds)));
-    }
-    setEditing(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

@@ -7,6 +7,9 @@ interface KeyboardShortcutsOptions {
   onPlayPause: () => void;
   onAddMarker: () => void;
   isPlaying: boolean;
+  onSeek?: (time: number) => void;
+  currentTime?: number;
+  duration?: number;
 }
 
 export function useKeyboardShortcuts({
@@ -14,6 +17,9 @@ export function useKeyboardShortcuts({
   onPlayPause,
   onAddMarker,
   isPlaying,
+  onSeek,
+  currentTime = 0,
+  duration = 0,
 }: KeyboardShortcutsOptions) {
   const toggleLoop = useLoopStore((state) => state.toggleLoop);
   const loop = useLoopStore((state) => state.loop);
@@ -38,25 +44,33 @@ export function useKeyboardShortcuts({
           e.preventDefault();
           if (loop) toggleLoop();
           break;
-        case 'ArrowLeft':
+          case 'ArrowLeft':
           e.preventDefault();
-          wavesurferRef.current?.setTime(
-            Math.max(0, (wavesurferRef.current?.getCurrentTime() ?? 0) - 1),
-          );
+          if (wavesurferRef.current) {
+            wavesurferRef.current.setTime(
+              Math.max(0, (wavesurferRef.current.getCurrentTime() ?? 0) - 1),
+            );
+          } else {
+            onSeek?.(Math.max(0, currentTime - 1));
+          }
           break;
         case 'ArrowRight':
           e.preventDefault();
-          wavesurferRef.current?.setTime(
-            Math.min(
-              wavesurferRef.current?.getDuration() ?? 0,
-              (wavesurferRef.current?.getCurrentTime() ?? 0) + 1,
-            ),
-          );
+          if (wavesurferRef.current) {
+            wavesurferRef.current.setTime(
+              Math.min(
+                wavesurferRef.current.getDuration() ?? 0,
+                (wavesurferRef.current.getCurrentTime() ?? 0) + 1,
+              ),
+            );
+          } else {
+            onSeek?.(Math.min(duration, currentTime + 1));
+          }
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying, toggleLoop, loop]);
+  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying, toggleLoop, loop, onSeek, currentTime, duration]);
 }
