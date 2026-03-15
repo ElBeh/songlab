@@ -200,7 +200,7 @@ export default function AppShell() {
       {/* Header */}
       <header className='px-6 py-3 border-b border-slate-700 flex items-center gap-3'>
         <span className='text-indigo-400 text-xl'>🎸</span>
-        <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
+        <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab v0.7</h1>
 
         {/* Mode toggle – segmented control */}
         <div className='flex bg-slate-800 rounded-lg p-0.5 font-mono text-xs'>
