@@ -9,6 +9,7 @@ import {
   deleteMarker,
   getConfig,
   setConfig,
+  deleteAudioFile,
 } from '../services/db';
 
 // Helper: migrate legacy string[] order to SetlistItem[]
@@ -141,6 +142,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   removeSong: async (id) => {
     await deleteSong(id);
+    await deleteAudioFile(id);
     set((state) => ({
       songs: state.songs.filter((s) => s.id !== id),
       songOrder: state.songOrder.filter(

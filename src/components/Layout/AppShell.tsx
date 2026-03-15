@@ -146,6 +146,14 @@ export default function AppShell() {
     }
   }, [activeSongId, isDummy, dummyPlayback]);
 
+  // Load persisted audio from IndexedDB when switching songs
+  useEffect(() => {
+    if (!activeSongId || isDummy) return;
+    // Only load if not already cached (avoids redundant DB reads)
+    if (audioFile.audioUrl) return;
+    audioFile.loadPersistedAudio(activeSongId);
+  }, [activeSongId, isDummy, audioFile]);
+
   // --- Add marker handler ---
   const handleAddMarker = useCallback(() => {
     if (!audioFile.audioUrl && !isDummy) return;

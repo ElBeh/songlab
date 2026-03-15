@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSongStore } from '../stores/useSongStore';
 import { useTabStore } from '../stores/useTabStore';
 import { analyzeRmsGain } from '../services/audioAnalysis';
+import { saveAudioFile, getAudioFile } from '../services/db';
 
 interface UseAudioFileOptions {
   /** Called after a new file is loaded, before wavesurfer picks it up */
@@ -45,6 +46,10 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
       normalizationEnabled: existingSong?.normalizationEnabled ?? (normalizationGain !== 1.0),
       isDummy: false,
     };
+
+    // Persist audio data to IndexedDB
+    const arrayBuffer = await file.arrayBuffer();
+    await saveAudioFile(song.id, arrayBuffer, file.type || 'audio/mpeg');
 
     await addSong(song);
     await setActiveSongId(song.id);
@@ -91,10 +96,28 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
       isDummy: false,
     };
 
+    // Persist audio data to IndexedDB
+    const arrayBuffer = await file.arrayBuffer();
+    await saveAudioFile(dummySongId, arrayBuffer, file.type || 'audio/mpeg');
+
     await updateSong(upgraded);
     setAudioUrls((prev) => ({ ...prev, [dummySongId]: url }));
     onUpgraded?.();
   }, [updateSong, onUpgraded]);
+
+  /** Load persisted audio from IndexedDB for a given song */
+  const loadPersistedAudio = useCallback(async (songId: string): Promise<string | null> => {
+    // Already cached in memory
+    if (audioUrls[songId]) return audioUrls[songId];
+
+    const stored = await getAudioFile(songId);
+    if (!stored) return null;
+
+    const blob = new Blob([stored.data], { type: stored.mimeType });
+    const url = URL.createObjectURL(blob);
+    setAudioUrls((prev) => ({ ...prev, [songId]: url }));
+    return url;
+  }, [audioUrls]);
 
   return {
     audioUrl,
@@ -105,5 +128,6 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
     handleDragOver,
     handleDragLeave,
     upgradeDummySong,
+    loadPersistedAudio,
   };
 }

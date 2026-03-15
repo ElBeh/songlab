@@ -26,10 +26,14 @@ interface SongLabDB extends DBSchema {
     key: string;
     value: { key: string; value: unknown };
   };
+  audioFiles: {
+    key: string;           // songId
+    value: { songId: string; data: ArrayBuffer; mimeType: string };
+  };
 }
 
 const DB_NAME = 'songlab';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbInstance: IDBPDatabase<SongLabDB> | null = null;
 
@@ -53,6 +57,9 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
     }
       if (oldVersion < 5) {
         db.createObjectStore('config', { keyPath: 'key' });
+      }
+      if (oldVersion < 6) {
+        db.createObjectStore('audioFiles', { keyPath: 'songId' });
       }
     },
   });
@@ -142,4 +149,27 @@ export async function getConfig<T>(key: string): Promise<T | undefined> {
 export async function setConfig<T>(key: string, value: T): Promise<void> {
   const db = await getDB();
   await db.put('config', { key, value });
+}
+
+// --- Audio Files ---
+
+export async function saveAudioFile(
+  songId: string,
+  data: ArrayBuffer,
+  mimeType: string,
+): Promise<void> {
+  const db = await getDB();
+  await db.put('audioFiles', { songId, data, mimeType });
+}
+
+export async function getAudioFile(
+  songId: string,
+): Promise<{ data: ArrayBuffer; mimeType: string } | undefined> {
+  const db = await getDB();
+  return db.get('audioFiles', songId);
+}
+
+export async function deleteAudioFile(songId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('audioFiles', songId);
 }
