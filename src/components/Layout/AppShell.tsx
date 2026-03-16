@@ -300,7 +300,7 @@ export default function AppShell() {
               color: !isBand ? '#fff' : '#64748b',
             }}
           >
-            🎸 Practice
+            Practice
           </button>
           <button
             onClick={() => useModeStore.getState().setMode('band')}
@@ -310,7 +310,7 @@ export default function AppShell() {
               color: isBand ? '#fff' : '#64748b',
             }}
           >
-            🎤 Band
+            Band
           </button>
         </div>
         )}

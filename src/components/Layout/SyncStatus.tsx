@@ -78,7 +78,7 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
         />
         {status === 'connected' ? (
           <span className='text-slate-300'>
-            {role === 'host' ? '📡' : '📱'} {peerCount}
+            {role === 'host' ? 'Host' : 'Viewer'} {'('}{peerCount}{')'}
           </span>
         ) : status === 'connecting' ? (
           <span className='text-yellow-400'>connecting…</span>
@@ -183,14 +183,14 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
                         color: selectedRole === r ? '#fff' : '#64748b',
                       }}
                     >
-                      {r === 'host' ? '📡 Host' : '📱 Viewer'}
+                      {r === 'host' ? 'Host' : 'Viewer'}
                     </button>
                   ))}
                 </div>
                 <p className='text-[10px] font-mono text-slate-600'>
                   {selectedRole === 'host'
-                    ? 'Controls playback & song selection'
-                    : 'Follows the host, can edit tabs & markers'}
+                    ? 'Controls playback & song selection (edit mode)'
+                    : 'Follows the host (read-only mode)'}
                 </p>
               </div>
 
