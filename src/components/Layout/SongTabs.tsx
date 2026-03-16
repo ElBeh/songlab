@@ -70,7 +70,7 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
             onClick={isViewer ? undefined : async () => {
               await setActiveSongId(song.id);
               await useTabStore.getState().loadTabsForSong(song.id);
-              await useTabStore.getState().loadSheetsForSong(song.id); // neu
+              await useTabStore.getState().loadSheetsForSong(song.id); 
             }}
           >
             {song.isDummy && (

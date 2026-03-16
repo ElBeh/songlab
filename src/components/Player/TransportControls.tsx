@@ -4,7 +4,7 @@ import { LoopControls } from './LoopControls';
 
 interface TransportControlsProps {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
-  onSeek?: (time: number) => void;    // ← neu
+  onSeek?: (time: number) => void;    
   currentTime: number;
   duration: number;
   isPlaying: boolean;
