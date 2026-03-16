@@ -18,13 +18,28 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
   // Subscribe to songOrder so tabs re-render on reorder
   useSongStore((state) => state.songOrder);
 
+  const updateSong = useSongStore((state) => state.updateSong);
+
   const orderedSongs = getOrderedSongs();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const addToast = useToastStore((state) => state.addToast);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Commit song title rename
+  const commitRename = async (song: typeof orderedSongs[0]) => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== song.title) {
+      await updateSong({ ...song, title: trimmed });
+      addToast(`Renamed to "${trimmed}"`, 'info');
+    }
+    setEditingId(null);
+  };
 
   // Close menu on outside click
   useEffect(() => {
@@ -61,7 +76,34 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
             {song.isDummy && (
               <span className='text-[10px] text-slate-600' title='No audio file'>📝</span>
             )}
-            <span className='max-w-36 truncate'>{song.title}</span>
+            {editingId === song.id ? (
+              <input
+                ref={editInputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename(song);
+                  if (e.key === 'Escape') setEditingId(null);
+                }}
+                onBlur={() => commitRename(song)}
+                onClick={(e) => e.stopPropagation()}
+                className='max-w-36 bg-slate-700 text-slate-100 text-sm font-mono
+                           px-1 rounded outline-none border border-indigo-500'
+                autoFocus
+              />
+            ) : (
+              <span
+                className='max-w-36 truncate'
+                onDoubleClick={(e) => {
+                  if (isViewer) return;
+                  e.stopPropagation();
+                  setEditingId(song.id);
+                  setEditValue(song.title);
+                }}
+              >
+                {song.title}
+              </span>
+            )}
             {!isViewer && (confirmDeleteId === song.id ? (
               <button
                 onClick={(e) => {

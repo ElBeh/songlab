@@ -37,6 +37,10 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false }: S
   const addPause = useSongStore((state) => state.addPause);
   const updatePause = useSongStore((state) => state.updatePause);
   const removePause = useSongStore((state) => state.removePause);
+  const updateSong = useSongStore((state) => state.updateSong);
+
+  const [editingSongId, setEditingSongId] = useState<string | null>(null);
+  const [editingSongValue, setEditingSongValue] = useState('');
 
   const activeSong = getActiveSong();
   const orderedSongs = getOrderedSongs();
@@ -45,6 +49,16 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false }: S
 
   // Build a song lookup for rendering
   const songMap = new Map(songs.map((s) => [s.id, s]));
+
+  // Commit song title rename
+  const commitSongRename = async (song: typeof songs[0]) => {
+    const trimmed = editingSongValue.trim();
+    if (trimmed && trimmed !== song.title) {
+      await updateSong({ ...song, title: trimmed });
+      addToast(`Renamed to "${trimmed}"`, 'info');
+    }
+    setEditingSongId(null);
+  };
 
   const handleExportSong = async () => {
     if (!activeSong) return;
@@ -280,16 +294,47 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false }: S
                     )}
 
                     {/* Song title */}
-                    <span
-                      className='flex-1 text-xs font-mono truncate cursor-pointer'
-                      onClick={isViewer ? undefined : async () => {
-                        await setActiveSongId(song.id);
-                        await useTabStore.getState().loadTabsForSong(song.id);
-                        await useTabStore.getState().loadSheetsForSong(song.id);
+                    {editingSongId === song.id ? (
+                      <input
+                        value={editingSongValue}
+                        onChange={(e) => setEditingSongValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitSongRename(song);
+                          if (e.key === 'Escape') setEditingSongId(null);
+                        }}
+                        onBlur={() => commitSongRename(song)}
+                        className='flex-1 bg-slate-700 text-slate-100 text-xs font-mono
+                                   px-1 rounded outline-none border border-indigo-500
+                                   min-w-0'
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className='flex-1 text-xs font-mono truncate cursor-pointer'
+                        onClick={isViewer ? undefined : async () => {
+                          await setActiveSongId(song.id);
+                          await useTabStore.getState().loadTabsForSong(song.id);
+                          await useTabStore.getState().loadSheetsForSong(song.id);
+                        }}
+                      >
+                        {song.title}
+                      </span>
+                    )}
+
+                    {/* Rename button */}
+                    {!isViewer && (
+                    <button
+                      onClick={() => {
+                        setEditingSongId(song.id);
+                        setEditingSongValue(song.title);
                       }}
+                      className='text-slate-600 hover:text-indigo-400 transition-colors
+                                 text-sm font-mono opacity-0 group-hover:opacity-100'
+                      title='Rename song'
                     >
-                      {song.title}
-                    </span>
+                      ✎
+                    </button>
+                    )}
 
                     {/* Delete button */}
                     {!isViewer && (

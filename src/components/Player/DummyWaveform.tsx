@@ -85,7 +85,7 @@ export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: Du
         style={{ height: `${height}px` }}
         onClick={handleClick}
       >
-        {/* Static placeholder bars */}
+        {/* Static placeholder bars (unplayed = dim) */}
         <div className='absolute inset-0 flex items-center justify-center gap-px opacity-30'>
           {Array.from({ length: 120 }).map((_, i) => {
             // Deterministic pseudo-random heights for visual variety
@@ -94,6 +94,24 @@ export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: Du
               <div
                 key={i}
                 className='flex-1 bg-slate-500 rounded-sm'
+                style={{ height: `${h}%`, minWidth: '2px' }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Progress overlay (played = bright, clipped to playhead position) */}
+        <div
+          className='absolute inset-0 flex items-center justify-center gap-px opacity-60
+                     pointer-events-none'
+          style={{ clipPath: `inset(0 ${100 - progressPercent}% 0 0)` }}
+        >
+          {Array.from({ length: 120 }).map((_, i) => {
+            const h = 20 + ((i * 7 + 13) % 60);
+            return (
+              <div
+                key={i}
+                className='flex-1 bg-slate-300 rounded-sm'
                 style={{ height: `${h}%`, minWidth: '2px' }}
               />
             );

@@ -21,6 +21,7 @@ interface TabStore {
   sheets: TabSheet[];                          // global per song
   activeMarkerId: string | null;
   activeSheetId: string | null;               // active sheet per session
+  preferredSheetType: string | null;          // remembered across song switches
 
   // --- Tab actions ---
   loadTabsForSong: (songId: string) => Promise<void>;
@@ -44,6 +45,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
   sheets: [],
   activeMarkerId: null,
   activeSheetId: null,
+  preferredSheetType: localStorage.getItem('songlab:preferredSheetType'),
 
   loadTabsForSong: async (songId) => {
     const tabs = await getTabsForSong(songId);
@@ -79,7 +81,10 @@ export const useTabStore = create<TabStore>((set, get) => ({
   loadSheetsForSong: async (songId) => {
     const sheets = await getTabSheetsForSong(songId);
     const sorted = sheets.sort((a, b) => a.order - b.order);
-    set({ sheets: sorted, activeSheetId: sorted[0]?.id ?? null });
+    // Prefer sheet matching the user's last-used type, fallback to first
+    const preferred = get().preferredSheetType;
+    const match = preferred ? sorted.find((s) => s.type === preferred) : null;
+    set({ sheets: sorted, activeSheetId: match?.id ?? sorted[0]?.id ?? null });
   },
 
   addSheet: async (sheet) => {
@@ -117,7 +122,15 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
   setActiveMarker: (id) => set({ activeMarkerId: id }),
 
-  setActiveSheet: (id) => set({ activeSheetId: id }),
+  setActiveSheet: (id) => {
+    const sheet = get().sheets.find((s) => s.id === id);
+    if (sheet) {
+      localStorage.setItem('songlab:preferredSheetType', sheet.type);
+      set({ activeSheetId: id, preferredSheetType: sheet.type });
+    } else {
+      set({ activeSheetId: id });
+    }
+  },
 
   getTabForMarkerAndSheet: (markerId, sheetId) => {
     return get().tabs[`${markerId}-${sheetId}`] ?? null;

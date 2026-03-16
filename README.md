@@ -1,6 +1,6 @@
 # SongLab
 
-**Guitar practice & song structure tool for your browser.**
+**Practice & song structure tool for your browser.**
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)
@@ -27,14 +27,26 @@ SongLab is a browser-based practice tool for musicians and bands (all major brow
 - **PWA support** – Install as a standalone app, works offline after first load
 
 ## Screenshots
-
-<!-- TODO: Add screenshots
-![Waveform with markers](docs/screenshots/waveform-markers.png)
-![Tab editor](docs/screenshots/tab-editor.png)
-![Band Sync](docs/screenshots/band-sync.png)
--->
-
-*Screenshots coming soon.*
+ 
+### Practice Mode – Sections & Markers
+Color-coded section markers on the waveform, section list with timestamps, ASCII tab editor with multiple sheets, speed and pitch controls.
+ 
+![Practice Mode – Sections](docs/screenshots/practicemode_sections.png)
+ 
+### Practice Mode – Setlist
+Setlist sidebar with songs and pause entries, drag & drop reordering, setlist export/import.
+ 
+![Practice Mode – Setlist](docs/screenshots/practicemode_setlist.png)
+ 
+### Band Sync – Host
+Full playback control, auto-advance between songs, real-time sync to all connected viewers.
+ 
+![Band Sync – Host](docs/screenshots/bandmode_host.png)
+ 
+### Band Sync – Viewer
+Read-only view on any device in the local network. Each member picks their own instrument sheet.
+ 
+![Band Sync – Viewer](docs/screenshots/bandmode_viewer.png)
 
 ## Quick Start
 
@@ -99,6 +111,8 @@ SongLab's Band Sync is designed for the **shared room** scenario: the band plays
 
 ## Roadmap
 
+- Count-in with audio click before song playback (configurable beats & BPM)
+- Metronome for dummy songs (audio click during playback)
 - Band Sync: mDNS auto-discovery (no more manual IP entry)
 - Hosted web version (Vercel / GitHub Pages) for instant solo practice
 - Tauri desktop app with bundled sync server
