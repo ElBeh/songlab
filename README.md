@@ -11,7 +11,7 @@
 
 ## What is SongLab?
 
-SongLab is a browser-based practice tool for guitarists and bands. Load a song, visualize its waveform, mark sections (Chorus, Verse, Bridge, Solo…), attach ASCII tabs per section, and practice at your own pace with looping and tempo controls. Band Sync Mode turns it into a shared digital music stand over your local network.
+SongLab is a browser-based practice tool for musicians and bands (all major browsers supported). Load a song, visualize its waveform, mark sections (Chorus, Verse, Bridge, Solo…), attach ASCII tabs or notes per section, and practice at your own pace with looping and tempo controls. Band Sync Mode turns it into a shared digital music stand over your local network with your own setlist.
 
 ### Features
 
