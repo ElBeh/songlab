@@ -2,16 +2,14 @@
 
 **Practice & song structure tool for your browser.**
 
+**[Try it now](https://elbeh.github.io/songlab/)** – no install, runs entirely in your browser. Note: Only solo mode. Band Sync Mode is **not** available on GitHub Pages. If you want to use the Band Sync Mode you need to run a server on your local device.
+
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![wavesurfer.js](https://img.shields.io/badge/wavesurfer.js-7-purple)
 
 ---
-
-**Practice & song structure tool for your browser.**
-
-**[Try it now](https://elbeh.github.io/songlab/)** – no install, runs entirely in your browser. Note: Only solo mode. Band Sync Mode is **not** available on GitHub Pages. If you want to use the Band Sync Mode you need to run a server on your local device.
 
 ## What is SongLab?
 
