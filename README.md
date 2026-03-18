@@ -9,6 +9,10 @@
 
 ---
 
+**Practice & song structure tool for your browser.**
+
+**[Try it now](https://elbeh.github.io/songlab/)** – no install, runs entirely in your browser. Note: Only solo mode. Band Sync Mode is **not** available on GitHub Pages. If you want to use the Band Sync Mode you need to run a server on your local device.
+
 ## What is SongLab?
 
 SongLab is a browser-based practice tool for musicians and bands (all major browsers supported). Load a song, visualize its waveform, mark sections (Chorus, Verse, Bridge, Solo…), attach ASCII tabs or notes per section, and practice at your own pace with looping and tempo controls. Band Sync Mode turns it into a shared digital music stand over your local network with your own setlist.
@@ -114,7 +118,6 @@ SongLab's Band Sync is designed for the **shared room** scenario: the band plays
 - Count-in with audio click before song playback (configurable beats & BPM)
 - Metronome for dummy songs (audio click during playback)
 - Band Sync: mDNS auto-discovery (no more manual IP entry)
-- Hosted web version (Vercel / GitHub Pages) for instant solo practice
 - Tauri desktop app with bundled sync server
 - Band Sync enhancements: host promotion, presenter mode
 
