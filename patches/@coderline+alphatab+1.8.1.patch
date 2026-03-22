@@ -1,0 +1,26 @@
+diff --git a/node_modules/@coderline/alphatab/dist/alphaTab.core.mjs b/node_modules/@coderline/alphatab/dist/alphaTab.core.mjs
+index 4b08efc..a7e3738 100644
+--- a/node_modules/@coderline/alphatab/dist/alphaTab.core.mjs
++++ b/node_modules/@coderline/alphatab/dist/alphaTab.core.mjs
+@@ -55495,7 +55495,7 @@ class AlphaSynthWebWorkerApi {
+         });
+     }
+     get loadedMidiInfo() {
+-        return this.loadedMidiInfo;
++        return this._loadedMidiInfo;
+     }
+     get currentPosition() {
+         return this._currentPosition;
+diff --git a/node_modules/@coderline/alphatab/dist/alphaTab.js b/node_modules/@coderline/alphatab/dist/alphaTab.js
+index 637cbd0..256c59b 100644
+--- a/node_modules/@coderline/alphatab/dist/alphaTab.js
++++ b/node_modules/@coderline/alphatab/dist/alphaTab.js
+@@ -55501,7 +55501,7 @@
+             });
+         }
+         get loadedMidiInfo() {
+-            return this.loadedMidiInfo;
++            return this._loadedMidiInfo;
+         }
+         get currentPosition() {
+             return this._currentPosition;

@@ -18,6 +18,7 @@ import { useToastStore } from '../../stores/useToastStore';
 import { useModeStore } from '../../stores/useModeStore';
 import { usePlayback } from '../../hooks/usePlayback';
 import { useDummyPlayback } from '../../hooks/useDummyPlayback';
+import { useAlphaSynthPlayback } from '../../hooks/useAlphaSynthPlayback';
 import { useAudioFile } from '../../hooks/useAudioFile';
 import { useActiveMarkerTracker } from '../../hooks/useActiveMarkerTracker';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -74,10 +75,12 @@ export default function AppShell() {
   const pendingAutoPlayRef = useRef(false);
   const setlistAdvance = useSetlistAdvance({
     onPlay: () => {
-      // If wavesurfer is ready (song already loaded during countdown), play directly
       const ws = playback.wavesurferRef.current;
       const nextSong = useSongStore.getState().getActiveSong();
-      if (nextSong?.isDummy) {
+      if (nextSong?.isDummy && nextSong.gpFileName) {
+        // alphaSynth song – defer until player is ready
+        pendingAutoPlayRef.current = true;
+      } else if (nextSong?.isDummy) {
         dummyPlayback.setCurrentTime(0);
         dummyPlayback.setIsPlaying(true);
       } else if (ws) {
@@ -100,26 +103,44 @@ export default function AppShell() {
     if (active) setActiveMarker(active.id);
   }, [setActiveMarker]);
 
-  // --- Playback hooks (both always called, React rules) ---
+  // --- GP file (loaded early for isAlphaSynth routing) ---
+  const gpFile = useGpFile();
+  const hasGpFile = !!gpFile.activeGpData;
+  const isAlphaSynth = isDummy && hasGpFile;
+  const isPureDummy = isDummy && !hasGpFile;
+
+  // --- Playback hooks (all three always called – React rules of hooks) ---
   const playback = usePlayback({
-    onTimeUpdate: isDummy ? undefined : onMarkerTimeUpdate,
-    onFinish: isDummy ? undefined : setlistAdvance.handleSongFinish,
+    onTimeUpdate: !isDummy ? onMarkerTimeUpdate : undefined,
+    onFinish: !isDummy ? setlistAdvance.handleSongFinish : undefined,
   });
   const dummyPlayback = useDummyPlayback({
     duration: activeSong?.duration ?? 0,
-    onTimeUpdate: isDummy ? onMarkerTimeUpdate : undefined,
-    onFinish: isDummy ? setlistAdvance.handleSongFinish : undefined,
+    onTimeUpdate: isPureDummy ? onMarkerTimeUpdate : undefined,
+    onFinish: isPureDummy ? setlistAdvance.handleSongFinish : undefined,
+  });
+  const alphaSynthPlayback = useAlphaSynthPlayback({
+    onTimeUpdate: isAlphaSynth ? onMarkerTimeUpdate : undefined,
+    onFinish: isAlphaSynth ? setlistAdvance.handleSongFinish : undefined,
   });
 
-  // Unified playback values
-  const _isPlaying = isDummy ? dummyPlayback.isPlaying : playback.isPlaying;
-  const _currentTime = isDummy ? dummyPlayback.currentTime : playback.currentTime;
-  const _duration = isDummy ? dummyPlayback.duration : playback.duration;
-  const songLoop = isDummy ? dummyPlayback.songLoop : playback.songLoop;
-  const handlePlayPause = isDummy ? dummyPlayback.handlePlayPause : playback.handlePlayPause;
-  const handleSeekTo = isDummy ? dummyPlayback.handleSeekTo : playback.handleSeekTo;
-  const handleReset = isDummy ? dummyPlayback.handleReset : playback.handleReset;
-  const toggleSongLoop = isDummy ? dummyPlayback.toggleSongLoop : playback.toggleSongLoop;
+  // Unified playback values (3-way: wavesurfer / alphaSynth / dummy)
+  const _isPlaying = isAlphaSynth ? alphaSynthPlayback.isPlaying
+    : isDummy ? dummyPlayback.isPlaying : playback.isPlaying;
+  const _currentTime = isAlphaSynth ? alphaSynthPlayback.currentTime
+    : isDummy ? dummyPlayback.currentTime : playback.currentTime;
+  const _duration = isAlphaSynth ? alphaSynthPlayback.duration
+    : isDummy ? dummyPlayback.duration : playback.duration;
+  const songLoop = isAlphaSynth ? alphaSynthPlayback.songLoop
+    : isDummy ? dummyPlayback.songLoop : playback.songLoop;
+  const handlePlayPause = isAlphaSynth ? alphaSynthPlayback.handlePlayPause
+    : isDummy ? dummyPlayback.handlePlayPause : playback.handlePlayPause;
+  const handleSeekTo = isAlphaSynth ? alphaSynthPlayback.handleSeekTo
+    : isDummy ? dummyPlayback.handleSeekTo : playback.handleSeekTo;
+  const handleReset = isAlphaSynth ? alphaSynthPlayback.handleReset
+    : isDummy ? dummyPlayback.handleReset : playback.handleReset;
+  const toggleSongLoop = isAlphaSynth ? alphaSynthPlayback.toggleSongLoop
+    : isDummy ? dummyPlayback.toggleSongLoop : playback.toggleSongLoop;
 
   // Viewer overrides: use synced playback from host
   const syncedTime = useSyncStore((s) => s.syncedTime);
@@ -155,8 +176,6 @@ export default function AppShell() {
       dummyPlayback.setCurrentTime(0);
     },
   });
-
-  const gpFile = useGpFile();
 
   // --- Marker tracking ---
   const { selectedMarker, selectedMarkerEnd } = useActiveMarkerTracker(currentTime, duration);
@@ -194,14 +213,23 @@ export default function AppShell() {
     }
   }, [baseHandleReady, addToast, playback]);
 
-  // Auto-play dummy songs after setlist advance (band mode)
+  // Auto-play pure dummy songs after setlist advance (band mode)
   const activeSongId = useSongStore((state) => state.activeSongId);
   useEffect(() => {
-    if (pendingAutoPlayRef.current && isDummy) {
+    if (pendingAutoPlayRef.current && isPureDummy) {
       pendingAutoPlayRef.current = false;
       dummyPlayback.handlePlayPause();
     }
-  }, [activeSongId, isDummy, dummyPlayback]);
+  }, [activeSongId, isPureDummy, dummyPlayback]);
+
+  // Auto-play alphaSynth songs after setlist advance (band mode)
+  const alphaSynthReady = alphaSynthPlayback.isReady;
+  useEffect(() => {
+    if (pendingAutoPlayRef.current && isAlphaSynth && alphaSynthReady) {
+      pendingAutoPlayRef.current = false;
+      alphaSynthPlayback.handlePlayPause();
+    }
+  }, [isAlphaSynth, alphaSynthReady, alphaSynthPlayback]);
 
   // Load persisted audio from IndexedDB when switching songs
   useEffect(() => {
@@ -253,7 +281,10 @@ export default function AppShell() {
   const handleAddMarker = useCallback(() => {
     if (!audioFile.audioUrl && !isDummy) return;
 
-    if (isDummy) {
+    if (isAlphaSynth) {
+      // alphaSynth: pause via API toggle if currently playing
+      if (alphaSynthPlayback.isPlaying) alphaSynthPlayback.handlePlayPause();
+    } else if (isDummy) {
       dummyPlayback.setIsPlaying(false);
     } else {
       const ws = playback.wavesurferRef.current;
@@ -263,7 +294,7 @@ export default function AppShell() {
       }
     }
     setShowMarkerForm(true);
-  }, [audioFile.audioUrl, isDummy, dummyPlayback, playback]);
+  }, [audioFile.audioUrl, isDummy, isAlphaSynth, dummyPlayback, playback, alphaSynthPlayback]);
 
   // --- Upgrade dummy → real audio ---
   const handleUpgradeFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -287,7 +318,6 @@ export default function AppShell() {
   // Is there an active song with audio (or dummy)?
   // Viewers always show the player when a song is synced (no local audio needed)
   const hasPlayer = isViewer ? !!activeSong : (isDummy || !!audioFile.audioUrl);
-  const hasGpFile = !!gpFile.activeGpData;
 
   // --- Render ---
 
@@ -577,7 +607,7 @@ export default function AppShell() {
                     </div>
                   )}
 
-                  {!isDummy && (
+                  {(!isDummy || isAlphaSynth) && (
                     <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
                       <TempoControls />
                     </div>
@@ -697,6 +727,8 @@ export default function AppShell() {
                     <NotationPanel
                       gpData={gpFile.activeGpData!}
                       songId={activeSong!.id}
+                      enableSynth={isAlphaSynth}
+                      onApiReady={alphaSynthPlayback.setApi}
                     />
                   ) : (
                     /* ASCII mode (existing behavior) */

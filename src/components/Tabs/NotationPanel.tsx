@@ -4,9 +4,19 @@ import * as alphaTab from '@coderline/alphatab';
 interface NotationPanelProps {
   gpData: ArrayBuffer;
   songId: string;
+  /** Enable alphaSynth MIDI playback (Dummy + GP mode) */
+  enableSynth?: boolean;
+  /** Fires when the AlphaTabApi is created (and again with null on destroy).
+   *  The parent hooks into this to wire useAlphaSynthPlayback. */
+  onApiReady?: (api: alphaTab.AlphaTabApi | null) => void;
 }
 
-export function NotationPanel({ gpData, songId }: NotationPanelProps) {
+export function NotationPanel({
+  gpData,
+  songId,
+  enableSynth = false,
+  onApiReady,
+}: NotationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
   const layoutRef = useRef<'page' | 'horizontal'>('page');
@@ -14,22 +24,30 @@ export function NotationPanel({ gpData, songId }: NotationPanelProps) {
   const [tracks, setTracks] = useState<{ index: number; name: string }[]>([]);
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const [layout, setLayout] = useState<'page' | 'horizontal'>('page');
+  const [synthLoading, setSynthLoading] = useState(false);
 
   // Keep ref in sync
   useEffect(() => {
-  layoutRef.current = layout;
-    }, [layout]);
+    layoutRef.current = layout;
+  }, [layout]);
 
   // Initialize alphaTab API
   useEffect(() => {
     if (!containerRef.current) return;
 
-   const settings = new alphaTab.Settings();
+    const settings = new alphaTab.Settings();
     settings.core.fontDirectory = import.meta.env.BASE_URL + 'font/';
-    settings.display.scale = 0.5;  
-    settings.player.playerMode = alphaTab.PlayerMode.Disabled;
+    settings.display.scale = 0.5;
     settings.display.layoutMode =
       layoutRef.current === 'page' ? alphaTab.LayoutMode.Page : alphaTab.LayoutMode.Horizontal;
+
+    // Configure synth in initial settings but keep player disabled –
+    // the soundFont URL must be set before construction so alphaTab
+    // knows where to fetch it when the player is later enabled.
+    if (enableSynth) {
+      settings.player.soundFont = import.meta.env.BASE_URL + 'soundfont/sonivox.sf2';
+    }
+    settings.player.playerMode = alphaTab.PlayerMode.Disabled;
 
     const api = new alphaTab.AlphaTabApi(containerRef.current, settings);
 
@@ -42,13 +60,34 @@ export function NotationPanel({ gpData, songId }: NotationPanelProps) {
       setActiveTrackIndex(0);
     });
 
+    if (enableSynth) {
+      setSynthLoading(true);
+
+      api.playerReady.on(() => {
+        setSynthLoading(false);
+      });
+
+      api.soundFontLoad.on((e) => {
+        if (e.loaded >= e.total) {
+          setSynthLoading(false);
+        }
+      });
+
+    api.settings.player.playerMode = alphaTab.PlayerMode.EnabledSynthesizer;
+      api.updateSettings();
+    }
+
     apiRef.current = api;
+    onApiReady?.(api);
 
     return () => {
+      onApiReady?.(null);
       api.destroy();
       apiRef.current = null;
     };
-  }, [songId]);
+  // onApiReady intentionally excluded – stable callback ref from parent
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songId, enableSynth]);
 
   // Load GP data into alphaTab
   useEffect(() => {
@@ -110,14 +149,21 @@ export function NotationPanel({ gpData, songId }: NotationPanelProps) {
         >
           {layout === 'page' ? '↔ Horizontal' : '↕ Page'}
         </button>
+
+        {/* SoundFont loading indicator */}
+        {synthLoading && (
+          <span className='text-xs font-mono text-amber-400 animate-pulse'>
+            Loading SoundFont…
+          </span>
+        )}
       </div>
 
       {/* alphaTab render container */}
-        <div
+      <div
         ref={containerRef}
         className='overflow-auto bg-white rounded'
         style={{ height: '400px' }}
-        />
+      />
     </div>
   );
 }
