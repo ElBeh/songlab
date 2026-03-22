@@ -31,6 +31,8 @@ export interface SongData {
   normalizationGain: number; // RMS-based gain factor, default 1.0
   normalizationEnabled: boolean;
   isDummy: boolean;           // true = no audio file, simulated playback
+  gpFileName: string | null;           // Guitar Pro file name, null if none
+  syncPoints: SyncPoint[] | null;      // audio ↔ notation sync points
 }
 
 export interface LoopRange {
@@ -82,4 +84,9 @@ export interface Setlist {
   name: string;
   entries: SetlistEntry[];
   createdAt: number;
+}
+
+export interface SyncPoint {
+  audioTime: number;  // milliseconds in the audio file
+  tick: number;       // alphaTab tick position in the notation
 }

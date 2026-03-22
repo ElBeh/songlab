@@ -10,6 +10,7 @@ import {
   getConfig,
   setConfig,
   deleteAudioFile,
+  deleteGpFile,       // ← neu
 } from '../services/db';
 import { emitMarkerSave, emitMarkerDelete } from '../services/syncEmitter';
 
@@ -97,7 +98,12 @@ export const useSongStore = create<SongStore>((set, get) => ({
   loadAllSongs: async () => {
     const raw = await getAllSongs();
     // Migrate legacy songs that predate the isDummy field
-    const songs = raw.map((s) => ({ ...s, isDummy: s.isDummy ?? false }));
+    const songs = raw.map((s) => ({
+      ...s,
+      isDummy: s.isDummy ?? false,
+      gpFileName: s.gpFileName ?? null,
+      syncPoints: s.syncPoints ?? null,
+    }));
     const savedOrder = await getConfig<unknown>('songOrder');
     const songOrder = migrateOrder(savedOrder, songs.map((s) => s.id));
     set({ songs, songOrder });
@@ -144,6 +150,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
   removeSong: async (id) => {
     await deleteSong(id);
     await deleteAudioFile(id);
+    await deleteGpFile(id);
     set((state) => ({
       songs: state.songs.filter((s) => s.id !== id),
       songOrder: state.songOrder.filter(

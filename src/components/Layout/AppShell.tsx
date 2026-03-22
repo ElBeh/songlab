@@ -27,11 +27,14 @@ import { useSyncBroadcast } from '../../hooks/useSyncBroadcast';
 import { useSyncStore } from '../../stores/useSyncStore';
 import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
+import { NotationPanel } from '../Tabs/NotationPanel';
+import { useGpFile } from '../../hooks/useGpFile';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showDummyDialog, setShowDummyDialog] = useState(false);
+  const [tabMode, setTabMode] = useState<'ascii' | 'notation'>('notation');
 
   const activeSong = useSongStore((state) => state.getActiveSong)();
   const addMarker = useSongStore((state) => state.addMarker);
@@ -153,6 +156,8 @@ export default function AppShell() {
     },
   });
 
+  const gpFile = useGpFile();
+
   // --- Marker tracking ---
   const { selectedMarker, selectedMarkerEnd } = useActiveMarkerTracker(currentTime, duration);
 
@@ -200,11 +205,14 @@ export default function AppShell() {
 
   // Load persisted audio from IndexedDB when switching songs
   useEffect(() => {
-    if (!activeSongId || isDummy) return;
-    // Only load if not already cached (avoids redundant DB reads)
-    if (audioFile.audioUrl) return;
-    audioFile.loadPersistedAudio(activeSongId);
-  }, [activeSongId, isDummy, audioFile]);
+    if (!activeSongId) return;
+    if (!isDummy) {
+      if (!audioFile.audioUrl) {
+        audioFile.loadPersistedAudio(activeSongId);
+      }
+    }
+    gpFile.loadPersistedGp(activeSongId);
+  }, [activeSongId, isDummy, audioFile, gpFile]);
 
   // Host: push full song data to viewers on song switch
   // Use a small delay to ensure tabs/sheets are loaded first
@@ -279,6 +287,7 @@ export default function AppShell() {
   // Is there an active song with audio (or dummy)?
   // Viewers always show the player when a song is synced (no local audio needed)
   const hasPlayer = isViewer ? !!activeSong : (isDummy || !!audioFile.audioUrl);
+  const hasGpFile = !!gpFile.activeGpData;
 
   // --- Render ---
 
@@ -604,7 +613,7 @@ export default function AppShell() {
               )}
 
               {/* Tab section */}
-              {selectedMarker && (
+              {(selectedMarker || hasGpFile || activeSong) && (
                 <div className='flex flex-col gap-2 flex-1 min-h-64'>
                   <div className='border-t border-slate-700 pt-4 flex items-center
                                   justify-between'>
@@ -612,11 +621,39 @@ export default function AppShell() {
                       <h3 className='text-xs font-mono text-slate-400 uppercase tracking-widest'>
                         Tab
                       </h3>
-                      {!isBand && (
+
+                      {/* Mode toggle: Notation / ASCII (only when GP file exists) */}
+                      {hasGpFile && (
+                        <div className='flex bg-slate-800 rounded p-0.5 font-mono text-xs'>
+                          <button
+                            onClick={() => setTabMode('notation')}
+                            className='px-2 py-0.5 rounded transition-colors'
+                            style={{
+                              backgroundColor: tabMode === 'notation' ? '#6366f1' : 'transparent',
+                              color: tabMode === 'notation' ? '#fff' : '#64748b',
+                            }}
+                          >
+                            Notation
+                          </button>
+                          <button
+                            onClick={() => setTabMode('ascii')}
+                            className='px-2 py-0.5 rounded transition-colors'
+                            style={{
+                              backgroundColor: tabMode === 'ascii' ? '#6366f1' : 'transparent',
+                              color: tabMode === 'ascii' ? '#fff' : '#64748b',
+                            }}
+                          >
+                            ASCII
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Edit toggle (ASCII mode only) */}
+                      {(!hasGpFile || tabMode === 'ascii') && !isBand && selectedMarker && (
                         <button
                           onClick={() => setEditMode((v) => !v)}
                           className='self-start px-3 py-1 text-sm font-mono rounded
-                                     transition-colors'
+                                    transition-colors'
                           style={{
                             backgroundColor: editMode ? '#6366f1' : '#475569',
                             color: editMode ? '#fff' : '#cbd5e1',
@@ -625,19 +662,59 @@ export default function AppShell() {
                           {editMode ? '👁 View Tab' : '✎ Edit Tab'}
                         </button>
                       )}
+
+                      {/* GP file import button (no GP file yet) */}
+                      {!hasGpFile && !isBand && (
+                        <label className='px-2 py-1 text-xs font-mono rounded cursor-pointer
+                                          transition-colors bg-slate-700 hover:bg-slate-600
+                                          text-slate-300'>
+                          🎼 Add GP file
+                          <input
+                            type='file'
+                            accept='.gp,.gp3,.gp4,.gp5,.gpx,.gp8'
+                            className='hidden'
+                            onChange={gpFile.handleGpFileInput}
+                          />
+                        </label>
+                      )}
+
+                      {/* Remove GP file button */}
+                      {hasGpFile && !isBand && (
+                        <button
+                          onClick={() => activeSong && gpFile.removeGp(activeSong.id)}
+                          className='px-2 py-1 text-xs font-mono rounded transition-colors
+                                    bg-slate-700 hover:bg-red-900 text-slate-400
+                                    hover:text-red-300'
+                        >
+                          ✕ Remove GP
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {!isBand && editMode ? (
-                    <TabEditor marker={selectedMarker} songId={activeSong.id} />
-                  ) : (
-                    <TabViewer
-                      marker={selectedMarker}
-                      currentTime={currentTime}
-                      isPlaying={isPlaying}
-                      sectionEnd={selectedMarkerEnd}
-                      isViewer={isViewer}
+                  {/* Notation mode */}
+                  {hasGpFile && tabMode === 'notation' ? (
+                    <NotationPanel
+                      gpData={gpFile.activeGpData!}
+                      songId={activeSong!.id}
                     />
+                  ) : (
+                    /* ASCII mode (existing behavior) */
+                    selectedMarker && (
+                      <>
+                        {!isBand && editMode ? (
+                          <TabEditor marker={selectedMarker} songId={activeSong!.id} />
+                        ) : (
+                          <TabViewer
+                            marker={selectedMarker}
+                            currentTime={currentTime}
+                            isPlaying={isPlaying}
+                            sectionEnd={selectedMarkerEnd}
+                            isViewer={isViewer}
+                          />
+                        )}
+                      </>
+                    )
                   )}
                 </div>
               )}

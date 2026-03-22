@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@coderline/alphatab": "^1.8.1",
     "@wavesurfer/react": "^1.0.12",
     "express": "^5.1.0",
     "idb": "^8.0.3",
@@ -24,6 +25,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@coderline/alphatab-vite": "^1.8.1",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.2.1",
     "@types/express": "^5.0.0",

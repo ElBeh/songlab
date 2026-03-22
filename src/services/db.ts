@@ -30,10 +30,14 @@ interface SongLabDB extends DBSchema {
     key: string;           // songId
     value: { songId: string; data: ArrayBuffer; mimeType: string };
   };
+  gpFiles: {
+  key: string;           // songId
+  value: { songId: string; data: ArrayBuffer; fileName: string };
+  };
 }
 
 const DB_NAME = 'songlab';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 let dbInstance: IDBPDatabase<SongLabDB> | null = null;
 
@@ -60,6 +64,9 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
       }
       if (oldVersion < 6) {
         db.createObjectStore('audioFiles', { keyPath: 'songId' });
+      }
+      if (oldVersion < 7) {
+        db.createObjectStore('gpFiles', { keyPath: 'songId' });
       }
     },
   });
@@ -173,3 +180,28 @@ export async function deleteAudioFile(songId: string): Promise<void> {
   const db = await getDB();
   await db.delete('audioFiles', songId);
 }
+
+// --- GP Files ---
+
+export async function saveGpFile(
+  songId: string,
+  data: ArrayBuffer,
+  fileName: string,
+): Promise<void> {
+  const db = await getDB();
+  await db.put('gpFiles', { songId, data, fileName });
+}
+
+export async function getGpFile(
+  songId: string,
+): Promise<{ data: ArrayBuffer; fileName: string } | undefined> {
+  const db = await getDB();
+  const result = await db.get('gpFiles', songId);
+  return result;
+}
+
+export async function deleteGpFile(songId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('gpFiles', songId);
+}
+
