@@ -78,9 +78,13 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
 
 export async function saveSong(song: SongData): Promise<void> {
   const db = await getDB();
-  await db.put('songs', song);
+  const existing = await db.get('songs', song.id);
+  const defined = Object.fromEntries(
+    Object.entries(song).filter(([, v]) => v !== undefined),
+  );
+  const merged = existing ? { ...existing, ...defined } : song;
+  await db.put('songs', merged);
 }
-
 export async function getSong(id: string): Promise<SongData | undefined> {
   const db = await getDB();
   return db.get('songs', id);

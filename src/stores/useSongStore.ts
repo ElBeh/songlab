@@ -103,6 +103,8 @@ export const useSongStore = create<SongStore>((set, get) => ({
       isDummy: s.isDummy ?? false,
       gpFileName: s.gpFileName ?? null,
       syncPoints: s.syncPoints ?? null,
+      syncOffset: s.syncOffset ?? null,
+      bpmAdjust: s.bpmAdjust ?? null,   // ← hier
     }));
     const savedOrder = await getConfig<unknown>('songOrder');
     const songOrder = migrateOrder(savedOrder, songs.map((s) => s.id));
@@ -117,9 +119,15 @@ export const useSongStore = create<SongStore>((set, get) => ({
         ? state.songOrder
         : [...state.songOrder, { type: 'song' as const, songId: song.id }];
       return {
-        songs: exists
-          ? state.songs.map((s) => (s.id === song.id ? song : s))
-          : [...state.songs, song],
+      songs: exists
+        ? state.songs.map((s) => {
+            if (s.id !== song.id) return s;
+            const defined = Object.fromEntries(
+              Object.entries(song).filter(([, v]) => v !== undefined),
+            );
+            return { ...s, ...defined };
+          })
+        : [...state.songs, song],
         songOrder: newOrder,
         markersBySong: exists
           ? Object.fromEntries(
@@ -228,7 +236,13 @@ export const useSongStore = create<SongStore>((set, get) => ({
   updateSong: async (song) => {
     await saveSong(song);
     set((state) => ({
-      songs: state.songs.map((s) => (s.id === song.id ? song : s)),
+      songs: state.songs.map((s) => {
+        if (s.id !== song.id) return s;
+        const defined = Object.fromEntries(
+          Object.entries(song).filter(([, v]) => v !== undefined),
+        );
+        return { ...s, ...defined };
+      }),
     }));
   },
 

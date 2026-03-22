@@ -33,6 +33,8 @@ export interface SongData {
   isDummy: boolean;           // true = no audio file, simulated playback
   gpFileName: string | null;           // Guitar Pro file name, null if none
   syncPoints: SyncPoint[] | null;      // audio ↔ notation sync points
+  syncOffset: number | null;  // ms offset: audio time where bar 1 beat 1 starts
+  bpmAdjust: number | null;  // additive BPM correction (e.g. -0.2)
 }
 
 export interface LoopRange {
@@ -89,4 +91,5 @@ export interface Setlist {
 export interface SyncPoint {
   audioTime: number;  // milliseconds in the audio file
   tick: number;       // alphaTab tick position in the notation
+  bar: number;        // 1-based bar number (for display in SyncPointEditor)
 }

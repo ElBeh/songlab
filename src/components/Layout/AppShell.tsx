@@ -30,6 +30,7 @@ import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
 import { NotationPanel } from '../Tabs/NotationPanel';
 import { useGpFile } from '../../hooks/useGpFile';
+import type * as alphaTab from '@coderline/alphatab';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -108,6 +109,7 @@ export default function AppShell() {
   const hasGpFile = !!gpFile.activeGpData;
   const isAlphaSynth = isDummy && hasGpFile;
   const isPureDummy = isDummy && !hasGpFile;
+  const isAudioGp = !isDummy && hasGpFile;
 
   // --- Playback hooks (all three always called – React rules of hooks) ---
   const playback = usePlayback({
@@ -123,6 +125,26 @@ export default function AppShell() {
     onTimeUpdate: isAlphaSynth ? onMarkerTimeUpdate : undefined,
     onFinish: isAlphaSynth ? setlistAdvance.handleSongFinish : undefined,
   });
+
+  // --- Notation API callback (forwards to alphaSynth when needed) ---
+  const handleNotationApiReady = useCallback((api: alphaTab.AlphaTabApi | null) => {
+    if (isAlphaSynth) alphaSynthPlayback.setApi(api);
+  }, [isAlphaSynth, alphaSynthPlayback]);
+
+  const syncOffset = activeSong?.syncOffset ?? null;
+  const bpmAdjust = activeSong?.bpmAdjust ?? null;
+
+  const handleSyncOffsetChange = useCallback((offset: number) => {
+    const song = useSongStore.getState().getActiveSong();
+    if (!song) return;
+    useSongStore.getState().updateSong({ ...song, syncOffset: offset });
+  }, []);
+
+  const handleBpmAdjustChange = useCallback((adjust: number) => {
+    const song = useSongStore.getState().getActiveSong();
+    if (!song) return;
+    useSongStore.getState().updateSong({ ...song, bpmAdjust: adjust });
+  }, []);
 
   // Unified playback values (3-way: wavesurfer / alphaSynth / dummy)
   const _isPlaying = isAlphaSynth ? alphaSynthPlayback.isPlaying
@@ -728,7 +750,15 @@ export default function AppShell() {
                       gpData={gpFile.activeGpData!}
                       songId={activeSong!.id}
                       enableSynth={isAlphaSynth}
-                      onApiReady={alphaSynthPlayback.setApi}
+                      enableExternalMedia={isAudioGp}
+                      isPlaying={isPlaying}
+                      showSyncEditor={isAudioGp && !isBand}
+                      syncOffset={syncOffset}
+                      bpmAdjust={bpmAdjust}
+                      currentTime={currentTime}
+                      onSyncOffsetChange={handleSyncOffsetChange}
+                      onBpmAdjustChange={handleBpmAdjustChange}
+                      onApiReady={handleNotationApiReady}
                     />
                   ) : (
                     /* ASCII mode (existing behavior) */

@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
+import { SyncOffsetEditor } from './SyncOffsetEditor';
+import { useExternalMediaSync } from '../../hooks/useExternalMediaSync';
 
 interface TrackMixerState {
   index: number;
@@ -14,6 +16,19 @@ interface NotationPanelProps {
   songId: string;
   /** Enable alphaSynth MIDI playback (Dummy + GP mode) */
   enableSynth?: boolean;
+  /** Enable external media cursor sync (Audio + GP mode) */
+  enableExternalMedia?: boolean;
+  /** Whether audio is currently playing (needed for external media sync) */
+  isPlaying?: boolean;
+  /** Show sync offset editor (Audio + GP mode, practice only) */
+  showSyncEditor?: boolean;
+  /** Audio time offset in ms where bar 1 beat 1 starts (null = not set) */
+  syncOffset?: number | null;
+  /** Additive BPM correction (null = not set) */
+  bpmAdjust?: number | null;
+  currentTime?: number;
+  onSyncOffsetChange?: (offset: number) => void;
+  onBpmAdjustChange?: (adjust: number) => void;
   /** Fires when the AlphaTabApi is created (and again with null on destroy).
    *  The parent hooks into this to wire useAlphaSynthPlayback. */
   onApiReady?: (api: alphaTab.AlphaTabApi | null) => void;
@@ -23,6 +38,14 @@ export function NotationPanel({
   gpData,
   songId,
   enableSynth = false,
+  enableExternalMedia = false,
+  isPlaying = false,
+  showSyncEditor = false,
+  syncOffset = null,
+  bpmAdjust = null,
+  currentTime = 0,
+  onSyncOffsetChange,
+  onBpmAdjustChange,
   onApiReady,
 }: NotationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,6 +58,7 @@ export function NotationPanel({
   const [synthLoading, setSynthLoading] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [trackStates, setTrackStates] = useState<TrackMixerState[]>([]);
+  const [apiForEditor, setApiForEditor] = useState<alphaTab.AlphaTabApi | null>(null);
 
   // Keep ref in sync
   useEffect(() => {
@@ -55,6 +79,9 @@ export function NotationPanel({
     if (enableSynth) {
       settings.player.soundFont = import.meta.env.BASE_URL + 'soundfont/sonivox.sf2';
       settings.player.playerMode = alphaTab.PlayerMode.EnabledSynthesizer;
+    } else if (enableExternalMedia) {
+      settings.player.soundFont = import.meta.env.BASE_URL + 'soundfont/sonivox.sf2';
+      settings.player.playerMode = alphaTab.PlayerMode.EnabledExternalMedia;
     } else {
       settings.player.playerMode = alphaTab.PlayerMode.Disabled;
     }
@@ -85,7 +112,7 @@ export function NotationPanel({
       );
     });
 
-    if (enableSynth) {
+    if (enableSynth || enableExternalMedia) {
       setSynthLoading(true);
 
       api.playerReady.on(() => {
@@ -100,16 +127,18 @@ export function NotationPanel({
     }
 
     apiRef.current = api;
+    setApiForEditor(api);
     onApiReady?.(api);
 
     return () => {
       onApiReady?.(null);
       api.destroy();
       apiRef.current = null;
+      setApiForEditor(null);
     };
   // onApiReady intentionally excluded – stable callback ref from parent
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [songId, enableSynth]);
+  }, [songId, enableSynth, enableExternalMedia]);
 
   // Load GP data into alphaTab
   useEffect(() => {
@@ -176,6 +205,15 @@ export function NotationPanel({
       api.renderTracks([track]);
     }
   }, [activeTrackIndex]);
+
+  // --- External media sync (Audio + GP: cursor follows wavesurfer) ---
+  useExternalMediaSync({
+    api: enableExternalMedia ? apiForEditor : null,
+    syncOffset: enableExternalMedia ? (syncOffset ?? 0) : 0,
+    bpmAdjust: enableExternalMedia ? (bpmAdjust ?? 0) : 0,
+    isPlaying: enableExternalMedia ? isPlaying : false,
+    currentTime: enableExternalMedia ? currentTime : 0,
+  });
 
   // --- Mixer controls ---
 
@@ -255,6 +293,17 @@ export function NotationPanel({
         >
           {layout === 'page' ? '↔ Horizontal' : '↕ Page'}
         </button>
+
+        {/* Sync Offset Editor (Audio + GP, practice mode) */}
+        {showSyncEditor && onSyncOffsetChange && onBpmAdjustChange && (
+          <SyncOffsetEditor
+            syncOffset={syncOffset}
+            bpmAdjust={bpmAdjust}
+            currentTime={currentTime}
+            onSyncOffsetChange={onSyncOffsetChange}
+            onBpmAdjustChange={onBpmAdjustChange}
+          />
+        )}
 
         {/* Mixer toggle (only with synth) */}
         {enableSynth && tracks.length > 0 && (
