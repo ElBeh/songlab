@@ -14,3 +14,11 @@
 .animate-slide-in {
   animation: slide-in 0.2s ease-out;
 }
+
+.at-cursor-bar {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.at-cursor-beat {
+  background: rgba(99, 102, 241, 0.75);
+}
