@@ -35,6 +35,10 @@ export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps) {
       normalizationGain: 1.0,
       normalizationEnabled: false,
       isDummy: true,
+      gpFileName: null,
+      syncOffset: null,
+      bpmAdjust: null,
+      syncPoints: null,
     };
 
     await addSong(song);

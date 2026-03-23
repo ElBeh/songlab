@@ -374,7 +374,7 @@ export default function AppShell() {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [activeSongId, activeSong, syncStatus, syncRole, sheets, tabs]);
+  }, [activeSongId, activeSong, syncStatus, syncRole, sheets, tabs, gpFile.activeGpData]);
 
   // Host: push setlist to viewers on connect + when songs/order change
   const songs = useSongStore((s) => s.songs);
