@@ -37,6 +37,7 @@ export default function AppShell() {
   const [editMode, setEditMode] = useState(false);
   const [showDummyDialog, setShowDummyDialog] = useState(false);
   const [tabMode, setTabMode] = useState<'ascii' | 'notation'>('notation');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const activeSong = useSongStore((state) => state.getActiveSong)();
   const addMarker = useSongStore((state) => state.addMarker);
@@ -491,6 +492,8 @@ export default function AppShell() {
           duration={duration}
           currentTime={currentTime}
           isViewer={isViewer}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         />
 
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto'>
