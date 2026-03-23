@@ -58,15 +58,21 @@ export function NotationPanel({
   const [tracks, setTracks] = useState<{ index: number; name: string }[]>([]);
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const [layout, setLayout] = useState<'page' | 'horizontal'>('page');
+  const [scale, setScale] = useState(0.5);
   const [synthLoading, setSynthLoading] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [trackStates, setTrackStates] = useState<TrackMixerState[]>([]);
   const [apiForEditor, setApiForEditor] = useState<alphaTab.AlphaTabApi | null>(null);
 
-  // Keep ref in sync
+  // Keep refs in sync
   useEffect(() => {
     layoutRef.current = layout;
   }, [layout]);
+
+  const scaleRef = useRef(scale);
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
 
   // Initialize alphaTab API
   useEffect(() => {
@@ -74,7 +80,7 @@ export function NotationPanel({
 
     const settings = new alphaTab.Settings();
     settings.core.fontDirectory = import.meta.env.BASE_URL + 'font/';
-    settings.display.scale = 0.5;
+    settings.display.scale = scaleRef.current;
     settings.display.layoutMode =
       layoutRef.current === 'page' ? alphaTab.LayoutMode.Page : alphaTab.LayoutMode.Horizontal;
 
@@ -161,6 +167,16 @@ export function NotationPanel({
     api.updateSettings();
     api.render();
   }, [layout]);
+
+  // Update scale/zoom when changed
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+
+    api.settings.display.scale = scale;
+    api.updateSettings();
+    api.render();
+  }, [scale]);
 
   // Manual cursor-follow scroll for both page and horizontal mode.
   // alphaTab's built-in scrollElement only works when its own player drives
@@ -304,6 +320,29 @@ export function NotationPanel({
         >
           {layout === 'page' ? '↔ Horizontal' : '↕ Page'}
         </button>
+
+        {/* Zoom controls */}
+        <div className='flex items-center gap-1'>
+          <button
+            onClick={() => setScale((s) => Math.max(0.3, Math.round((s - 0.1) * 10) / 10))}
+            className='px-1.5 py-0.5 text-xs font-mono rounded transition-colors
+                       bg-slate-700 hover:bg-slate-600 text-slate-300'
+            title='Zoom out'
+          >
+            −
+          </button>
+          <span className='text-xs font-mono text-slate-400 min-w-8 text-center'>
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            onClick={() => setScale((s) => Math.min(1.5, Math.round((s + 0.1) * 10) / 10))}
+            className='px-1.5 py-0.5 text-xs font-mono rounded transition-colors
+                       bg-slate-700 hover:bg-slate-600 text-slate-300'
+            title='Zoom in'
+          >
+            +
+          </button>
+        </div>
 
         {/* Sync Offset Editor (Audio + GP, practice mode) */}
         {showSyncEditor && onSyncOffsetChange && onBpmAdjustChange && (

@@ -3,10 +3,12 @@ import {
   getMarkersForSong,
   getTabsForSong,
   getTabSheetsForSong,
+  getGpFile,
   saveSong,
   saveMarker,
   saveTab,
   saveTabSheet,
+  saveGpFile,
 } from './db';
 
 interface SetlistEntry {
@@ -16,22 +18,57 @@ interface SetlistEntry {
   markers: SectionMarker[];
   tabs: SectionTab[];
   sheets: TabSheet[];
+  gpFileBase64?: string | null;
+  gpFileName?: string | null;
 }
 
 interface SetlistExport extends Omit<Setlist, 'entries'> {
   entries: SetlistEntry[];
 }
 
+/** ArrayBuffer → Base64 string */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/** Base64 string → ArrayBuffer */
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 export async function exportSetlist(name: string, songs: SongData[]): Promise<void> {
   const entries: SetlistEntry[] = await Promise.all(
-    songs.map(async (song) => ({
-      songId: song.id,
-      title: song.title,
-      song,
-      markers: await getMarkersForSong(song.id),
-      tabs: await getTabsForSong(song.id),
-      sheets: await getTabSheetsForSong(song.id),
-    }))
+    songs.map(async (song) => {
+      let gpFileBase64: string | null = null;
+      let gpFileName: string | null = null;
+      if (song.gpFileName) {
+        const gpFile = await getGpFile(song.id);
+        if (gpFile) {
+          gpFileBase64 = arrayBufferToBase64(gpFile.data);
+          gpFileName = gpFile.fileName;
+        }
+      }
+      return {
+        songId: song.id,
+        title: song.title,
+        song,
+        markers: await getMarkersForSong(song.id),
+        tabs: await getTabsForSong(song.id),
+        sheets: await getTabSheetsForSong(song.id),
+        gpFileBase64,
+        gpFileName,
+      };
+    })
   );
 
   const setlist: SetlistExport = {
@@ -62,6 +99,12 @@ export async function importSetlist(file: File): Promise<SongData[]> {
           if (!entry.song) continue;
           await saveSong(entry.song);
           for (const marker of entry.markers ?? []) await saveMarker(marker);
+
+          // Restore GP file if present in export
+          if (entry.gpFileBase64 && entry.gpFileName) {
+            const gpBuffer = base64ToArrayBuffer(entry.gpFileBase64);
+            await saveGpFile(entry.song.id, gpBuffer, entry.gpFileName);
+          }
 
           // Migrate old exports: create default sheet if none exist
           let sheets = entry.sheets ?? [];
