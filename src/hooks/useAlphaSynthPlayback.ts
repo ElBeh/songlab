@@ -27,6 +27,7 @@ export function useAlphaSynthPlayback({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [currentTick, setCurrentTick] = useState(0);
   const [duration, setDuration] = useState(0);
   const [songLoop, setSongLoop] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -56,6 +57,7 @@ export function useAlphaSynthPlayback({
     const endSec = e.endTime / 1000;
 
     setCurrentTime(timeSec);
+    setCurrentTick(e.currentTick);
     if (endSec > 0) setDuration(endSec);
     onTimeUpdateRef.current?.(timeSec);
   }, []);
@@ -190,6 +192,7 @@ export function useAlphaSynthPlayback({
   return {
     isPlaying,
     currentTime,
+    currentTick,
     duration,
     songLoop,
     isReady,

@@ -16,6 +16,7 @@ export interface PlaybackState {
   timestamp: number;      // Date.now() when state was captured – for drift compensation
   countdownRemaining: number | null;  // seconds until next song (null = no countdown)
   autoAdvance: boolean;
+  tickPosition: number | null;  // alphaTab tick (Dummy+GP only, null otherwise)
 }
 
 // --- Client → Server events ---
@@ -126,6 +127,9 @@ export interface SongSyncPayload {
   normalizationGain: number;
   normalizationEnabled: boolean;
   isDummy: boolean;
+  gpFileName: string | null;
+  syncOffset: number | null;
+  bpmAdjust: number | null;
 }
 
 export interface SongDataPayload {
@@ -133,6 +137,9 @@ export interface SongDataPayload {
   markers: MarkerSyncPayload[];
   tabs: TabSyncPayload[];
   sheets: SheetSyncPayload[];
+  /** Guitar Pro file binary (null if no GP file attached) */
+  gpData: ArrayBuffer | null;
+  gpFileName: string | null;
 }
 
 // --- Setlist sync payload ---

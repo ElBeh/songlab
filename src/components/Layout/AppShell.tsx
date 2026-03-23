@@ -127,9 +127,20 @@ export default function AppShell() {
   });
 
   // --- Notation API callback (forwards to alphaSynth when needed) ---
+  // Also stores raw API ref for viewer synth control (play/pause/seek/drift)
+  const viewerApiRef = useRef<alphaTab.AlphaTabApi | null>(null);
   const handleNotationApiReady = useCallback((api: alphaTab.AlphaTabApi | null) => {
-    if (isAlphaSynth) alphaSynthPlayback.setApi(api);
-  }, [isAlphaSynth, alphaSynthPlayback]);
+    // Host Dummy+GP: wire synth playback natively
+    // Viewer Audio+GP: wire synth so we can track isReady + drive cursor
+    if (isAlphaSynth || (isAudioGp && isViewer)) alphaSynthPlayback.setApi(api);
+    viewerApiRef.current = api;
+  }, [isAlphaSynth, isAudioGp, isViewer, alphaSynthPlayback]);
+
+  // Tick reported by External Media sync (Audio+GP host) – used for broadcast
+  const [externalMediaTick, setExternalMediaTick] = useState(0);
+  const handleExternalMediaTick = useCallback((tick: number) => {
+    setExternalMediaTick(tick);
+  }, []);
 
   const syncOffset = activeSong?.syncOffset ?? null;
   const bpmAdjust = activeSong?.bpmAdjust ?? null;
@@ -169,6 +180,7 @@ export default function AppShell() {
   const syncedIsPlaying = useSyncStore((s) => s.syncedIsPlaying);
   const syncedCountdown = useSyncStore((s) => s.syncedCountdown);
   const syncedAutoAdvance = useSyncStore((s) => s.syncedAutoAdvance);
+  const syncedTickPosition = useSyncStore((s) => s.syncedTickPosition);
   const isPlaying = isViewer ? syncedIsPlaying : _isPlaying;
   const currentTime = isViewer ? syncedTime : _currentTime;
   // Viewer has no wavesurfer → duration comes from the song metadata
@@ -185,7 +197,80 @@ export default function AppShell() {
     isPlaying: _isPlaying,
     currentTime: _currentTime,
     countdownRemaining: setlistAdvance.isCountingDown ? setlistAdvance.countdownRemaining : null,
+    tickPosition: isAlphaSynth
+      ? alphaSynthPlayback.currentTick
+      : isAudioGp ? externalMediaTick : null,
   });
+
+  // --- Viewer + GP file: drive local alphaSynth from host state ---
+  // The viewer runs its own alphaSynth (muted) so the cursor moves natively.
+  // Host broadcasts play/pause + tickPosition; viewer mirrors and drift-corrects.
+  // Works for both Dummy+GP and Audio+GP viewers.
+
+  const viewerSynthReady = isViewer && hasGpFile && alphaSynthPlayback.isReady;
+
+  // Mute MIDI output – viewer doesn't need audio, the band plays live
+  useEffect(() => {
+    if (!viewerSynthReady) return;
+    const api = viewerApiRef.current;
+    if (api) api.masterVolume = 0;
+  }, [viewerSynthReady]);
+
+  // Mirror host play/pause on local alphaSynth
+  const prevSyncedPlayingRef = useRef(false);
+  useEffect(() => {
+    if (!viewerSynthReady) return;
+    const api = viewerApiRef.current;
+    if (!api) return;
+
+    const wasPlaying = prevSyncedPlayingRef.current;
+    prevSyncedPlayingRef.current = syncedIsPlaying;
+
+    if (syncedIsPlaying && !wasPlaying) {
+      // Host started: seek to host tick, then play
+      const tick = useSyncStore.getState().syncedTickPosition;
+      if (tick !== null) api.tickPosition = tick;
+      api.play();
+    } else if (!syncedIsPlaying && wasPlaying) {
+      api.pause();
+    }
+  }, [viewerSynthReady, syncedIsPlaying]);
+
+  // Viewer seek: when host seeks while paused, update local cursor
+  useEffect(() => {
+    if (!viewerSynthReady || syncedIsPlaying) return;
+    const api = viewerApiRef.current;
+    if (!api) return;
+
+    if (syncedTickPosition !== null) {
+      api.tickPosition = syncedTickPosition;
+    }
+  }, [viewerSynthReady, syncedIsPlaying, syncedTickPosition]);
+
+  // Drift correction: compare host tick with local tick every 1s while playing
+  const localTickRef = useRef(0);
+  useEffect(() => {
+    localTickRef.current = alphaSynthPlayback.currentTick;
+  }, [alphaSynthPlayback.currentTick]);
+
+  useEffect(() => {
+    if (!viewerSynthReady || !syncedIsPlaying) return;
+    const api = viewerApiRef.current;
+    if (!api) return;
+
+    const interval = setInterval(() => {
+      const hostTick = useSyncStore.getState().syncedTickPosition;
+      if (hostTick === null) return;
+
+      const drift = Math.abs(hostTick - localTickRef.current);
+      // ~half a bar in 4/4 at 960 ticks/beat = 1920 ticks
+      if (drift > 1920) {
+        api.tickPosition = hostTick;
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [viewerSynthReady, syncedIsPlaying]);
 
   // --- Audio file handling ---
   const audioFile = useAudioFile({
@@ -283,6 +368,8 @@ export default function AppShell() {
         markers,
         tabs: songTabs,
         sheets: currentSheets.filter((s) => s.songId === activeSongId),
+        gpData: gpFile.activeGpData ?? null,
+        gpFileName: activeSong.gpFileName ?? null,
       });
     }, 100);
 
@@ -749,8 +836,8 @@ export default function AppShell() {
                     <NotationPanel
                       gpData={gpFile.activeGpData!}
                       songId={activeSong!.id}
-                      enableSynth={isAlphaSynth}
-                      enableExternalMedia={isAudioGp}
+                      enableSynth={isAlphaSynth || (isAudioGp && isViewer)}
+                      enableExternalMedia={isAudioGp && !isViewer}
                       isPlaying={isPlaying}
                       showSyncEditor={isAudioGp && !isBand}
                       syncOffset={syncOffset}
@@ -759,6 +846,7 @@ export default function AppShell() {
                       onSyncOffsetChange={handleSyncOffsetChange}
                       onBpmAdjustChange={handleBpmAdjustChange}
                       onApiReady={handleNotationApiReady}
+                      onTickUpdate={handleExternalMediaTick}
                     />
                   ) : (
                     /* ASCII mode (existing behavior) */

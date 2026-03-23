@@ -18,6 +18,8 @@ interface UseExternalMediaSyncOptions {
   isPlaying: boolean;
   /** Current audio position in seconds (from wavesurfer) */
   currentTime: number;
+  /** Optional callback fired with the computed tick on each position update */
+  onTickUpdate?: (tick: number) => void;
 }
 
 const TICKS_PER_BEAT = 960;
@@ -100,6 +102,7 @@ export function useExternalMediaSync({
   bpmAdjust,
   isPlaying,
   currentTime,
+  onTickUpdate,
 }: UseExternalMediaSyncOptions) {
   // Build base tempo map from GP file, then apply BPM adjustment
   const baseTempoMap = useMemo(() => buildTempoMap(api), [api]);
@@ -129,6 +132,11 @@ export function useExternalMediaSync({
     tempoMapRef.current = tempoMap;
   }, [tempoMap]);
 
+  const onTickUpdateRef = useRef(onTickUpdate);
+  useEffect(() => {
+    onTickUpdateRef.current = onTickUpdate;
+  }, [onTickUpdate]);
+
   // Playback loop: push tick position every 50ms
   useEffect(() => {
     if (!api || !isPlaying || tempoMap.length === 0) return;
@@ -139,6 +147,7 @@ export function useExternalMediaSync({
       const elapsedMs = (currentTimeRef.current * 1000) - syncOffsetRef.current;
       const tick = elapsedMsToTick(elapsedMs, tempoMapRef.current);
       a.tickPosition = tick;
+      onTickUpdateRef.current?.(tick);
     }, 50);
 
     return () => clearInterval(intervalId);
@@ -154,5 +163,6 @@ export function useExternalMediaSync({
     const elapsedMs = (currentTime * 1000) - syncOffset;
     const tick = elapsedMsToTick(elapsedMs, tempoMap);
     a.tickPosition = tick;
+    onTickUpdateRef.current?.(tick);
   }, [api, currentTime, isPlaying, syncOffset, tempoMap]);
 }

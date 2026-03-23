@@ -11,6 +11,7 @@ interface UseSyncBroadcastOptions {
   isPlaying: boolean;
   currentTime: number;
   countdownRemaining: number | null;
+  tickPosition: number | null;
 }
 
 /**
@@ -18,7 +19,7 @@ interface UseSyncBroadcastOptions {
  * Only active when connected as host and playing.
  * Also emits on play/pause/seek events (state transitions).
  */
-export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining }: UseSyncBroadcastOptions): void {
+export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, tickPosition }: UseSyncBroadcastOptions): void {
   const status = useSyncStore((s) => s.status);
   const role = useSyncStore((s) => s.role);
   const isHostConnected = status === 'connected' && role === 'host';
@@ -26,7 +27,10 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining }:
   const prevIsPlayingRef = useRef(isPlaying);
   const prevTimeRef = useRef(currentTime);
   const countdownRef = useRef(countdownRemaining);
-  countdownRef.current = countdownRemaining;
+  const tickRef = useRef(tickPosition);
+
+  useEffect(() => { countdownRef.current = countdownRemaining; }, [countdownRemaining]);
+  useEffect(() => { tickRef.current = tickPosition; }, [tickPosition]);
 
   // --- Emit on state transitions (play/pause/seek) ---
 
@@ -39,7 +43,7 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining }:
     const seekDetected = timeDelta > 1 && !isPlaying;
 
     if (playChanged || seekDetected) {
-      const state = buildPlaybackState(isPlaying, currentTime, countdownRef.current);
+      const state = buildPlaybackState(isPlaying, currentTime, countdownRef.current, tickRef.current);
       emitPlaybackUpdate(state);
     }
 
@@ -55,6 +59,7 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining }:
       prevIsPlayingRef.current,
       prevTimeRef.current,
       countdownRemaining,
+      tickRef.current,
     );
     emitPlaybackUpdate(state);
   }, [isHostConnected, countdownRemaining]);
@@ -65,7 +70,7 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining }:
     if (!isHostConnected || !isPlaying) return;
 
     const interval = setInterval(() => {
-      const state = buildPlaybackState(true, prevTimeRef.current, countdownRef.current);
+      const state = buildPlaybackState(true, prevTimeRef.current, countdownRef.current, tickRef.current);
       emitPlaybackUpdate(state);
     }, BROADCAST_INTERVAL_MS);
 
@@ -77,6 +82,7 @@ function buildPlaybackState(
   isPlaying: boolean,
   currentTime: number,
   countdownRemaining: number | null,
+  tickPosition: number | null,
 ): PlaybackState {
   const { playbackRate, preservePitch } = useTempoStore.getState();
   const { autoAdvance } = useModeStore.getState();
@@ -88,5 +94,6 @@ function buildPlaybackState(
     timestamp: Date.now(),
     countdownRemaining,
     autoAdvance,
+    tickPosition,
   };
 }

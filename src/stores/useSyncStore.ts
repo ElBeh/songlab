@@ -17,6 +17,7 @@ interface SyncStore {
   syncedIsPlaying: boolean;
   syncedCountdown: number | null;
   syncedAutoAdvance: boolean;
+  syncedTickPosition: number | null;
 
   // Actions
   setStatus: (status: ConnectionStatus) => void;
@@ -25,7 +26,7 @@ interface SyncStore {
   addPeer: (peer: PeerInfo) => void;
   removePeer: (peerId: string) => void;
   setError: (error: string | null) => void;
-  setSyncedPlayback: (time: number, isPlaying: boolean, countdown?: number | null, autoAdvance?: boolean) => void;
+  setSyncedPlayback: (time: number, isPlaying: boolean, countdown?: number | null, autoAdvance?: boolean, tickPosition?: number | null) => void;
   reset: () => void;
 }
 
@@ -40,6 +41,7 @@ const initialState = {
   syncedIsPlaying: false,
   syncedCountdown: null,
   syncedAutoAdvance: false,
+  syncedTickPosition: null,
 };
 
 export const useSyncStore = create<SyncStore>((set) => ({
@@ -55,11 +57,12 @@ export const useSyncStore = create<SyncStore>((set) => ({
     peers: state.peers.filter((p) => p.peerId !== peerId),
   })),
   setError: (error) => set({ error }),
-  setSyncedPlayback: (time, isPlaying, countdown, autoAdvance) => set({
+  setSyncedPlayback: (time, isPlaying, countdown, autoAdvance, tickPosition) => set({
     syncedTime: time,
     syncedIsPlaying: isPlaying,
     syncedCountdown: countdown ?? null,
     syncedAutoAdvance: autoAdvance ?? false,
+    syncedTickPosition: tickPosition ?? null,
   }),
   reset: () => set(initialState),
 }));

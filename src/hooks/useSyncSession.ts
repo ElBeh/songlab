@@ -18,6 +18,8 @@ import {
   deleteTab as dbDeleteTab,
   saveTabSheet as dbSaveTabSheet,
   deleteTabSheet as dbDeleteTabSheet,
+  saveGpFile as dbSaveGpFile,
+  deleteGpFile as dbDeleteGpFile,
 } from '../services/db';
 import type { SongData, SectionMarker, SectionTab, TabSheet } from '../types';
 
@@ -120,6 +122,13 @@ export function useSyncSession({
         for (const s of payload.sheets) await dbSaveTabSheet(s as TabSheet);
         for (const t of payload.tabs) await dbSaveTab(t as SectionTab);
 
+        // Persist GP file (or remove if host has none)
+        if (payload.gpData && payload.gpFileName) {
+          await dbSaveGpFile(song.id, payload.gpData, payload.gpFileName);
+        } else {
+          await dbDeleteGpFile(song.id);
+        }
+
         // Update song store (add or update the song, set active)
         const { songs } = useSongStore.getState();
         const exists = songs.some((s) => s.id === song.id);
@@ -176,7 +185,7 @@ export function useSyncSession({
         applySongData(snapshot.songData);
       }
       if (snapshot.playback) {
-        setSyncedPlayback(snapshot.playback.currentTime, snapshot.playback.isPlaying, snapshot.playback.countdownRemaining, snapshot.playback.autoAdvance);
+        setSyncedPlayback(snapshot.playback.currentTime, snapshot.playback.isPlaying, snapshot.playback.countdownRemaining, snapshot.playback.autoAdvance, snapshot.playback.tickPosition);
         onPlaybackSyncRef.current?.(snapshot.playback.isPlaying, snapshot.playback.currentTime);
       }
     });
@@ -214,7 +223,7 @@ export function useSyncSession({
     // --- Playback sync (viewer receives from host) ---
 
     socket.on('playback:update', (state) => {
-      setSyncedPlayback(state.currentTime, state.isPlaying, state.countdownRemaining, state.autoAdvance);
+      setSyncedPlayback(state.currentTime, state.isPlaying, state.countdownRemaining, state.autoAdvance, state.tickPosition);
       useTempoStore.getState().setPlaybackRate(state.playbackRate);
       onPlaybackSyncRef.current?.(state.isPlaying, state.currentTime);
     });

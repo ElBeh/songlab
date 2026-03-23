@@ -32,6 +32,8 @@ interface NotationPanelProps {
   /** Fires when the AlphaTabApi is created (and again with null on destroy).
    *  The parent hooks into this to wire useAlphaSynthPlayback. */
   onApiReady?: (api: alphaTab.AlphaTabApi | null) => void;
+  /** Fires with the computed tick position during external media sync */
+  onTickUpdate?: (tick: number) => void;
 }
 
 export function NotationPanel({
@@ -47,6 +49,7 @@ export function NotationPanel({
   onSyncOffsetChange,
   onBpmAdjustChange,
   onApiReady,
+  onTickUpdate,
 }: NotationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -220,6 +223,7 @@ export function NotationPanel({
     bpmAdjust: enableExternalMedia ? (bpmAdjust ?? 0) : 0,
     isPlaying: enableExternalMedia ? isPlaying : false,
     currentTime: enableExternalMedia ? currentTime : 0,
+    onTickUpdate: enableExternalMedia ? onTickUpdate : undefined,
   });
 
   // --- Mixer controls ---
