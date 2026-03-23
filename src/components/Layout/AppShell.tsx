@@ -29,7 +29,10 @@ import { useSyncStore } from '../../stores/useSyncStore';
 import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
 import { NotationPanel } from '../Tabs/NotationPanel';
+import { GpMarkerImportDialog } from '../Tabs/GpMarkerImportDialog';
 import { useGpFile } from '../../hooks/useGpFile';
+import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerImport';
+import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
 import type * as alphaTab from '@coderline/alphatab';
 
 export default function AppShell() {
@@ -157,6 +160,46 @@ export default function AppShell() {
     if (!song) return;
     useSongStore.getState().updateSong({ ...song, bpmAdjust: adjust });
   }, []);
+
+  // --- GP Marker Import ---
+  const [gpImportMarks, setGpImportMarks] = useState<GpRehearsalMark[] | null>(null);
+
+  const handleGpMarkerImport = useCallback(() => {
+    const api = viewerApiRef.current;
+    if (!api?.score || !activeSong) return;
+
+    const marks = extractGpMarkers(
+      api.score,
+      activeSong.syncOffset ?? 0,
+      activeSong.bpmAdjust ?? 0,
+    );
+
+    if (marks.length === 0) {
+      addToast('No rehearsal marks found in GP file', 'info');
+      return;
+    }
+
+    setGpImportMarks(marks);
+  }, [activeSong, addToast]);
+
+  const handleGpImportMerge = useCallback(async () => {
+    if (!gpImportMarks || !activeSong) return;
+    const markers = gpMarksToSectionMarkers(gpImportMarks, activeSong.id);
+    for (const m of markers) await addMarker(m);
+    addToast(`Imported ${markers.length} section(s)`, 'success');
+    setGpImportMarks(null);
+  }, [gpImportMarks, activeSong, addMarker, addToast]);
+
+  const handleGpImportReplace = useCallback(async () => {
+    if (!gpImportMarks || !activeSong) return;
+    const { removeMarker } = useSongStore.getState();
+    const existing = useSongStore.getState().getActiveMarkers();
+    for (const m of existing) await removeMarker(m.id);
+    const markers = gpMarksToSectionMarkers(gpImportMarks, activeSong.id);
+    for (const m of markers) await addMarker(m);
+    addToast(`Replaced with ${markers.length} section(s)`, 'success');
+    setGpImportMarks(null);
+  }, [gpImportMarks, activeSong, addMarker, addToast]);
 
   // Unified playback values (3-way: wavesurfer / alphaSynth / dummy)
   const _isPlaying = isAlphaSynth ? alphaSynthPlayback.isPlaying
@@ -831,6 +874,17 @@ export default function AppShell() {
                           ✕ Remove GP
                         </button>
                       )}
+
+                      {/* Import markers from GP file */}
+                      {hasGpFile && !isBand && (
+                        <button
+                          onClick={handleGpMarkerImport}
+                          className='px-2 py-1 text-xs font-mono rounded transition-colors
+                                    bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        >
+                          Import Markers
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -880,6 +934,16 @@ export default function AppShell() {
 
       {showDummyDialog && (
         <CreateDummySongDialog onClose={() => setShowDummyDialog(false)} />
+      )}
+
+      {gpImportMarks && (
+        <GpMarkerImportDialog
+          marks={gpImportMarks}
+          hasExistingSections={useSongStore.getState().getActiveMarkers().length > 0}
+          onMerge={handleGpImportMerge}
+          onReplace={handleGpImportReplace}
+          onCancel={() => setGpImportMarks(null)}
+        />
       )}
     </div>
   );
