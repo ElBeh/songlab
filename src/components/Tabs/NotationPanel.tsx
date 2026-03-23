@@ -86,9 +86,8 @@ export function NotationPanel({
       settings.player.playerMode = alphaTab.PlayerMode.Disabled;
     }
 
-    // alphaTab handles horizontal scroll; page mode scroll is manual (see effect below)
-    settings.player.scrollElement = containerRef.current;
-    settings.player.scrollOffsetX = -80;
+    // Scroll is handled manually (see RAF effect below) – do not set
+    // scrollElement to avoid double-scroll conflicts with alphaTab internals.
 
     const api = new alphaTab.AlphaTabApi(containerRef.current, settings);
 
@@ -158,20 +157,15 @@ export function NotationPanel({
       layout === 'page' ? alphaTab.LayoutMode.Page : alphaTab.LayoutMode.Horizontal;
     api.updateSettings();
     api.render();
-
-    // Re-bind scroll element after render (alphaTab loses it on re-render)
-    if (layout === 'horizontal' && containerRef.current) {
-      api.settings.player.scrollElement = containerRef.current;
-      api.settings.player.scrollOffsetX = -80;
-      api.updateSettings();
-    }
   }, [layout]);
 
-  // Manual scroll for page mode
+  // Manual cursor-follow scroll for both page and horizontal mode.
+  // alphaTab's built-in scrollElement only works when its own player drives
+  // playback. In External Media mode (and after layout switches) it doesn't
+  // fire, so we handle scrolling ourselves via requestAnimationFrame.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    if (layout !== 'page') return;
 
     const beat = () => container.querySelector('.at-cursor-beat') as HTMLElement | null;
 
@@ -181,11 +175,24 @@ export function NotationPanel({
       if (el) {
         const beatRect = el.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        const offset = beatRect.top - containerRect.top;
-        const target = container.scrollTop + offset - containerRect.height * 0.3;
 
-        if (Math.abs(offset - containerRect.height * 0.3) > 50) {
-          container.scrollTo({ top: target, behavior: 'smooth' });
+        if (layout === 'page') {
+          const offset = beatRect.top - containerRect.top;
+          const target = container.scrollTop + offset - containerRect.height * 0.3;
+
+          if (Math.abs(offset - containerRect.height * 0.3) > 50) {
+            container.scrollTo({ top: target, behavior: 'smooth' });
+          }
+        } else {
+          // Horizontal: page-turn style – jump when cursor leaves the
+          // visible area (past 85% of container width). Places the cursor
+          // back near the left edge (10%) for uninterrupted reading.
+          const offset = beatRect.left - containerRect.left;
+
+          if (offset < 0 || offset > containerRect.width * 0.85) {
+            const target = container.scrollLeft + offset - containerRect.width * 0.1;
+            container.scrollTo({ left: target, behavior: 'instant' });
+          }
         }
       }
       rafId = requestAnimationFrame(tick);
