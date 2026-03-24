@@ -101,15 +101,16 @@ SongLab's Band Sync is designed for the **shared room** scenario: the band plays
 
 | Category | Technology |
 |---|---|
-| Language | TypeScript 5.9 |
-| Framework | React 19 |
-| Bundler | Vite 7 |
-| Audio | wavesurfer.js 7 |
-| State management | Zustand |
-| Persistence | IndexedDB (via idb) |
-| Styling | Tailwind CSS 4 |
-| Band Sync | Express 5 + socket.io 4 |
-| PWA | vite-plugin-pwa |
+| Language | [TypeScript](https://www.typescriptlang.org/) 5.9 |
+| Framework | [React](https://react.dev/) 19 |
+| Bundler | [Vite](https://vite.dev/) 7 |
+| Audio | [wavesurfer.js](https://wavesurfer.xyz/) 7 |
+| Notation Rendering | [alphaTab](https://alphatab.net/) (MPL-2.0) |
+| State Management | [Zustand](https://zustand.docs.pmnd.rs/) |
+| Persistence | IndexedDB (via [idb](https://github.com/jakearchibald/idb)) |
+| Styling | [Tailwind CSS](https://tailwindcss.com/) 4 |
+| Band Sync | [Express](https://expressjs.com/) 5 + [socket.io](https://socket.io/) 4 |
+| PWA | [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) |
 
 ## Roadmap
 
