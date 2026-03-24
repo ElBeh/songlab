@@ -28,20 +28,17 @@ Attach a **Guitar Pro file** (.gp3–.gp8, .gpx) to any song and SongLab renders
 ### Practice Mode – Notation
 Guitar Pro notation rendered with alphaTab, synchronized to the audio waveform. Track selector, zoom control, and collapsible sync offset editor.
 
-<!-- TODO: Replace with actual screenshot -->
-![Practice Mode – Notation](docs/screenshots/practice_notation.png)
+![Practice Mode – Notation](docs/screenshots/practicemode_notation.png)
 
 ### Band Sync – Host
 Full playback control with notation, auto-advance between songs, real-time sync to all connected viewers.
 
-<!-- TODO: Replace with actual screenshot -->
-![Band Sync – Host](docs/screenshots/bandmode_host_notation.png)
+![Band Sync – Host](docs/screenshots/bandsync_host.png)
 
 ### Band Sync – Viewer
 Read-only view on any device in the local network. Each member picks their own instrument track. Notation cursor follows the host's playback position.
 
-<!-- TODO: Replace with actual screenshot -->
-![Band Sync – Viewer](docs/screenshots/bandmode_viewer_notation.png)
+![Band Sync – Viewer](docs/screenshots/bandsync_viewer.png)
 
 <details>
 <summary><strong>More screenshots</strong></summary>
@@ -49,20 +46,17 @@ Read-only view on any device in the local network. Each member picks their own i
 ### Practice Mode – ASCII Tabs & Sections
 Color-coded section markers on the waveform, section list with timestamps, ASCII tab editor with multiple sheets per song.
 
-<!-- TODO: Replace with actual screenshot -->
-![Practice Mode – ASCII Tabs](docs/screenshots/practice_ascii.png)
+![Practice Mode – ASCII Tabs](docs/screenshots/practicemode_ASCII.png)
 
 ### GP Marker Import
 Import rehearsal marks from Guitar Pro files as section markers. Supports Replace, Merge, or Cancel when sections already exist.
 
-<!-- TODO: Replace with actual screenshot -->
-![GP Marker Import](docs/screenshots/gp_marker_import.png)
+![GP Marker Import](docs/screenshots/gp_markerimport.png)
 
 ### Sidebar – Accordion Layout
 Sections and Setlist as independently collapsible accordion panels. Entire sidebar collapses to a narrow strip for more space during practice.
 
-<!-- TODO: Replace with actual screenshot -->
-![Sidebar Accordion](docs/screenshots/sidebar_accordion.png)
+![Sidebar Accordion](docs/screenshots/practicemode_fullscreen.png)
 
 ### Sync Offset Editor
 Fine-tune audio-to-notation synchronization with offset nudge (±10ms/±100ms) and BPM correction (±0.1/±1.0).
