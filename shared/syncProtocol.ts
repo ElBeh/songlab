@@ -6,8 +6,24 @@
 
 export type SyncRole = 'host' | 'viewer';
 
-// --- Playback state (broadcast by host) ---
+// --- Controller commands (sent by Controller, applied by Host) ---
 
+export type ControlCommandType =
+  | 'play'
+  | 'pause'
+  | 'seek'
+  | 'nextSong'
+  | 'prevSong'
+  | 'tempoChange'
+  | 'songSelect';
+
+export interface ControlCommand {
+  type: ControlCommandType;
+  value?: number;  // seek: seconds, tempoChange: new rate (0.5–1.5)
+  songId?: string; // songSelect: target song ID
+}
+
+// --- Playback state (broadcast by host) ---
 export interface PlaybackState {
   isPlaying: boolean;
   currentTime: number;    // seconds
@@ -24,6 +40,13 @@ export interface PlaybackState {
 export interface ClientToServerEvents {
   // Connection / role
   'session:join': (payload: { role: SyncRole; displayName: string }) => void;
+
+  // Controller role
+  'controller:request': () => void;
+  'controller:release': () => void;
+
+  // Controller transport commands
+  'control:command': (payload: ControlCommand) => void;
 
   // Playback (host only)
   'playback:update': (state: PlaybackState) => void;
@@ -58,6 +81,14 @@ export interface ServerToClientEvents {
   'session:peer-joined': (payload: PeerInfo) => void;
   'session:peer-left': (payload: { peerId: string }) => void;
   'session:error': (payload: { message: string }) => void;
+
+  // Controller role
+  'controller:granted': (payload: { peerId: string }) => void;
+  'controller:denied': (payload: { reason: string }) => void;
+  'controller:released': (payload: { peerId: string }) => void;
+
+  // Controller command (forwarded to host)
+  'control:command': (payload: ControlCommand) => void;
 
   // Playback
   'playback:update': (state: PlaybackState) => void;
@@ -155,6 +186,7 @@ export interface PeerInfo {
   peerId: string;
   displayName: string;
   role: SyncRole;
+  canControl: boolean;
 }
 
 export interface SessionSnapshot {
@@ -165,4 +197,5 @@ export interface SessionSnapshot {
   playback: PlaybackState | null;
   songData: SongDataPayload | null;
   setlist: SetlistSyncPayload | null;
+  controllerId: string | null;
 }

@@ -13,6 +13,7 @@ import type {
   SheetSyncPayload,
   SongDataPayload,
   SetlistSyncPayload,
+  ControlCommand,
 } from '../../shared/syncProtocol';
 import { useSyncStore } from '../stores/useSyncStore';
 
@@ -110,4 +111,25 @@ export function emitSheetDelete(sheetId: string, songId: string): void {
 export function emitSetlistSync(payload: SetlistSyncPayload): void {
   if (!canEmit() || !isHost()) return;
   _socket!.emit('setlist:sync', payload);
+}
+
+// --- Controller role ---
+
+export function emitControllerRequest(): void {
+  if (!canEmit()) return;
+  _socket!.emit('controller:request');
+}
+
+export function emitControllerRelease(): void {
+  if (!canEmit()) return;
+  _socket!.emit('controller:release');
+}
+
+// --- Controller transport commands ---
+
+export function emitControlCommand(command: ControlCommand): void {
+  if (!canEmit()) return;
+  const { isController } = useSyncStore.getState();
+  if (!isController && !isHost()) return;
+  _socket!.emit('control:command', command);
 }

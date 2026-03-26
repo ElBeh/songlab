@@ -48,6 +48,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 
 const peers = new Map<string, PeerInfo>();
 let hostId: string | null = null;
+let controllerId: string | null = null;
 let activeSongId: string | null = null;
 let playbackState: PlaybackState | null = null;
 let songData: SongDataPayload | null = null;
@@ -55,6 +56,14 @@ let setlistData: SetlistSyncPayload | null = null;
 
 function isHost(socketId: string): boolean {
   return socketId === hostId;
+}
+
+function isController(socketId: string): boolean {
+  return socketId === controllerId;
+}
+
+function canControl(socketId: string): boolean {
+  return isHost(socketId) || isController(socketId);
 }
 
 // --- Connection handling ---
@@ -77,6 +86,7 @@ io.on('connection', (socket) => {
       peerId: socket.id,
       displayName,
       role: assignedRole,
+      canControl: assignedRole === 'host',
     };
     peers.set(socket.id, peer);
 
@@ -89,6 +99,7 @@ io.on('connection', (socket) => {
       playback: playbackState,
       songData,
       setlist: setlistData,
+      controllerId,
     };
     socket.emit('session:welcome', snapshot);
 
@@ -96,6 +107,50 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('session:peer-joined', peer);
 
     console.log(`[sync] ${displayName} joined as ${assignedRole} (${socket.id})`);
+  });
+
+  // --- Controller role (mutex, first-come-first-served) ---
+
+  socket.on('controller:request', () => {
+    if (isHost(socket.id)) return;
+
+    if (controllerId !== null) {
+      socket.emit('controller:denied', { reason: 'Another controller is already active' });
+      return;
+    }
+
+    controllerId = socket.id;
+    const peer = peers.get(socket.id);
+    if (peer) {
+      peer.canControl = true;
+      peers.set(socket.id, peer);
+    }
+
+    socket.emit('controller:granted', { peerId: socket.id });
+    socket.broadcast.emit('controller:granted', { peerId: socket.id });
+    console.log(`[sync] ${peer?.displayName ?? socket.id} became controller`);
+  });
+
+  socket.on('controller:release', () => {
+    if (!isController(socket.id)) return;
+
+    const peer = peers.get(socket.id);
+    if (peer) {
+      peer.canControl = false;
+      peers.set(socket.id, peer);
+    }
+
+    controllerId = null;
+    io.emit('controller:released', { peerId: socket.id });
+    console.log(`[sync] ${peer?.displayName ?? socket.id} released controller`);
+  });
+
+  // --- Controller commands (forwarded to host) ---
+
+  socket.on('control:command', (payload) => {
+    if (!canControl(socket.id)) return;
+    if (hostId === null) return;
+    io.to(hostId).emit('control:command', payload);
   });
 
   // --- Playback (host only) ---
@@ -168,9 +223,14 @@ io.on('connection', (socket) => {
     peers.delete(socket.id);
     io.emit('session:peer-left', { peerId: socket.id });
 
+    if (isController(socket.id)) {
+      controllerId = null;
+      io.emit('controller:released', { peerId: socket.id });
+      console.log(`[sync] Controller disconnected (${reason}). Controller role released.`);
+    }
+
     if (isHost(socket.id)) {
       hostId = null;
-      // Optionally promote next peer to host (future enhancement)
       console.log(`[sync] Host disconnected (${reason}). Session has no host.`);
     }
 

@@ -4,6 +4,7 @@ import type {
   ClientToServerEvents,
   ServerToClientEvents,
   SyncRole,
+  ControlCommand,
 } from '../../shared/syncProtocol';
 import { useSyncStore } from '../stores/useSyncStore';
 import { useSongStore } from '../stores/useSongStore';
@@ -30,6 +31,8 @@ interface UseSyncSessionOptions {
   onSongSelect?: (songId: string) => void;
   /** Called when host sends playback state (viewer applies it) */
   onPlaybackSync?: (isPlaying: boolean, currentTime: number) => void;
+  /** Called on host when a controller sends a transport command */
+  onControlCommand?: (command: ControlCommand) => void;
 }
 
 /**
@@ -41,12 +44,15 @@ interface UseSyncSessionOptions {
 export function useSyncSession({
   onSongSelect,
   onPlaybackSync,
+  onControlCommand,
 }: UseSyncSessionOptions = {}) {
   const socketRef = useRef<SyncSocket | null>(null);
   const onSongSelectRef = useRef(onSongSelect);
   onSongSelectRef.current = onSongSelect;
   const onPlaybackSyncRef = useRef(onPlaybackSync);
   onPlaybackSyncRef.current = onPlaybackSync;
+  const onControlCommandRef = useRef(onControlCommand);
+  onControlCommandRef.current = onControlCommand;
 
   const {
     setStatus,
@@ -55,6 +61,8 @@ export function useSyncSession({
     addPeer,
     removePeer,
     setError,
+    setController,
+    clearController,
     setSyncedPlayback,
     reset,
   } = useSyncStore.getState();
@@ -176,6 +184,13 @@ export function useSyncSession({
     socket.on('session:welcome', (snapshot) => {
       setSession(snapshot.peerId, snapshot.role, snapshot.peers);
 
+      // Restore controller state from snapshot
+      if (snapshot.controllerId) {
+        setController(snapshot.controllerId);
+      } else {
+        clearController();
+      }
+
       // Apply setlist first (so song store has all songs)
       if (snapshot.setlist) {
         applySetlist(snapshot.setlist);
@@ -196,10 +211,31 @@ export function useSyncSession({
 
     socket.on('session:peer-left', ({ peerId }) => {
       removePeer(peerId);
+      // Controller disconnect is handled by controller:released from server
     });
 
     socket.on('session:error', ({ message }) => {
       setError(message);
+    });
+
+    // --- Controller events ---
+
+    socket.on('controller:granted', ({ peerId }) => {
+      setController(peerId);
+    });
+
+    socket.on('controller:denied', ({ reason }) => {
+      setError(reason);
+    });
+
+    socket.on('controller:released', () => {
+      clearController();
+    });
+
+    // --- Control commands (host receives from controller via server) ---
+
+    socket.on('control:command', (command) => {
+      onControlCommandRef.current?.(command);
     });
 
     // --- Song selection ---
@@ -314,7 +350,7 @@ export function useSyncSession({
       });
     });
 
-  }, [setStatus, setServerUrl, setSession, addPeer, removePeer, setError, setSyncedPlayback]);
+  }, [setStatus, setServerUrl, setSession, addPeer, removePeer, setError, setController, clearController, setSyncedPlayback]);
 
   // --- Disconnect ---
 

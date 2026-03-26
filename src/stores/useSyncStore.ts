@@ -12,6 +12,10 @@ interface SyncStore {
   peers: PeerInfo[];
   error: string | null;
 
+  // Controller
+  isController: boolean;
+  controllerId: string | null;
+
   // Synced playback (viewer receives from host)
   syncedTime: number;
   syncedIsPlaying: boolean;
@@ -26,6 +30,8 @@ interface SyncStore {
   addPeer: (peer: PeerInfo) => void;
   removePeer: (peerId: string) => void;
   setError: (error: string | null) => void;
+  setController: (peerId: string) => void;
+  clearController: () => void;
   setSyncedPlayback: (time: number, isPlaying: boolean, countdown?: number | null, autoAdvance?: boolean, tickPosition?: number | null) => void;
   reset: () => void;
 }
@@ -37,6 +43,8 @@ const initialState = {
   role: null,
   peers: [],
   error: null,
+  isController: false,
+  controllerId: null,
   syncedTime: 0,
   syncedIsPlaying: false,
   syncedCountdown: null,
@@ -57,6 +65,11 @@ export const useSyncStore = create<SyncStore>((set) => ({
     peers: state.peers.filter((p) => p.peerId !== peerId),
   })),
   setError: (error) => set({ error }),
+  setController: (peerId) => set((state) => ({
+    controllerId: peerId,
+    isController: peerId === state.peerId,
+  })),
+  clearController: () => set({ controllerId: null, isController: false }),
   setSyncedPlayback: (time, isPlaying, countdown, autoAdvance, tickPosition) => set({
     syncedTime: time,
     syncedIsPlaying: isPlaying,

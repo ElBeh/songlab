@@ -34,6 +34,9 @@ import { useGpFile } from '../../hooks/useGpFile';
 import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerImport';
 import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
 import type * as alphaTab from '@coderline/alphatab';
+import { useControlCommandHandler } from '../../hooks/useControlCommandHandler';
+import type { ControlCommand } from '../../../shared/syncProtocol';
+import { RemoteControlView } from '../Controller/RemoteControlView';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -41,6 +44,7 @@ export default function AppShell() {
   const [showDummyDialog, setShowDummyDialog] = useState(false);
   const [tabMode, setTabMode] = useState<'ascii' | 'notation'>('notation');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showRemoteControl, setShowRemoteControl] = useState(false);
 
   const activeSong = useSongStore((state) => state.getActiveSong)();
   const addMarker = useSongStore((state) => state.addMarker);
@@ -65,6 +69,8 @@ export default function AppShell() {
     }
   }, [isViewer]);
 
+const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
+
   const syncSession = useSyncSession({
     onSongSelect: useCallback(async (songId: string) => {
       await useSongStore.getState().setActiveSongId(songId);
@@ -73,6 +79,9 @@ export default function AppShell() {
     }, []),
     onPlaybackSync: useCallback(() => {
       // Playback sync handled via syncedTime/syncedIsPlaying in useSyncStore
+    }, []),
+    onControlCommand: useCallback((cmd: ControlCommand) => {
+      controlCommandRef.current?.(cmd);
     }, []),
   });
 
@@ -218,6 +227,14 @@ export default function AppShell() {
     : isDummy ? dummyPlayback.handleReset : playback.handleReset;
   const toggleSongLoop = isAlphaSynth ? alphaSynthPlayback.toggleSongLoop
     : isDummy ? dummyPlayback.toggleSongLoop : playback.toggleSongLoop;
+
+  // Host: handle incoming control commands from remote Controller
+  const handleControlCommand = useControlCommandHandler({
+    handlePlayPause,
+    handleSeekTo,
+    isPlaying: _isPlaying,
+  });
+  controlCommandRef.current = handleControlCommand;
 
   // Viewer overrides: use synced playback from host
   const syncedTime = useSyncStore((s) => s.syncedTime);
@@ -522,6 +539,17 @@ export default function AppShell() {
           className='hidden'
           onChange={audioFile.handleFileInput}
         />
+        
+        {/* Remote mode: compact and remote transport controll + choose sections or song*/}
+        {isViewer && (
+         <button
+           onClick={() => setShowRemoteControl(true)}
+            className='shrink-0 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500
+                       text-white font-mono text-xs transition-colors'
+           >
+            Remote
+          </button>
+        )}
 
         <SyncStatus
           onConnect={syncSession.connect}
@@ -616,7 +644,6 @@ export default function AppShell() {
                   )}
                 </div>
                 <div className='flex items-center gap-3'>
-
                   {/* Band mode: compact play/pause + reset (host only) */}
                   {isBand && !isViewer && (
                     <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-3'>
@@ -930,8 +957,32 @@ export default function AppShell() {
         </main>
       </div>
 
-      <ToastContainer />
+      {/* Remote Controller fullscreen overlay (viewer only) */}
+      {isViewer && showRemoteControl && (
+        <div className='fixed inset-0 z-9999 bg-slate-900'>
+          <div className='flex flex-col h-full'>
+            <div className='flex items-center justify-between px-4 py-2
+                            border-b border-slate-700'>
+              <span className='font-mono text-xs text-slate-400 uppercase tracking-widest'>
+                Remote Control
+              </span>
+              <button
+                onClick={() => setShowRemoteControl(false)}
+                className='px-3 py-1.5 rounded font-mono text-xs
+                           bg-slate-700 hover:bg-slate-600 text-slate-300
+                           transition-colors'
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div className='flex-1 overflow-hidden'>
+              <RemoteControlView />
+            </div>
+          </div>
+        </div>
+      )}
 
+      <ToastContainer />
       {showDummyDialog && (
         <CreateDummySongDialog onClose={() => setShowDummyDialog(false)} />
       )}
