@@ -14,9 +14,10 @@ interface SidebarProps {
   isViewer?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onAddMarker?: () => void;
 }
 
-export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, onAddMarker }: SidebarProps) {
   const [sectionsOpen, setSectionsOpen] = useState(true);
   const [setlistOpen, setSetlistOpen] = useState(true);
   const [setlistName, setSetlistName] = useState('');
@@ -234,6 +235,20 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 />
               </div>
 
+              {/* Add marker button */}
+              {activeSong && onAddMarker && (
+                <div className='p-3'>
+                  <button
+                    onClick={onAddMarker}
+                    className='w-full px-2 py-1.5 text-xs font-mono text-slate-400
+                               hover:text-slate-200 hover:bg-slate-800 rounded
+                               transition-colors'
+                  >
+                    + add marker
+                  </button>
+                </div>
+              )}
+
               {/* Song import/export */}
               <div className='border-t border-slate-700 p-3 flex flex-col gap-2'>
                 <p className='text-xs font-mono text-slate-500 uppercase tracking-widest'>
@@ -258,13 +273,14 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                   </button>
                 </div>
               </div>
+
             </div>
           )}
         </div>
       )}
 
       {/* ── Setlist accordion ── */}
-      <div className='flex flex-col'>
+      <div className='flex flex-col border-t border-slate-400'>
         {/* Header */}
         <button
           onClick={() => setSetlistOpen((v) => !v)}
@@ -523,8 +539,9 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
               {!isBand && songOrder.length > 0 && (
                 <button
                   onClick={() => addPause(songOrder.length - 1)}
-                  className='px-2 py-1 text-xs font-mono text-slate-600 hover:text-slate-300
-                             transition-colors self-start'
+                  className='w-full px-2 py-1.5 text-xs font-mono text-slate-400
+                               hover:text-slate-200 hover:bg-slate-800 rounded
+                               transition-colors'
                 >
                   + add pause
                 </button>

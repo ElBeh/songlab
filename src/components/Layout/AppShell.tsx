@@ -565,6 +565,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           isViewer={isViewer}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+          onAddMarker={handleAddMarker}
         />
 
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto'>
@@ -777,18 +778,6 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                     />
                   </div>
 
-                  {!showMarkerForm && (
-                    <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
-                      <button
-                        onClick={handleAddMarker}
-                        className='text-sm font-mono text-slate-300 hover:text-white
-                                   transition-colors'
-                      >
-                        + Add Marker
-                      </button>
-                    </div>
-                  )}
-
                   {(!isDummy || isAlphaSynth) && (
                     <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
                       <TempoControls />
@@ -797,7 +786,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                 </div>
               )}
 
-              {/* MarkerForm – practice mode only */}
+              {/* MarkerForm modal – practice mode only */}
               {!isBand && showMarkerForm && (
                 <MarkerForm
                   currentTime={currentTime}
