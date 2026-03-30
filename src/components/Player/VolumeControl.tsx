@@ -18,17 +18,17 @@ export function VolumeControl() {
   if (!activeSong) return null;
 
   const displayVolume = localVolume ?? activeSong.volume ?? 1;
-  const isNormalized = activeSong.normalizationGain !== 1.0;
-  const isNormalizationActive = activeSong.normalizationEnabled ?? true;
+  //const isNormalized = activeSong.normalizationGain !== 1.0;
+  //const isNormalizationActive = activeSong.normalizationEnabled ?? true;
 
   const handleVolumeCommit = async (value: number) => {
     setLocalVolume(null);
     await updateSong({ ...activeSong, volume: value });
   };
 
-  const handleNormalizationToggle = async () => {
+/*   const handleNormalizationToggle = async () => {
     await updateSong({ ...activeSong, normalizationEnabled: !isNormalizationActive });
-  };
+  }; */
 
   return (
     <div className='flex items-center gap-3 font-mono text-xs'>
@@ -50,7 +50,7 @@ export function VolumeControl() {
         {Math.round(displayVolume * 100)}%
       </span>
 
-      {isNormalized && (
+{/*       {isNormalized && (
         <button
           onClick={handleNormalizationToggle}
           className='px-1.5 py-0.5 rounded text-xs transition-colors'
@@ -62,7 +62,7 @@ export function VolumeControl() {
         >
           normalized
         </button>
-      )}
+      )} */}
     </div>
   );
 }

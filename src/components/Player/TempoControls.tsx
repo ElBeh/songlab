@@ -9,9 +9,9 @@ const PRESETS = [
 
 export function TempoControls() {
   const playbackRate = useTempoStore((state) => state.playbackRate);
-  const preservePitch = useTempoStore((state) => state.preservePitch);
+  //const preservePitch = useTempoStore((state) => state.preservePitch);
   const setPlaybackRate = useTempoStore((state) => state.setPlaybackRate);
-  const togglePreservePitch = useTempoStore((state) => state.togglePreservePitch);
+  //const togglePreservePitch = useTempoStore((state) => state.togglePreservePitch);
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -85,10 +85,10 @@ export function TempoControls() {
         </button>
       )}
 
-      {/* Divider */}
+      {/* Divider 
       <div className='w-px h-6 bg-slate-600 mx-1' />
-
-      {/* Pitch correction */}
+      */}
+      {/* Pitch correction 
       <button
         onClick={togglePreservePitch}
         className='px-3 py-1 rounded font-mono text-xs transition-colors'
@@ -100,6 +100,7 @@ export function TempoControls() {
       >
         🎵 pitch lock
       </button>
+      */}
     </div>
   );
 }
