@@ -295,8 +295,12 @@ export function NotationPanel({
     <div className='flex flex-col gap-2 flex-1 min-h-64'>
       {/* Controls bar */}
       <div className='flex items-center gap-3'>
-        {/* Track selector */}
-        {tracks.length > 1 && (
+          {/* Controls wrapper */}
+          <div
+            className="bg-slate-800 rounded-lg px-4 py-3 flex items-center gap-3"
+          >
+          {/* Track selector */}
+          {tracks.length > 1 && (
           <select
             value={activeTrackIndex}
             onChange={(e) => setActiveTrackIndex(Number(e.target.value))}
@@ -310,39 +314,51 @@ export function NotationPanel({
               </option>
             ))}
           </select>
-        )}
+          )}
 
-        {/* Layout toggle */}
-        <button
-          onClick={() => setLayout((l) => (l === 'page' ? 'horizontal' : 'page'))}
-          className='px-2 py-1 text-xs font-mono rounded transition-colors
-                     bg-slate-700 hover:bg-slate-600 text-slate-300'
-        >
-          {layout === 'page' ? '↔ Horizontal' : '↕ Page'}
-        </button>
+          {/* Divider */}
+          <div className='w-px h-6 bg-slate-600 mx-1' />
+      
+          {/* Layout toggle */}
+          <button
+            onClick={() => setLayout((l) => (l === 'page' ? 'horizontal' : 'page'))}
+            className="px-2 py-1 text-xs font-mono rounded transition-colors
+                      bg-slate-700 hover:bg-slate-600 text-slate-300"
+          >
+            {layout === 'page' ? '↔ Horizontal' : '↕ Page'}
+          </button>
 
-        {/* Zoom controls */}
-        <div className='flex items-center gap-1'>
-          <button
-            onClick={() => setScale((s) => Math.max(0.3, Math.round((s - 0.1) * 10) / 10))}
-            className='px-1.5 py-0.5 text-xs font-mono rounded transition-colors
-                       bg-slate-700 hover:bg-slate-600 text-slate-300'
-            title='Zoom out'
-          >
-            −
-          </button>
-          <span className='text-xs font-mono text-slate-400 min-w-8 text-center'>
-            {Math.round(scale * 100)}%
-          </span>
-          <button
-            onClick={() => setScale((s) => Math.min(1.5, Math.round((s + 0.1) * 10) / 10))}
-            className='px-1.5 py-0.5 text-xs font-mono rounded transition-colors
-                       bg-slate-700 hover:bg-slate-600 text-slate-300'
-            title='Zoom in'
-          >
-            +
-          </button>
-        </div>
+          {/* Zoom controls */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() =>
+                setScale((s) => Math.max(0.3, Math.round((s - 0.1) * 10) / 10))
+              }
+              className="px-1.5 py-0.5 text-xs font-mono rounded transition-colors
+                        bg-slate-700 hover:bg-slate-600 text-slate-300"
+              title="Zoom out"
+            >
+              −
+            </button>
+
+            <span className="text-xs font-mono text-slate-400 min-w-8 text-center">
+              {Math.round(scale * 100)}%
+            </span>
+
+            <button
+              onClick={() =>
+                setScale((s) => Math.min(1.5, Math.round((s + 0.1) * 10) / 10))
+              }
+              className="px-1.5 py-0.5 text-xs font-mono rounded transition-colors
+                        bg-slate-700 hover:bg-slate-600 text-slate-300"
+              title="Zoom in"
+            >
+              +
+            </button>
+          </div>
+        
+          {/* Divider */}
+          <div className='w-px h-6 bg-slate-600 mx-1' />
 
         {/* Sync Offset Editor (Audio + GP, practice mode) */}
         {showSyncEditor && onSyncOffsetChange && onBpmAdjustChange && (
@@ -354,6 +370,7 @@ export function NotationPanel({
             onBpmAdjustChange={onBpmAdjustChange}
           />
         )}
+      </div>
 
         {/* Mixer toggle (only with synth) */}
         {enableSynth && tracks.length > 0 && (
@@ -442,8 +459,7 @@ export function NotationPanel({
       {/* alphaTab render container */}
       <div
         ref={containerRef}
-        className='overflow-auto bg-white rounded relative'
-        style={{ height: '400px' }}
+        className="overflow-auto bg-white rounded relative h-auto max-h-[400px]"
       />
     </div>
   );

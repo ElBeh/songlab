@@ -362,13 +362,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                       </div>
                       )}
 
-                      {/* Dummy indicator */}
-                      {song.isDummy && (
-                        <span className='text-[10px] text-slate-600' title='No audio file'>
-                          📝
-                        </span>
-                      )}
-
                       {/* Song title */}
                       {editingSongId === song.id ? (
                         <input

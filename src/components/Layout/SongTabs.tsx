@@ -73,9 +73,6 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
               await useTabStore.getState().loadSheetsForSong(song.id); 
             }}
           >
-            {song.isDummy && (
-              <span className='text-[10px] text-slate-600' title='No audio file'>📝</span>
-            )}
             {editingId === song.id ? (
               <input
                 ref={editInputRef}
