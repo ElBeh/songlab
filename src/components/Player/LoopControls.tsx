@@ -1,14 +1,9 @@
 import { useState } from 'react';
 import { useLoopStore } from '../../stores/useLoopStore';
+import { formatTime } from '../../utils/formatTime';
 
 interface LoopControlsProps {
   songLoop: boolean;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 /**

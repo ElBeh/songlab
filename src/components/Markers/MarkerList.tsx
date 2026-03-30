@@ -2,18 +2,13 @@ import { useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { MarkerEditForm } from './MarkerEditForm';
 import { useLoopStore } from '../../stores/useLoopStore';
+import { formatTime } from '../../utils/formatTime';
 
 interface MarkerListProps {
   onSeekTo: (time: number) => void;
   duration: number;
   currentTime: number;
   onMarkerSelect: (id: string) => void;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: MarkerListProps) {

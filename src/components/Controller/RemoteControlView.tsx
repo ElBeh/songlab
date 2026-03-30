@@ -8,14 +8,9 @@ import {
   emitControllerRequest,
   emitControllerRelease,
 } from '../../services/syncEmitter';
+import { formatTime } from '../../utils/formatTime';
 
 type Tab = 'setlist' | 'sections';
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 export function RemoteControlView() {
   const [activeTab, setActiveTab] = useState<Tab>('setlist');

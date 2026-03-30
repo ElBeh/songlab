@@ -1,4 +1,5 @@
 import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
+import { formatTime } from '../../utils/formatTime';
 
 interface GpMarkerImportDialogProps {
   marks: GpRehearsalMark[];
@@ -105,10 +106,4 @@ export function GpMarkerImportDialog({
       </div>
     </div>
   );
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
