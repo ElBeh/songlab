@@ -7,17 +7,38 @@ interface CreateDummySongDialogProps {
   onClose: () => void;
 }
 
+type DurationMode = 'duration' | 'bpm';
+
 export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps) {
   const [title, setTitle] = useState('');
+  const [durationMode, setDurationMode] = useState<DurationMode>('duration');
+
+  // Duration mode
   const [minutes, setMinutes] = useState(3);
   const [seconds, setSeconds] = useState(30);
+
+  // BPM mode
+  const [bpm, setBpm] = useState(120);
+  const [beatsPerBar, setBeatsPerBar] = useState(4);
+  const [beatUnit, setBeatUnit] = useState(4);
+  const [barCount, setBarCount] = useState(16);
 
   const addSong = useSongStore((state) => state.addSong);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const addToast = useToastStore((state) => state.addToast);
 
-  const totalSeconds = minutes * 60 + seconds;
-  const isValid = title.trim().length > 0 && totalSeconds > 0;
+  const totalSeconds =
+    durationMode === 'duration'
+      ? minutes * 60 + seconds
+      : bpm > 0
+        ? (barCount * beatsPerBar * 60 * 4) / (bpm * beatUnit)
+        : 0;
+
+  const isBpmValid = bpm > 0 && beatsPerBar > 0 && beatUnit > 0 && barCount > 0;
+  const isValid =
+    title.trim().length > 0 &&
+    totalSeconds > 0 &&
+    (durationMode === 'duration' || isBpmValid);
 
   const handleCreate = async () => {
     if (!isValid) return;
@@ -84,33 +105,134 @@ export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps) {
           />
         </div>
 
-        {/* Duration input */}
-        <div className='flex flex-col gap-1'>
+        {/* Duration mode toggle */}
+        <div className='flex flex-col gap-2'>
           <label className='text-xs font-mono text-slate-500'>Duration</label>
-          <div className='flex items-center gap-2'>
-            <input
-              type='number'
-              min={0}
-              max={99}
-              value={minutes}
-              onChange={(e) => setMinutes(Math.max(0, parseInt(e.target.value) || 0))}
-              className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-16
-                         border border-slate-600 focus:border-indigo-500 outline-none
-                         font-mono text-center'
-            />
-            <span className='text-slate-500 font-mono text-sm'>min</span>
-            <input
-              type='number'
-              min={0}
-              max={59}
-              value={seconds}
-              onChange={(e) => setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-              className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-16
-                         border border-slate-600 focus:border-indigo-500 outline-none
-                         font-mono text-center'
-            />
-            <span className='text-slate-500 font-mono text-sm'>sec</span>
+          <div className='flex gap-1'>
+            <button
+              type='button'
+              onClick={() => setDurationMode('duration')}
+              aria-pressed={durationMode === 'duration'}
+              className={`px-3 py-1 text-xs font-mono rounded transition-colors ${
+                durationMode === 'duration'
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Time
+            </button>
+            <button
+              type='button'
+              onClick={() => setDurationMode('bpm')}
+              aria-pressed={durationMode === 'bpm'}
+              className={`px-3 py-1 text-xs font-mono rounded transition-colors ${
+                durationMode === 'bpm'
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-slate-700 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              BPM
+            </button>
           </div>
+
+          {durationMode === 'duration' ? (
+            /* Manual duration input */
+            <div className='flex items-center gap-2'>
+              <input
+                type='number'
+                min={0}
+                max={99}
+                value={minutes}
+                onChange={(e) => setMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+                aria-label='Minutes'
+                className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-16
+                           border border-slate-600 focus:border-indigo-500 outline-none
+                           font-mono text-center'
+              />
+              <span className='text-slate-500 font-mono text-sm'>min</span>
+              <input
+                type='number'
+                min={0}
+                max={59}
+                value={seconds}
+                onChange={(e) =>
+                  setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))
+                }
+                aria-label='Seconds'
+                className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-16
+                           border border-slate-600 focus:border-indigo-500 outline-none
+                           font-mono text-center'
+              />
+              <span className='text-slate-500 font-mono text-sm'>sec</span>
+            </div>
+          ) : (
+            /* BPM-based duration input */
+            <div className='flex flex-col gap-2'>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='number'
+                  min={1}
+                  max={999}
+                  value={bpm}
+                  onChange={(e) => setBpm(Math.max(0, parseInt(e.target.value) || 0))}
+                  aria-label='BPM'
+                  className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-20
+                             border border-slate-600 focus:border-indigo-500 outline-none
+                             font-mono text-center'
+                />
+                <span className='text-slate-500 font-mono text-sm'>BPM</span>
+              </div>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='number'
+                  min={1}
+                  max={32}
+                  value={beatsPerBar}
+                  onChange={(e) => setBeatsPerBar(Math.max(0, parseInt(e.target.value) || 0))}
+                  aria-label='Beats per bar'
+                  className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-14
+                             border border-slate-600 focus:border-indigo-500 outline-none
+                             font-mono text-center'
+                />
+                <span className='text-slate-500 font-mono text-sm'>/</span>
+                <input
+                  type='number'
+                  min={1}
+                  max={32}
+                  value={beatUnit}
+                  onChange={(e) => setBeatUnit(Math.max(0, parseInt(e.target.value) || 0))}
+                  aria-label='Beat unit'
+                  className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-14
+                             border border-slate-600 focus:border-indigo-500 outline-none
+                             font-mono text-center'
+                />
+                <span className='text-slate-500 font-mono text-sm'>time</span>
+              </div>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='number'
+                  min={1}
+                  max={9999}
+                  value={barCount}
+                  onChange={(e) => setBarCount(Math.max(0, parseInt(e.target.value) || 0))}
+                  aria-label='Number of bars'
+                  className='bg-slate-900 text-slate-200 text-sm rounded px-3 py-2 w-20
+                             border border-slate-600 focus:border-indigo-500 outline-none
+                             font-mono text-center'
+                />
+                <span className='text-slate-500 font-mono text-sm'>bars</span>
+              </div>
+              {/* Calculated duration preview */}
+              {totalSeconds > 0 && (
+                <span className='text-xs font-mono text-indigo-400'>
+                  = {Math.floor(totalSeconds / 60)}:
+                  {Math.floor(totalSeconds % 60)
+                    .toString()
+                    .padStart(2, '0')}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Buttons */}
