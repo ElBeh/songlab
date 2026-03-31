@@ -11,12 +11,14 @@ interface SyncOffsetEditorProps {
   onBpmAdjustChange: (adjust: number) => void;
 }
 
-/** Format milliseconds as M:SS.mmm */
+/** Format milliseconds as [−]M:SS.mmm */
 function formatMs(ms: number): string {
-  const totalSec = ms / 1000;
+  const sign = ms < 0 ? '−' : '';
+  const abs = Math.abs(ms);
+  const totalSec = abs / 1000;
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
-  return `${min}:${sec.toFixed(3).padStart(6, '0')}`;
+  return `${sign}${min}:${sec.toFixed(3).padStart(6, '0')}`;
 }
 
 export function SyncOffsetEditor({
@@ -41,7 +43,7 @@ export function SyncOffsetEditor({
   }, [onSyncOffsetChange]);
 
   const handleNudgeOffset = useCallback((deltaMs: number) => {
-    onSyncOffsetChange(Math.max(0, offset + deltaMs));
+    onSyncOffsetChange(offset + deltaMs);
   }, [offset, onSyncOffsetChange]);
 
   const handleResetOffset = useCallback(() => {
@@ -57,7 +59,7 @@ export function SyncOffsetEditor({
     onBpmAdjustChange(0);
   }, [onBpmAdjustChange]);
 
-  const hasOffset = offset > 0;
+  const hasOffset = offset !== 0;
   const hasAdjust = adjust !== 0;
 
   // Collapsed: compact toggle showing current sync values as badge

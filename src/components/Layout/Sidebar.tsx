@@ -311,6 +311,11 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 <p className='text-xs text-slate-600 font-mono'>No songs loaded.</p>
               )}
               {songOrder.map((item, idx) => {
+                // Song position number (pauses don't count)
+                const songNumber = item.type === 'song'
+                  ? songOrder.filter((it, i) => i <= idx && it.type === 'song').length
+                  : 0;
+
                 if (item.type === 'song') {
                   const song = songMap.get(item.songId);
                   if (!song) return null;
@@ -386,6 +391,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                             await useTabStore.getState().loadSheetsForSong(song.id);
                           }}
                         >
+                          <span className='text-slate-500 mr-1.5'>{songNumber}.</span>
                           {song.title}
                         </span>
                       )}
