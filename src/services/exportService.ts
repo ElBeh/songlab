@@ -65,6 +65,12 @@ async function bundleSong(song: SongData): Promise<SongBundle> {
 
 /** Restore a single song bundle into IndexedDB (song, markers, tabs, sheets, GP file) */
 async function restoreBundle(bundle: SongBundle): Promise<void> {
+  // Audio files are never exported, so treat non-dummy songs as dummy on import.
+  // When the user later drops an audio file, isDummy is set back to false.
+  if (!bundle.song.isDummy) {
+    bundle.song = { ...bundle.song, isDummy: true };
+  }
+
   await saveSong(bundle.song);
   for (const marker of bundle.markers ?? []) await saveMarker(marker);
 
