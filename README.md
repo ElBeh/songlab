@@ -43,6 +43,11 @@ Read-only view on any device in the local network. Each member picks their own i
 <details>
 <summary><strong>More screenshots</strong></summary>
 
+### Smartphone Remote Controller View
+Controll the host with your smartphone in remote controller view. Choose a song or section and have fully control over the audio.
+
+![Remote Controller View](docs/screenshots/remotecontroller.png)
+
 ### Practice Mode – ASCII Tabs & Sections
 Color-coded section markers on the waveform, section list with timestamps, ASCII tab editor with multiple sheets per song.
 
