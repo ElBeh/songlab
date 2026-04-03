@@ -22,6 +22,7 @@ interface SyncStore {
   syncedCountdown: number | null;
   syncedAutoAdvance: boolean;
   syncedTickPosition: number | null;
+  syncedCountInBeat: number | null;
 
   // Actions
   setStatus: (status: ConnectionStatus) => void;
@@ -32,7 +33,7 @@ interface SyncStore {
   setError: (error: string | null) => void;
   setController: (peerId: string) => void;
   clearController: () => void;
-  setSyncedPlayback: (time: number, isPlaying: boolean, countdown?: number | null, autoAdvance?: boolean, tickPosition?: number | null) => void;
+  setSyncedPlayback: (time: number, isPlaying: boolean, countdown?: number | null, autoAdvance?: boolean, tickPosition?: number | null, countInBeat?: number | null) => void;
   reset: () => void;
 }
 
@@ -50,6 +51,7 @@ const initialState = {
   syncedCountdown: null,
   syncedAutoAdvance: false,
   syncedTickPosition: null,
+  syncedCountInBeat: null,
 };
 
 export const useSyncStore = create<SyncStore>((set) => ({
@@ -70,12 +72,13 @@ export const useSyncStore = create<SyncStore>((set) => ({
     isController: peerId === state.peerId,
   })),
   clearController: () => set({ controllerId: null, isController: false }),
-  setSyncedPlayback: (time, isPlaying, countdown, autoAdvance, tickPosition) => set({
+  setSyncedPlayback: (time, isPlaying, countdown, autoAdvance, tickPosition, countInBeat) => set({
     syncedTime: time,
     syncedIsPlaying: isPlaying,
     syncedCountdown: countdown ?? null,
     syncedAutoAdvance: autoAdvance ?? false,
     syncedTickPosition: tickPosition ?? null,
+    syncedCountInBeat: countInBeat ?? null,
   }),
   reset: () => set(initialState),
 }));

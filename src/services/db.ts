@@ -37,7 +37,7 @@ interface SongLabDB extends DBSchema {
 }
 
 const DB_NAME = 'songlab';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 let dbInstance: IDBPDatabase<SongLabDB> | null = null;
 
@@ -208,4 +208,3 @@ export async function deleteGpFile(songId: string): Promise<void> {
   const db = await getDB();
   await db.delete('gpFiles', songId);
 }
-

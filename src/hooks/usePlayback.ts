@@ -7,9 +7,11 @@ interface UsePlaybackOptions {
   onTimeUpdate?: (time: number) => void;
   /** Called when playback reaches the end (and song loop is off) */
   onFinish?: () => void;
+  /** Called on song loop restart instead of auto-play (e.g. for count-in) */
+  onLoopRestart?: () => void;
 }
 
-export function usePlayback({ onTimeUpdate, onFinish }: UsePlaybackOptions = {}) {
+export function usePlayback({ onTimeUpdate, onFinish, onLoopRestart }: UsePlaybackOptions = {}) {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -58,13 +60,20 @@ export function usePlayback({ onTimeUpdate, onFinish }: UsePlaybackOptions = {})
         return;
       }
       wavesurferRef.current?.setTime(0);
-      wavesurferRef.current?.play();
-      setIsPlaying(true);
+      if (onLoopRestart) {
+        // Pause and let caller handle restart (e.g. count-in)
+        wavesurferRef.current?.pause();
+        setIsPlaying(false);
+        onLoopRestart();
+      } else {
+        wavesurferRef.current?.play();
+        setIsPlaying(true);
+      }
     } else {
       setIsPlaying(false);
       onFinish?.();
     }
-  }, [songLoop, onFinish]);
+  }, [songLoop, onFinish, onLoopRestart]);
 
   const toggleSongLoop = useCallback(() => {
     setSongLoop((v) => !v);

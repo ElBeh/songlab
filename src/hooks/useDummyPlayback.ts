@@ -6,6 +6,8 @@ interface UseDummyPlaybackOptions {
   onTimeUpdate?: (time: number) => void;
   /** Called when playback reaches the end (and song loop is off) */
   onFinish?: () => void;
+  /** Called on song loop restart instead of auto-play (e.g. for count-in) */
+  onLoopRestart?: () => void;
 }
 
 /**
@@ -13,7 +15,7 @@ interface UseDummyPlaybackOptions {
  * Uses requestAnimationFrame to advance a virtual playhead in real time.
  * Return shape mirrors usePlayback so AppShell can switch seamlessly.
  */
-export function useDummyPlayback({ duration, onTimeUpdate, onFinish }: UseDummyPlaybackOptions) {
+export function useDummyPlayback({ duration, onTimeUpdate, onFinish, onLoopRestart }: UseDummyPlaybackOptions) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [songLoop, setSongLoop] = useState(false);
@@ -21,11 +23,13 @@ export function useDummyPlayback({ duration, onTimeUpdate, onFinish }: UseDummyP
   const isPlayingRef = useRef(isPlaying);
   const currentTimeRef = useRef(currentTime);
   const songLoopRef = useRef(songLoop);
+  const onLoopRestartRef = useRef(onLoopRestart);
 
   // Keep refs in sync with state
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   useEffect(() => { songLoopRef.current = songLoop; }, [songLoop]);
+  useEffect(() => { onLoopRestartRef.current = onLoopRestart; }, [onLoopRestart]);
 
   // rAF playback loop
   useEffect(() => {
@@ -75,6 +79,12 @@ export function useDummyPlayback({ duration, onTimeUpdate, onFinish }: UseDummyP
           currentTimeRef.current = 0;
           setCurrentTime(0);
           onTimeUpdate?.(0);
+          if (onLoopRestartRef.current) {
+            // Pause and let caller handle restart (e.g. count-in)
+            setIsPlaying(false);
+            onLoopRestartRef.current();
+            return;
+          }
         } else {
           currentTimeRef.current = duration;
           setCurrentTime(duration);

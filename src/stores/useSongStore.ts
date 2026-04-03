@@ -107,6 +107,8 @@ export const useSongStore = create<SongStore>((set, get) => ({
         syncPoints: s.syncPoints ?? null,
         syncOffset: s.syncOffset ?? null,
         bpmAdjust: s.bpmAdjust ?? null,
+        bpm: s.bpm ?? null,
+        timeSignature: s.timeSignature ?? null,
       }));
       const savedOrder = await getConfig<unknown>('songOrder');
       const songOrder = migrateOrder(savedOrder, songs.map((s) => s.id));

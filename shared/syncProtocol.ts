@@ -33,6 +33,7 @@ export interface PlaybackState {
   countdownRemaining: number | null;  // seconds until next song (null = no countdown)
   autoAdvance: boolean;
   tickPosition: number | null;  // alphaTab tick (Dummy+GP only, null otherwise)
+  countInBeat: number | null;   // current count-in beat (e.g. 1–4), null = no count-in active
 }
 
 // --- Client → Server events ---
@@ -161,6 +162,8 @@ export interface SongSyncPayload {
   gpFileName: string | null;
   syncOffset: number | null;
   bpmAdjust: number | null;
+  bpm: number | null;
+  timeSignature: [number, number] | null;
 }
 
 export interface SongDataPayload {

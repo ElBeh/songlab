@@ -35,6 +35,8 @@ export interface SongData {
   syncPoints: SyncPoint[] | null;      // audio ↔ notation sync points
   syncOffset: number | null;  // ms offset: audio time where bar 1 beat 1 starts
   bpmAdjust: number | null;  // additive BPM correction (e.g. -0.2)
+  bpm: number | null;        // song tempo in BPM, null = unknown (disables count-in)
+  timeSignature: [number, number] | null; // e.g. [4, 4], null defaults to 4/4 in UI
 }
 
 export interface LoopRange {

@@ -9,6 +9,8 @@ interface UseAlphaSynthPlaybackOptions {
   onTimeUpdate?: (time: number) => void;
   /** Called when playback reaches the end (and song loop is off) */
   onFinish?: () => void;
+  /** Called on song loop restart instead of auto-play (e.g. for count-in) */
+  onLoopRestart?: () => void;
 }
 
 /**
@@ -22,6 +24,7 @@ interface UseAlphaSynthPlaybackOptions {
 export function useAlphaSynthPlayback({
   onTimeUpdate,
   onFinish,
+  onLoopRestart,
 }: UseAlphaSynthPlaybackOptions = {}) {
   const apiRef = useRef<AlphaTabApi | null>(null);
 
@@ -36,10 +39,12 @@ export function useAlphaSynthPlayback({
   const songLoopRef = useRef(songLoop);
   const onTimeUpdateRef = useRef(onTimeUpdate);
   const onFinishRef = useRef(onFinish);
+  const onLoopRestartRef = useRef(onLoopRestart);
 
   useEffect(() => { songLoopRef.current = songLoop; }, [songLoop]);
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
   useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
+  useEffect(() => { onLoopRestartRef.current = onLoopRestart; }, [onLoopRestart]);
 
   // --- Sync playbackSpeed with tempo store ---
   const playbackRate = useTempoStore((s) => s.playbackRate);
@@ -81,7 +86,14 @@ export function useAlphaSynthPlayback({
       const api = apiRef.current;
       if (api) {
         api.timePosition = 0;
-        api.play();
+        if (onLoopRestartRef.current) {
+          // Pause and let caller handle restart (e.g. count-in)
+          api.pause();
+          setIsPlaying(false);
+          onLoopRestartRef.current();
+        } else {
+          api.play();
+        }
       }
     } else {
       setIsPlaying(false);

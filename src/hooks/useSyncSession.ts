@@ -200,7 +200,7 @@ export function useSyncSession({
         applySongData(snapshot.songData);
       }
       if (snapshot.playback) {
-        setSyncedPlayback(snapshot.playback.currentTime, snapshot.playback.isPlaying, snapshot.playback.countdownRemaining, snapshot.playback.autoAdvance, snapshot.playback.tickPosition);
+        setSyncedPlayback(snapshot.playback.currentTime, snapshot.playback.isPlaying, snapshot.playback.countdownRemaining, snapshot.playback.autoAdvance, snapshot.playback.tickPosition, snapshot.playback.countInBeat);
         onPlaybackSyncRef.current?.(snapshot.playback.isPlaying, snapshot.playback.currentTime);
       }
     });
@@ -259,7 +259,7 @@ export function useSyncSession({
     // --- Playback sync (viewer receives from host) ---
 
     socket.on('playback:update', (state) => {
-      setSyncedPlayback(state.currentTime, state.isPlaying, state.countdownRemaining, state.autoAdvance, state.tickPosition);
+      setSyncedPlayback(state.currentTime, state.isPlaying, state.countdownRemaining, state.autoAdvance, state.tickPosition, state.countInBeat);
       useTempoStore.getState().setPlaybackRate(state.playbackRate);
       onPlaybackSyncRef.current?.(state.isPlaying, state.currentTime);
     });

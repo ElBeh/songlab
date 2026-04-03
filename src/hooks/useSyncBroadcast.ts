@@ -12,6 +12,7 @@ interface UseSyncBroadcastOptions {
   currentTime: number;
   countdownRemaining: number | null;
   tickPosition: number | null;
+  countInBeat: number | null;
 }
 
 /**
@@ -19,7 +20,7 @@ interface UseSyncBroadcastOptions {
  * Only active when connected as host and playing.
  * Also emits on play/pause/seek events (state transitions).
  */
-export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, tickPosition }: UseSyncBroadcastOptions): void {
+export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, tickPosition, countInBeat }: UseSyncBroadcastOptions): void {
   const status = useSyncStore((s) => s.status);
   const role = useSyncStore((s) => s.role);
   const isHostConnected = status === 'connected' && role === 'host';
@@ -28,9 +29,11 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, t
   const prevTimeRef = useRef(currentTime);
   const countdownRef = useRef(countdownRemaining);
   const tickRef = useRef(tickPosition);
+  const countInBeatRef = useRef(countInBeat);
 
   useEffect(() => { countdownRef.current = countdownRemaining; }, [countdownRemaining]);
   useEffect(() => { tickRef.current = tickPosition; }, [tickPosition]);
+  useEffect(() => { countInBeatRef.current = countInBeat; }, [countInBeat]);
 
   // --- Emit on state transitions (play/pause/seek) ---
 
@@ -43,7 +46,7 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, t
     const seekDetected = timeDelta > 1 && !isPlaying;
 
     if (playChanged || seekDetected) {
-      const state = buildPlaybackState(isPlaying, currentTime, countdownRef.current, tickRef.current);
+      const state = buildPlaybackState(isPlaying, currentTime, countdownRef.current, tickRef.current, countInBeatRef.current);
       emitPlaybackUpdate(state);
     }
 
@@ -60,9 +63,24 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, t
       prevTimeRef.current,
       countdownRemaining,
       tickRef.current,
+      countInBeatRef.current,
     );
     emitPlaybackUpdate(state);
   }, [isHostConnected, countdownRemaining]);
+
+  // --- Broadcast count-in beat changes ---
+
+  useEffect(() => {
+    if (!isHostConnected) return;
+    const state = buildPlaybackState(
+      prevIsPlayingRef.current,
+      prevTimeRef.current,
+      countdownRef.current,
+      tickRef.current,
+      countInBeat,
+    );
+    emitPlaybackUpdate(state);
+  }, [isHostConnected, countInBeat]);
 
   // --- Periodic broadcast while playing ---
 
@@ -70,7 +88,7 @@ export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, t
     if (!isHostConnected || !isPlaying) return;
 
     const interval = setInterval(() => {
-      const state = buildPlaybackState(true, prevTimeRef.current, countdownRef.current, tickRef.current);
+      const state = buildPlaybackState(true, prevTimeRef.current, countdownRef.current, tickRef.current, countInBeatRef.current);
       emitPlaybackUpdate(state);
     }, BROADCAST_INTERVAL_MS);
 
@@ -83,6 +101,7 @@ function buildPlaybackState(
   currentTime: number,
   countdownRemaining: number | null,
   tickPosition: number | null,
+  countInBeat: number | null,
 ): PlaybackState {
   const { playbackRate, preservePitch } = useTempoStore.getState();
   const { autoAdvance } = useModeStore.getState();
@@ -95,5 +114,6 @@ function buildPlaybackState(
     countdownRemaining,
     autoAdvance,
     tickPosition,
+    countInBeat,
   };
 }

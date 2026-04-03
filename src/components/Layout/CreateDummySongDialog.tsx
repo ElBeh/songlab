@@ -60,6 +60,10 @@ export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps) {
       syncOffset: null,
       bpmAdjust: null,
       syncPoints: null,
+      bpm: durationMode === 'bpm' && bpm > 0 ? bpm : null,
+      timeSignature: durationMode === 'bpm' && beatsPerBar > 0 && beatUnit > 0
+        ? [beatsPerBar, beatUnit] as [number, number]
+        : null,
     };
 
     await addSong(song);

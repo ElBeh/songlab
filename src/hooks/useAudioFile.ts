@@ -60,6 +60,8 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
           syncPoints: null,
           syncOffset: null,
           bpmAdjust: null,
+          bpm: null,
+          timeSignature: null,
         };
 
     // Persist audio data to IndexedDB

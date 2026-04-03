@@ -35,6 +35,10 @@ import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerI
 import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
 import type * as alphaTab from '@coderline/alphatab';
 import { useControlCommandHandler } from '../../hooks/useControlCommandHandler';
+import { useCountIn } from '../../hooks/useCountIn';
+import { useCountInStore } from '../../stores/useCountInStore';
+import { CountInToggle } from '../Player/CountInToggle';
+import { CountInIndicator } from '../Player/CountInIndicator';
 import type { ControlCommand } from '../../../shared/syncProtocol';
 import { RemoteControlView } from '../Controller/RemoteControlView';
 
@@ -125,18 +129,25 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   const isAudioGp = !isDummy && hasGpFile;
 
   // --- Playback hooks (all three always called – React rules of hooks) ---
+  // Loop restart ref: wired to count-in logic after useCountIn is set up below
+  const loopRestartRef = useRef<(() => void) | undefined>(undefined);
+  const handleLoopRestart = useCallback(() => { loopRestartRef.current?.(); }, []);
+
   const playback = usePlayback({
     onTimeUpdate: !isDummy ? onMarkerTimeUpdate : undefined,
     onFinish: !isDummy ? setlistAdvance.handleSongFinish : undefined,
+    onLoopRestart: !isDummy ? handleLoopRestart : undefined,
   });
   const dummyPlayback = useDummyPlayback({
     duration: activeSong?.duration ?? 0,
     onTimeUpdate: isPureDummy ? onMarkerTimeUpdate : undefined,
     onFinish: isPureDummy ? setlistAdvance.handleSongFinish : undefined,
+    onLoopRestart: isPureDummy ? handleLoopRestart : undefined,
   });
   const alphaSynthPlayback = useAlphaSynthPlayback({
     onTimeUpdate: isAlphaSynth ? onMarkerTimeUpdate : undefined,
     onFinish: isAlphaSynth ? setlistAdvance.handleSongFinish : undefined,
+    onLoopRestart: isAlphaSynth ? handleLoopRestart : undefined,
   });
 
   // --- Notation API callback (forwards to alphaSynth when needed) ---
@@ -228,9 +239,45 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   const toggleSongLoop = isAlphaSynth ? alphaSynthPlayback.toggleSongLoop
     : isDummy ? dummyPlayback.toggleSongLoop : playback.toggleSongLoop;
 
+  // --- Count-in (plays click bar before actual playback starts) ---
+  const countIn = useCountIn({
+    bpm: activeSong?.bpm ?? null,
+    timeSignature: activeSong?.timeSignature ?? null,
+    onComplete: handlePlayPause,
+    audible: !isViewer,
+  });
+  const currentBeat = useCountInStore((s) => s.currentBeat);
+
+  const handlePlayPauseWithCountIn = useCallback(() => {
+    // Currently counting in → cancel
+    if (countIn.isCountingIn) {
+      countIn.cancelCountIn();
+      return;
+    }
+    // Not playing + count-in available → start count-in first
+    if (!_isPlaying && countIn.canCountIn) {
+      countIn.startCountIn();
+      return;
+    }
+    // Otherwise: normal play/pause toggle
+    handlePlayPause();
+  }, [countIn, _isPlaying, handlePlayPause]);
+
+  // Wire loop restart ref to count-in (resolves circular dep with playback hooks)
+  const { canCountIn, startCountIn } = countIn;
+  useEffect(() => {
+    loopRestartRef.current = () => {
+      if (canCountIn) {
+        startCountIn();
+      } else {
+        handlePlayPause();
+      }
+    };
+  }, [canCountIn, startCountIn, handlePlayPause]);
+
   // Host: handle incoming control commands from remote Controller
   const handleControlCommand = useControlCommandHandler({
-    handlePlayPause,
+    handlePlayPause: handlePlayPauseWithCountIn,
     handleSeekTo,
     isPlaying: _isPlaying,
   });
@@ -242,10 +289,23 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   const syncedCountdown = useSyncStore((s) => s.syncedCountdown);
   const syncedAutoAdvance = useSyncStore((s) => s.syncedAutoAdvance);
   const syncedTickPosition = useSyncStore((s) => s.syncedTickPosition);
+  const syncedCountInBeat = useSyncStore((s) => s.syncedCountInBeat);
   const isPlaying = isViewer ? syncedIsPlaying : _isPlaying;
   const currentTime = isViewer ? syncedTime : _currentTime;
   // Viewer has no wavesurfer → duration comes from the song metadata
   const duration = isViewer ? (activeSong?.duration ?? 0) : _duration;
+
+  // Viewer: mirror host count-in state into CountInStore for the overlay
+  useEffect(() => {
+    if (!isViewer) return;
+    const store = useCountInStore.getState();
+    if (syncedCountInBeat !== null) {
+      if (!store.isCountingIn) store.start(activeSong?.timeSignature?.[0] ?? 4);
+      store.setBeat(syncedCountInBeat);
+    } else if (store.isCountingIn) {
+      store.finish();
+    }
+  }, [isViewer, syncedCountInBeat, activeSong?.timeSignature]);
 
   // Viewer: track active marker from synced time
   useEffect(() => {
@@ -261,6 +321,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     tickPosition: isAlphaSynth
       ? alphaSynthPlayback.currentTick
       : isAudioGp ? externalMediaTick : null,
+    countInBeat: countIn.isCountingIn ? (currentBeat ?? null) : null,
   });
 
   // --- Viewer + GP file: drive local alphaSynth from host state ---
@@ -477,7 +538,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   // --- Keyboard shortcuts ---
   useKeyboardShortcuts({
     wavesurferRef: playback.wavesurferRef,
-    onPlayPause: handlePlayPause,
+    onPlayPause: handlePlayPauseWithCountIn,
     onAddMarker: handleAddMarker,
     isPlaying,
     onSeek: isDummy ? handleSeekTo : undefined,
@@ -568,7 +629,8 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           onAddMarker={handleAddMarker}
         />
 
-        <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto'>
+        <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto relative'>
+          <CountInIndicator />
           {/* Drop zone (only in practice mode when no active song) */}
           {!isBand && !hasPlayer && (
             <div
@@ -649,7 +711,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                   {isBand && !isViewer && (
                     <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-3'>
                       <button
-                        onClick={handlePlayPause}
+                        onClick={handlePlayPauseWithCountIn}
                         className='w-8 h-8 flex items-center justify-center rounded-full
                                    bg-indigo-500 hover:bg-indigo-400 text-white
                                    transition-colors text-sm'
@@ -677,6 +739,8 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       </button>
                       <div className='w-px h-6 bg-slate-600' />
                       <LoopControls songLoop={songLoop} />
+                      <div className='w-px h-6 bg-slate-600' />
+                      <CountInToggle />
                     </div>
                   )}
 
@@ -771,11 +835,15 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       currentTime={currentTime}
                       duration={duration}
                       isPlaying={isPlaying}
-                      onPlayPause={handlePlayPause}
+                      onPlayPause={handlePlayPauseWithCountIn}
                       songLoop={songLoop}
                       onSongLoopToggle={toggleSongLoop}
                       onReset={handleReset}
                     />
+                  </div>
+
+                  <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                    <CountInToggle />
                   </div>
 
                   {(!isDummy || isAlphaSynth) && (
