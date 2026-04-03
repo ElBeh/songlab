@@ -47,7 +47,7 @@ Read-only view on any device in the local network. Each member picks their own i
 Controll the host with your smartphone in remote controller view. Choose a song or section and have fully control over the audio.
 
 <p align="center">
-  <img src="docs/screenshots/remotecontroller.png" alt="Description" width="400">
+  <img src="docs/screenshots/remotecontroller.png" alt="Description" width="300">
 </p>
 
 ### Practice Mode – ASCII Tabs & Sections
