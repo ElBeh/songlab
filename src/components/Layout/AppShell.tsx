@@ -16,6 +16,7 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { useModeStore } from '../../stores/useModeStore';
+import { useTempoStore } from '../../stores/useTempoStore';
 import { usePlayback } from '../../hooks/usePlayback';
 import { useDummyPlayback } from '../../hooks/useDummyPlayback';
 import { useAlphaSynthPlayback } from '../../hooks/useAlphaSynthPlayback';
@@ -28,7 +29,7 @@ import { useSyncBroadcast } from '../../hooks/useSyncBroadcast';
 import { useSyncStore } from '../../stores/useSyncStore';
 import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
-import { NotationPanel } from '../Tabs/NotationPanel';
+import { NotationPanel, type TempoMapEntry } from '../Tabs/NotationPanel';
 import { GpMarkerImportDialog } from '../Tabs/GpMarkerImportDialog';
 import { useGpFile } from '../../hooks/useGpFile';
 import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerImport';
@@ -39,6 +40,8 @@ import { useCountIn } from '../../hooks/useCountIn';
 import { useCountInStore } from '../../stores/useCountInStore';
 import { CountInToggle } from '../Player/CountInToggle';
 import { CountInIndicator } from '../Player/CountInIndicator';
+import { useMetronome } from '../../hooks/useMetronome';
+import { MetronomeToggle } from '../Player/MetronomeToggle';
 import type { ControlCommand } from '../../../shared/syncProtocol';
 import { RemoteControlView } from '../Controller/RemoteControlView';
 
@@ -181,6 +184,24 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     useSongStore.getState().updateSong({ ...song, bpmAdjust: adjust });
   }, []);
 
+  // Auto-set BPM and time signature from GP file score data
+  const [tempoMap, setTempoMap] = useState<TempoMapEntry[]>([]);
+  const handleScoreInfo = useCallback((info: {
+    bpm: number;
+    timeSignature: [number, number];
+    tempoMap: TempoMapEntry[];
+  }) => {
+    const song = useSongStore.getState().getActiveSong();
+    if (!song) return;
+    // GP file is authoritative – overwrite any manual values
+    useSongStore.getState().updateSong({
+      ...song,
+      bpm: Math.round(info.bpm),
+      timeSignature: info.timeSignature,
+    });
+    setTempoMap(info.tempoMap);
+  }, []);
+
   // --- GP Marker Import ---
   const [gpImportMarks, setGpImportMarks] = useState<GpRehearsalMark[] | null>(null);
 
@@ -274,6 +295,23 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       }
     };
   }, [canCountIn, startCountIn, handlePlayPause]);
+
+  // --- Metronome (continuous click during playback) ---
+  const playbackRate = useTempoStore((s) => s.playbackRate);
+  const metronomeTick = isAlphaSynth
+    ? alphaSynthPlayback.currentTick
+    : isAudioGp ? externalMediaTick : null;
+  const metronome = useMetronome({
+    hasSong: !!activeSong,
+    bpm: activeSong?.bpm ?? null,
+    timeSignature: activeSong?.timeSignature ?? null,
+    playbackRate,
+    isPlaying: _isPlaying,
+    audible: !isViewer,
+    tempoMap: tempoMap.length > 1 ? tempoMap : undefined,
+    currentTick: metronomeTick ?? undefined,
+    currentTime: _currentTime,
+  });
 
   // Host: handle incoming control commands from remote Controller
   const handleControlCommand = useControlCommandHandler({
@@ -741,6 +779,13 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       <LoopControls songLoop={songLoop} />
                       <div className='w-px h-6 bg-slate-600' />
                       <CountInToggle />
+                      <div className='w-px h-6 bg-slate-600' />
+                      <MetronomeToggle
+                        isSoloMode={metronome.isSoloMode}
+                        isRunning={metronome.isRunning}
+                        onStartSolo={metronome.startSolo}
+                        onStopSolo={metronome.stopSolo}
+                      />
                     </div>
                   )}
 
@@ -842,8 +887,15 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                     />
                   </div>
 
-                  <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
+                  <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center gap-3'>
                     <CountInToggle />
+                    <div className='w-px h-6 bg-slate-600' />
+                    <MetronomeToggle
+                      isSoloMode={metronome.isSoloMode}
+                      isRunning={metronome.isRunning}
+                      onStartSolo={metronome.startSolo}
+                      onStopSolo={metronome.stopSolo}
+                    />
                   </div>
 
                   {(!isDummy || isAlphaSynth) && (
@@ -988,6 +1040,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       onBpmAdjustChange={handleBpmAdjustChange}
                       onApiReady={handleNotationApiReady}
                       onTickUpdate={handleExternalMediaTick}
+                      onScoreInfo={handleScoreInfo}
                     />
                   ) : (
                     /* ASCII mode (existing behavior) */

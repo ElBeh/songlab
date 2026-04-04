@@ -1,5 +1,6 @@
 import { useCountInStore } from '../../stores/useCountInStore';
 import { useSongStore } from '../../stores/useSongStore';
+import { useMetronomeStore } from '../../stores/useMetronomeStore';
 import { ensureAudioReady } from '../../services/clickSoundGenerator';
 
 export function CountInToggle() {
@@ -8,7 +9,20 @@ export function CountInToggle() {
   const activeSong = useSongStore((s) => s.getActiveSong)();
   const updateSong = useSongStore((s) => s.updateSong);
 
+  const metronomeRunning = useMetronomeStore((s) => s.isRunning);
+  const effectiveBpm = useMetronomeStore((s) => s.effectiveBpm);
+  const effectiveBeatsPerBar = useMetronomeStore((s) => s.effectiveBeatsPerBar);
+
   const hasBpm = !!activeSong?.bpm;
+
+  // Show effective values from tempo map when metronome is running
+  const showEffective = metronomeRunning && effectiveBpm !== null;
+  const displayBpm = showEffective ? effectiveBpm : (activeSong?.bpm ?? null);
+  const displayTimeSig = showEffective && effectiveBeatsPerBar !== null
+    ? `${effectiveBeatsPerBar}/4`
+    : activeSong?.timeSignature
+      ? `${activeSong.timeSignature[0]}/${activeSong.timeSignature[1]}`
+      : '4/4';
 
   const handleToggle = () => {
     // Warm up AudioContext on enable (user gesture required)
@@ -36,41 +50,57 @@ export function CountInToggle() {
       {activeSong && (
         <>
           <div className='w-px h-6 bg-slate-600' />
-          <input
-            type='number'
-            min={20}
-            max={300}
-            placeholder='BPM'
-            value={activeSong.bpm ?? ''}
-            onChange={(e) => {
-              const val = e.target.value === '' ? null : Number(e.target.value);
-              updateSong({ ...activeSong, bpm: val });
-            }}
-            className='w-16 bg-slate-700 text-slate-200 text-xs rounded px-2 py-1
-                       border border-slate-600 focus:border-indigo-500 outline-none
-                       font-mono text-center'
-            aria-label='Song BPM'
-          />
-          <select
-            value={activeSong.timeSignature
-              ? `${activeSong.timeSignature[0]}/${activeSong.timeSignature[1]}`
-              : '4/4'}
-            onChange={(e) => {
-              const [num, den] = e.target.value.split('/').map(Number);
-              updateSong({ ...activeSong, timeSignature: [num, den] });
-            }}
-            className='bg-slate-700 text-slate-200 text-xs rounded px-2 py-1
-                       border border-slate-600 focus:border-indigo-500 outline-none
-                       font-mono'
-            aria-label='Time signature'
-          >
-            <option value='2/4'>2/4</option>
-            <option value='3/4'>3/4</option>
-            <option value='4/4'>4/4</option>
-            <option value='5/4'>5/4</option>
-            <option value='6/8'>6/8</option>
-            <option value='7/8'>7/8</option>
-          </select>
+          {showEffective ? (
+            <span
+              className='w-16 text-xs font-mono text-indigo-400 text-center'
+              title='Current BPM (from GP file tempo map)'
+            >
+              {Math.round(displayBpm!)}
+            </span>
+          ) : (
+            <input
+              type='number'
+              min={20}
+              max={300}
+              placeholder='BPM'
+              value={activeSong.bpm ?? ''}
+              onChange={(e) => {
+                const val = e.target.value === '' ? null : Number(e.target.value);
+                updateSong({ ...activeSong, bpm: val });
+              }}
+              className='w-16 bg-slate-700 text-slate-200 text-xs rounded px-2 py-1
+                         border border-slate-600 focus:border-indigo-500 outline-none
+                         font-mono text-center'
+              aria-label='Song BPM'
+            />
+          )}
+          {showEffective ? (
+            <span
+              className='text-xs font-mono text-indigo-400'
+              title='Current time signature (from GP file)'
+            >
+              {displayTimeSig}
+            </span>
+          ) : (
+            <select
+              value={displayTimeSig}
+              onChange={(e) => {
+                const [num, den] = e.target.value.split('/').map(Number);
+                updateSong({ ...activeSong, timeSignature: [num, den] });
+              }}
+              className='bg-slate-700 text-slate-200 text-xs rounded px-2 py-1
+                         border border-slate-600 focus:border-indigo-500 outline-none
+                         font-mono'
+              aria-label='Time signature'
+            >
+              <option value='2/4'>2/4</option>
+              <option value='3/4'>3/4</option>
+              <option value='4/4'>4/4</option>
+              <option value='5/4'>5/4</option>
+              <option value='6/8'>6/8</option>
+              <option value='7/8'>7/8</option>
+            </select>
+          )}
         </>
       )}
     </div>

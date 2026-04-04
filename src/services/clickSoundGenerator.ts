@@ -25,7 +25,7 @@ export function ensureAudioReady(): void {
 }
 
 /** Get or create AudioContext (synchronous, call ensureAudioReady first) */
-function getAudioContext(): AudioContext {
+export function getAudioContext(): AudioContext {
   if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new AudioContext();
   }
@@ -36,10 +36,11 @@ function getAudioContext(): AudioContext {
 }
 
 /** Schedule a single click at the given AudioContext time, return nodes for cancellation */
-function scheduleClick(
+export function scheduleClick(
   ctx: AudioContext,
   time: number,
   accent: boolean,
+  destination?: AudioNode,
 ): { osc: OscillatorNode; gain: GainNode } {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -52,7 +53,7 @@ function scheduleClick(
   gain.gain.exponentialRampToValueAtTime(0.001, time + CLICK_DURATION);
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(destination ?? ctx.destination);
 
   osc.start(time);
   osc.stop(time + CLICK_DURATION);
@@ -84,7 +85,7 @@ export function scheduleBar(
 ): ScheduledBar {
   const ctx = getAudioContext();
   const beatInterval = 60 / bpm; // seconds per beat
-  const startTime = ctx.currentTime + 0.15; // small buffer to avoid scheduling in the past
+  const startTime = ctx.currentTime + 0.15; // buffer to ensure first beat is not in the past
 
   const timeouts: number[] = [];
   const nodes: { osc: OscillatorNode; gain: GainNode }[] = [];

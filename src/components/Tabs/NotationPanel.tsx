@@ -34,6 +34,19 @@ interface NotationPanelProps {
   onApiReady?: (api: alphaTab.AlphaTabApi | null) => void;
   /** Fires with the computed tick position during external media sync */
   onTickUpdate?: (tick: number) => void;
+  /** Fires when the score is loaded with BPM, time signature and tempo map from the GP file */
+  onScoreInfo?: (info: {
+    bpm: number;
+    timeSignature: [number, number];
+    tempoMap: TempoMapEntry[];
+  }) => void;
+}
+
+/** Tempo and time signature at a specific tick position in the score */
+export interface TempoMapEntry {
+  tick: number;
+  bpm: number;
+  beatsPerBar: number;
 }
 
 export function NotationPanel({
@@ -50,6 +63,7 @@ export function NotationPanel({
   onBpmAdjustChange,
   onApiReady,
   onTickUpdate,
+  onScoreInfo,
 }: NotationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -118,6 +132,33 @@ export function NotationPanel({
           solo: false,
         })),
       );
+
+      // Extract BPM, time signature, and tempo map for metronome sync
+      if (onScoreInfo && score.masterBars.length > 0) {
+        const mb = score.masterBars[0];
+
+        // Build tempo map: one entry per bar where BPM or time signature changes
+        const tempoMap: { tick: number; bpm: number; beatsPerBar: number }[] = [];
+        let currentBpm = score.tempo;
+        let currentBeatsPerBar = mb.timeSignatureNumerator;
+
+        for (const bar of score.masterBars) {
+          const barBpm = bar.tempoAutomation ? bar.tempoAutomation.value : currentBpm;
+          const barBeats = bar.timeSignatureNumerator;
+
+          if (barBpm !== currentBpm || barBeats !== currentBeatsPerBar || bar === score.masterBars[0]) {
+            tempoMap.push({ tick: bar.start, bpm: barBpm, beatsPerBar: barBeats });
+            currentBpm = barBpm;
+            currentBeatsPerBar = barBeats;
+          }
+        }
+
+        onScoreInfo({
+          bpm: score.tempo,
+          timeSignature: [mb.timeSignatureNumerator, mb.timeSignatureDenominator],
+          tempoMap,
+        });
+      }
     });
 
     if (enableSynth || enableExternalMedia) {
