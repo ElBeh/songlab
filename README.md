@@ -125,6 +125,9 @@ Fine-tune audio-to-notation synchronization with offset nudge (±10ms/±100ms) a
 ### Count-in
 - Configurable click count-in (1 bar at song BPM) before playback and loop restarts, with visual countdown overlay
 
+### Metronome
+- Continuous click during playback synced to song BPM, with solo mode, volume control, and real-time GP file tempo tracking
+
 ### UI & Workflow
 - Accordion sidebar with collapsible Sections and Setlist panels
 - Collapsible sidebar for maximum practice space
@@ -202,7 +205,6 @@ SongLab's Band Sync is designed for the **shared room** scenario: the band plays
 ## Roadmap
 
 - **Tuning display** — show the active track's tuning from the Guitar Pro file (Drop D, DADGAD, etc.)
-- **Metronome** — continuous click during playback for dummy songs
 - **Fretboard editor / chord lookup** — interactive fretboard for chord voicings and identification
 - **Band Sync enhancements** — mDNS auto-discovery, host promotion, presenter mode
 - **Tauri desktop app** — native installer with bundled sync server (no terminal required)
