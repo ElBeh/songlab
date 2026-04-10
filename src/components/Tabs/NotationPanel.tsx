@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { SyncOffsetEditor } from './SyncOffsetEditor';
 import { useExternalMediaSync } from '../../hooks/useExternalMediaSync';
+import { analyzeTuning, formatTuning } from '../../utils/tuningPresets';
 
 interface TrackMixerState {
   index: number;
@@ -69,7 +70,7 @@ export function NotationPanel({
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
   const layoutRef = useRef<'page' | 'horizontal'>('page');
 
-  const [tracks, setTracks] = useState<{ index: number; name: string }[]>([]);
+  const [tracks, setTracks] = useState<{ index: number; name: string; tuning: number[] }[]>([]);
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const [layout, setLayout] = useState<'page' | 'horizontal'>('page');
   const [scale, setScale] = useState(0.5);
@@ -119,6 +120,9 @@ export function NotationPanel({
       const trackList = score.tracks.map((t, i) => ({
         index: i,
         name: t.name || `Track ${i + 1}`,
+        tuning: t.staves.length > 0 && t.staves[0].stringTuning
+          ? Array.from(t.staves[0].stringTuning.tunings) as number[]
+          : [],
       }));
       setTracks(trackList);
       setActiveTrackIndex(0);
@@ -340,6 +344,12 @@ export function NotationPanel({
     );
   };
 
+  // Derive tuning label for active track
+  const activeTrack = tracks.find((t) => t.index === activeTrackIndex);
+  const tuningLabel = activeTrack && activeTrack.tuning.length > 0
+    ? formatTuning(analyzeTuning(activeTrack.tuning))
+    : '';
+
   return (
     <div className='flex flex-col gap-2 flex-1 min-h-64'>
       {/* Controls bar */}
@@ -363,6 +373,17 @@ export function NotationPanel({
               </option>
             ))}
           </select>
+          )}
+
+          {/* Tuning display */}
+          {tuningLabel && (
+            <span
+              className='text-xs font-mono text-amber-400 truncate'
+              style={{ maxWidth: '200px' }}
+              title={tuningLabel}
+            >
+              {tuningLabel}
+            </span>
           )}
 
           {/* Divider */}
