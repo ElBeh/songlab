@@ -62,7 +62,6 @@ export function MetronomeToggle({
 
       {enabled && (
         <>
-          <div className='w-px h-6 bg-slate-600' />
           <input
             type='range'
             min={0}

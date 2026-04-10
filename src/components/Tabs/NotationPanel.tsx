@@ -76,6 +76,7 @@ export function NotationPanel({
   const [synthLoading, setSynthLoading] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [trackStates, setTrackStates] = useState<TrackMixerState[]>([]);
+  const [masterVolume, setMasterVolume] = useState(1.0);
   const [apiForEditor, setApiForEditor] = useState<alphaTab.AlphaTabApi | null>(null);
 
   // Keep refs in sync
@@ -285,6 +286,13 @@ export function NotationPanel({
 
   // --- Mixer controls ---
 
+  const handleMasterVolumeChange = (volume: number) => {
+    const api = apiRef.current;
+    if (!api) return;
+    api.masterVolume = volume;
+    setMasterVolume(volume);
+  };
+
   const handleVolumeChange = (index: number, volume: number) => {
     const api = apiRef.current;
     if (!api?.score) return;
@@ -438,6 +446,28 @@ export function NotationPanel({
       {/* Mixer panel */}
       {showMixer && enableSynth && (
         <div className='bg-slate-800 rounded-lg p-3 flex flex-col gap-2'>
+          {/* Master volume */}
+          <div className='flex items-center gap-3'>
+            <span className='text-xs font-mono w-28 truncate text-slate-300 font-bold'>
+              Master
+            </span>
+            <input
+              type='range'
+              min={0}
+              max={100}
+              value={Math.round(masterVolume * 100)}
+              onChange={(e) =>
+                handleMasterVolumeChange(Number(e.target.value) / 100)
+              }
+              className='flex-1 h-1 accent-indigo-500'
+              style={{ maxWidth: '160px' }}
+              aria-label='Master volume'
+            />
+            <span className='text-xs font-mono text-slate-500 w-8 text-right'>
+              {Math.round(masterVolume * 100)}
+            </span>
+          </div>
+          <div className='border-t border-slate-700' />
           {trackStates.map((t) => (
             <div key={t.index} className='flex items-center gap-3'>
               {/* Track name */}
