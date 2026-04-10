@@ -185,19 +185,6 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
           </div>
         );
       })}
-      </div>
-
-      {/* Scroll right button */}
-      {canScrollRight && (
-        <button
-          onClick={() => scroll('right')}
-          className='shrink-0 px-2 py-1 text-lg font-bold text-slate-500
-                     hover:text-slate-200 transition-colors z-10'
-          aria-label='Scroll tabs right'
-        >
-          ᐅ
-        </button>
-      )}
 
       {/* Add song dropdown */}
       {!isViewer && (
@@ -243,6 +230,19 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
         </div>
       )}
       </>
+      )}
+      </div>
+
+      {/* Scroll right button */}
+      {canScrollRight && (
+        <button
+          onClick={() => scroll('right')}
+          className='shrink-0 px-2 py-1 text-lg font-bold text-slate-500
+                     hover:text-slate-200 transition-colors z-10'
+          aria-label='Scroll tabs right'
+        >
+          ᐅ
+        </button>
       )}
     </div>
   );
