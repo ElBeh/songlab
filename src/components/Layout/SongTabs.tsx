@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
@@ -27,7 +27,42 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  // Re-check on song list changes
+  useEffect(() => {
+    checkScroll();
+  }, [orderedSongs.length, checkScroll]);
+
+  // Listen to scroll and resize
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll);
+    const observer = new ResizeObserver(checkScroll);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      observer.disconnect();
+    };
+  }, [checkScroll]);
+
+  const scroll = (direction: 'left' | 'right') => {
+    scrollRef.current?.scrollBy({
+      left: direction === 'left' ? -200 : 200,
+      behavior: 'smooth',
+    });
+  };
   const addToast = useToastStore((state) => state.addToast);
   const editInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +89,25 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
   }, [showMenu]);
 
   return (
-    <div className='flex items-center gap-1 overflow-x-auto'>
+    <div className='flex items-center gap-0 relative'>
+      {/* Scroll left button */}
+      {canScrollLeft && (
+        <button
+          onClick={() => scroll('left')}
+          className='shrink-0 px-2 py-1 text-lg font-bold text-slate-500
+                     hover:text-slate-200 transition-colors z-10'
+          aria-label='Scroll tabs left'
+        >
+          ᐊ
+        </button>
+      )}
+
+      {/* Scrollable tab area */}
+      <div
+        ref={scrollRef}
+        className='flex items-center gap-1 overflow-x-auto flex-1'
+        style={{ scrollbarWidth: 'none' }}
+      >
       {orderedSongs.map((song) => {
         const isActive = song.id === activeSongId;
         return (
@@ -132,6 +185,19 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
           </div>
         );
       })}
+      </div>
+
+      {/* Scroll right button */}
+      {canScrollRight && (
+        <button
+          onClick={() => scroll('right')}
+          className='shrink-0 px-2 py-1 text-lg font-bold text-slate-500
+                     hover:text-slate-200 transition-colors z-10'
+          aria-label='Scroll tabs right'
+        >
+          ᐅ
+        </button>
+      )}
 
       {/* Add song dropdown */}
       {!isViewer && (

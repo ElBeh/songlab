@@ -1,9 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useModeStore } from '../../stores/useModeStore';
 import { MarkerList } from '../Markers/MarkerList';
 import { exportSong, importSong, exportSetlist, importSetlist } from '../../services/exportService';
-import type { Setlist } from '../../types';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 
@@ -21,11 +20,26 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const [sectionsOpen, setSectionsOpen] = useState(true);
   const [setlistOpen, setSetlistOpen] = useState(true);
   const [setlistName, setSetlistName] = useState('');
-  const [importedSetlist] = useState<Setlist | null>(null);
   const [editingPauseId, setEditingPauseId] = useState<string | null>(null);
   const [editingPauseValue, setEditingPauseValue] = useState('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [showImportExport, setShowImportExport] = useState(false);
+  const [setlistExportMode, setSetlistExportMode] = useState(false);
+  const importExportRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showImportExport) return;
+    const handleClick = (e: MouseEvent) => {
+      if (importExportRef.current && !importExportRef.current.contains(e.target as Node)) {
+        setShowImportExport(false);
+        setSetlistExportMode(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showImportExport]);
 
   const songs = useSongStore((state) => state.songs);
   const songOrder = useSongStore((state) => state.songOrder);
@@ -248,31 +262,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                   </button>
                 </div>
               )}
-
-              {/* Song import/export */}
-              <div className='border-t border-slate-700 p-3 flex flex-col gap-2'>
-                <p className='text-xs font-mono text-slate-500 uppercase tracking-widest'>
-                  Song Data
-                </p>
-                <div className='flex gap-2'>
-                  {activeSong && (
-                    <button
-                      onClick={handleExportSong}
-                      className='flex-1 px-2 py-1 text-xs font-mono bg-slate-700
-                                 hover:bg-slate-600 text-slate-300 rounded transition-colors'
-                    >
-                      ↓ export
-                    </button>
-                  )}
-                  <button
-                    onClick={handleImportSong}
-                    className='flex-1 px-2 py-1 text-xs font-mono bg-slate-700
-                               hover:bg-slate-600 text-slate-300 rounded transition-colors'
-                  >
-                    ↑ import
-                  </button>
-                </div>
-              </div>
 
             </div>
           )}
@@ -546,60 +535,111 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 </button>
               )}
             </div>
-
-            {!isBand && (
-              <>
-                {/* Export setlist */}
-                <div className='flex flex-col gap-2 border-t border-slate-700 pt-3'>
-                  <p className='text-xs font-mono text-slate-500 uppercase tracking-widest'>
-                    Export Setlist
-                  </p>
-                  <input
-                    type='text'
-                    placeholder='Setlist name...'
-                    value={setlistName}
-                    onChange={(e) => setSetlistName(e.target.value)}
-                    className='bg-slate-800 text-slate-200 text-xs rounded px-2 py-1.5
-                               border border-slate-600 focus:border-indigo-500 outline-none font-mono'
-                  />
-                  <button
-                    onClick={handleExportSetlist}
-                    disabled={!setlistName.trim() || songs.length === 0}
-                    className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                               text-slate-300 rounded transition-colors
-                               disabled:opacity-30 disabled:cursor-not-allowed'
-                  >
-                    ↓ export setlist
-                  </button>
-                </div>
-
-                {/* Import setlist */}
-                <div className='flex flex-col gap-2 border-t border-slate-700 pt-3'>
-                  <p className='text-xs font-mono text-slate-500 uppercase tracking-widest'>
-                    Import Setlist
-                  </p>
-                  <button
-                    onClick={handleImportSetlist}
-                    className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                               text-slate-300 rounded transition-colors'
-                  >
-                    ↑ import setlist
-                  </button>
-                  {importedSetlist && (
-                    <div className='flex flex-col gap-1'>
-                      <p className='text-xs font-mono text-slate-400'>{importedSetlist.name}</p>
-                      {importedSetlist.entries.map((entry) => (
-                        <div key={entry.songId} className='text-xs font-mono text-slate-500 px-2'>
-                          • {entry.title}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         )}
+      </div>
+
+      {/* ── Import / Export (pinned to bottom) ── */}
+      <div className='mt-auto border-t border-slate-700 p-3' ref={importExportRef}>
+        <div className='relative'>
+          <button
+            onClick={() => {
+              setShowImportExport((v) => !v);
+              setSetlistExportMode(false);
+            }}
+            className='w-full px-2 py-1.5 text-xs font-mono rounded transition-colors
+                       bg-slate-700 hover:bg-slate-600 text-slate-300'
+          >
+            Import / Export
+          </button>
+          {showImportExport && (
+            <div className='absolute left-0 right-0 bottom-full mb-1 bg-slate-800 border
+                            border-slate-600 rounded-lg shadow-xl py-1 z-50'>
+              {activeSong && (
+                <button
+                  onClick={() => {
+                    handleExportSong();
+                    setShowImportExport(false);
+                  }}
+                  className='w-full text-left px-3 py-1.5 text-xs font-mono
+                             text-slate-300 hover:bg-slate-700 transition-colors'
+                >
+                  ↓ Export Song
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  handleImportSong();
+                  setShowImportExport(false);
+                }}
+                className='w-full text-left px-3 py-1.5 text-xs font-mono
+                           text-slate-300 hover:bg-slate-700 transition-colors'
+              >
+                ↑ Import Song
+              </button>
+              {!isBand && (
+                <>
+                  <div className='border-t border-slate-700 my-1' />
+                  {!setlistExportMode ? (
+                    <button
+                      onClick={() => setSetlistExportMode(true)}
+                      disabled={songs.length === 0}
+                      className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                 text-slate-300 hover:bg-slate-700 transition-colors
+                                 disabled:opacity-30 disabled:cursor-not-allowed'
+                    >
+                      ↓ Export Setlist
+                    </button>
+                  ) : (
+                    <div className='px-3 py-1.5 flex flex-col gap-1.5'>
+                      <input
+                        type='text'
+                        placeholder='Setlist name...'
+                        value={setlistName}
+                        onChange={(e) => setSetlistName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && setlistName.trim()) {
+                            handleExportSetlist();
+                            setShowImportExport(false);
+                            setSetlistExportMode(false);
+                          }
+                        }}
+                        autoFocus
+                        className='bg-slate-900 text-slate-200 text-xs rounded px-2
+                                   py-1 border border-slate-600 focus:border-indigo-500
+                                   outline-none font-mono w-full'
+                      />
+                      <button
+                        onClick={() => {
+                          handleExportSetlist();
+                          setShowImportExport(false);
+                          setSetlistExportMode(false);
+                        }}
+                        disabled={!setlistName.trim()}
+                        className='px-2 py-1 text-xs font-mono bg-indigo-600
+                                   hover:bg-indigo-500 text-white rounded
+                                   transition-colors disabled:opacity-30
+                                   disabled:cursor-not-allowed'
+                      >
+                        ↓ Export
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleImportSetlist();
+                      setShowImportExport(false);
+                    }}
+                    className='w-full text-left px-3 py-1.5 text-xs font-mono
+                               text-slate-300 hover:bg-slate-700 transition-colors'
+                  >
+                    ↑ Import Setlist
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
