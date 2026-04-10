@@ -31,7 +31,7 @@ import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
 import { NotationPanel, type TempoMapEntry } from '../Tabs/NotationPanel';
 import { GpMarkerImportDialog } from '../Tabs/GpMarkerImportDialog';
-import { useGpFile } from '../../hooks/useGpFile';
+import { useGpFile, isGpFile } from '../../hooks/useGpFile';
 import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerImport';
 import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
 import type * as alphaTab from '@coderline/alphatab';
@@ -634,9 +634,18 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
         <input
           id='file-input'
           type='file'
-          accept='audio/*'
+          accept='audio/*,.gp,.gp3,.gp4,.gp5,.gpx,.gp8'
           className='hidden'
-          onChange={audioFile.handleFileInput}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (isGpFile(file.name)) {
+              gpFile.createSongFromGpFile(file);
+            } else {
+              audioFile.handleFileInput(e);
+            }
+            e.target.value = '';
+          }}
         />
         
         {/* Remote mode: compact and remote transport controll + choose sections or song*/}
@@ -672,7 +681,17 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           {/* Drop zone (only in practice mode when no active song) */}
           {!isBand && !hasPlayer && (
             <div
-              onDrop={audioFile.handleDrop}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (!file) return;
+                if (isGpFile(file.name)) {
+                  audioFile.handleDragLeave();
+                  gpFile.createSongFromGpFile(file);
+                } else {
+                  audioFile.handleDrop(e);
+                }
+              }}
               onDragOver={audioFile.handleDragOver}
               onDragLeave={audioFile.handleDragLeave}
               className={`flex flex-col items-center justify-center border-2 border-dashed
@@ -682,15 +701,26 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                             : 'border-slate-600 hover:border-slate-400'}`}
             >
               <span className='text-4xl'>🎵</span>
-              <p className='text-slate-400 font-mono text-sm'>Drop an audio file here, or</p>
+              <p className='text-slate-400 font-mono text-sm'>
+                Drop an audio or Guitar Pro file here, or
+              </p>
               <label className='px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white
                                 rounded-lg font-mono text-sm cursor-pointer transition-colors'>
                 Browse file
                 <input
                   type='file'
-                  accept='audio/*'
+                  accept='audio/*,.gp,.gp3,.gp4,.gp5,.gpx,.gp8'
                   className='hidden'
-                  onChange={audioFile.handleFileInput}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (isGpFile(file.name)) {
+                      gpFile.createSongFromGpFile(file);
+                    } else {
+                      audioFile.handleFileInput(e);
+                    }
+                    e.target.value = '';
+                  }}
                 />
               </label>
               <button

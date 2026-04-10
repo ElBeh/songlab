@@ -165,7 +165,7 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
             className='w-full text-left px-4 py-2 text-sm font-mono text-slate-300
                        hover:bg-slate-700 hover:text-white transition-colors'
           >
-            🎵 Load audio file
+            🎵 Load audio / GP file
           </button>
           <button
             onClick={() => { setShowMenu(false); onCreateDummy(); }}

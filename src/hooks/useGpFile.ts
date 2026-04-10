@@ -1,6 +1,15 @@
 import { useState, useCallback } from 'react';
 import { useSongStore } from '../stores/useSongStore';
+import { useTabStore } from '../stores/useTabStore';
 import { saveGpFile, getGpFile, deleteGpFile } from '../services/db';
+import type { SongData } from '../types';
+
+const GP_EXTENSIONS = ['.gp', '.gp3', '.gp4', '.gp5', '.gpx', '.gp8'];
+
+export function isGpFile(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return GP_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 export function useGpFile() {
   // songId → ArrayBuffer (in-memory cache)
@@ -53,11 +62,46 @@ const loadPersistedGp = useCallback(async (songId: string): Promise<ArrayBuffer 
     if (file) handleGpFile(file);
   }, [handleGpFile]);
 
+  /** Create a new dummy song from a GP file (direct import flow) */
+  const createSongFromGpFile = useCallback(async (file: File) => {
+    const id = `gp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const title = file.name.replace(/\.[^.]+$/, '');
+
+    const song: SongData = {
+      id,
+      title,
+      fileName: '',
+      fileSize: 0,
+      duration: 0,
+      createdAt: Date.now(),
+      volume: 1.0,
+      normalizationGain: 1.0,
+      normalizationEnabled: false,
+      isDummy: true,
+      gpFileName: file.name,
+      syncOffset: null,
+      bpmAdjust: null,
+      syncPoints: null,
+      bpm: null,
+      timeSignature: null,
+    };
+
+    const arrayBuffer = await file.arrayBuffer();
+    await saveGpFile(id, arrayBuffer, file.name);
+
+    const { addSong, setActiveSongId } = useSongStore.getState();
+    await addSong(song);
+    await setActiveSongId(id);
+    await useTabStore.getState().loadSheetsForSong(id);
+    setGpData((prev) => ({ ...prev, [id]: arrayBuffer }));
+  }, []);
+
   return {
     activeGpData,
     handleGpFile,
     handleGpFileInput,
     loadPersistedGp,
     removeGp,
+    createSongFromGpFile,
   };
 }
