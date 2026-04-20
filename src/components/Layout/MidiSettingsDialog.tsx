@@ -17,6 +17,10 @@ const COMMAND_LABELS: Record<MidiCommand, string> = {
   SONG_NEXT: 'Next Song',
   TEMPO_DOWN: 'Tempo Down',
   TEMPO_UP: 'Tempo Up',
+  SEEK_BACK: 'Seek Back 5s',
+  SEEK_FORWARD: 'Seek Forward 5s',
+  LOOP_SET_A: 'Set Loop Point A',
+  LOOP_SET_B: 'Set Loop Point B',
 };
 
 function formatMessageType(type: MidiMessageType): string {
@@ -24,6 +28,7 @@ function formatMessageType(type: MidiMessageType): string {
     case 'cc': return 'CC';
     case 'note_on': return 'Note On';
     case 'note_off': return 'Note Off';
+    case 'program_change': return 'PC';
   }
 }
 

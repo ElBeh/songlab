@@ -18,7 +18,7 @@ import { useMidiStore } from '../stores/useMidiStore';
 import { useSongStore } from '../stores/useSongStore';
 import { useLoopStore } from '../stores/useLoopStore';
 import { useTempoStore } from '../stores/useTempoStore';
-import { navigateSong } from '../utils/songNavigation';
+import { navigateSong, navigateToSong } from '../utils/songNavigation';
 
 interface UseMidiInputOptions {
   handlePlayPause: () => void;
@@ -27,6 +27,7 @@ interface UseMidiInputOptions {
 }
 
 const TEMPO_STEP = 0.05;
+const SEEK_STEP = 5; // seconds
 
 export function useMidiInput({
   handlePlayPause,
@@ -93,14 +94,26 @@ export function useMidiInput({
 
   const handleMidiMessage = useCallback((message: MidiMessage) => {
     // Learn mode: capture this message as the new mapping
+    // (Program Change is not learnable — it maps directly to setlist)
     const learn = learnTargetRef.current;
-    if (learn) {
+    if (learn && message.type !== 'program_change') {
       useMidiStore.getState().updateMapping({
         command: learn,
         type: message.type,
         channel: message.channel,
         note: message.note,
       });
+      return;
+    }
+
+    // Program Change: navigate to song by setlist index (0-based)
+    if (message.type === 'program_change') {
+      const { songOrder } = useSongStore.getState();
+      const songItems = songOrder.filter((item) => item.type === 'song');
+      const target = songItems[message.note];
+      if (target && target.type === 'song') {
+        navigateToSong(target.songId);
+      }
       return;
     }
 
@@ -142,6 +155,36 @@ export function useMidiInput({
       case 'TEMPO_UP': {
         const { playbackRate, setPlaybackRate } = useTempoStore.getState();
         setPlaybackRate(playbackRate + TEMPO_STEP);
+        break;
+      }
+
+      case 'SEEK_BACK':
+        handleSeekToRef.current(
+          Math.max(0, currentTimeRef.current - SEEK_STEP),
+        );
+        break;
+
+      case 'SEEK_FORWARD':
+        handleSeekToRef.current(currentTimeRef.current + SEEK_STEP);
+        break;
+
+      case 'LOOP_SET_A': {
+        const loopStore = useLoopStore.getState();
+        if (!loopStore.abMode) loopStore.toggleAbMode();
+        loopStore.setAbStart(currentTimeRef.current);
+        break;
+      }
+
+      case 'LOOP_SET_B': {
+        const loopStore = useLoopStore.getState();
+        const aPoint = loopStore.abStart;
+        if (aPoint !== null && currentTimeRef.current > aPoint) {
+          loopStore.setLoop({
+            start: aPoint,
+            end: currentTimeRef.current,
+            label: 'A/B Loop',
+          });
+        }
         break;
       }
     }

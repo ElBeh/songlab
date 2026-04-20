@@ -110,25 +110,25 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 59:export function startMetronome(opts: MetronomeOptions): MetronomeHandle
 - **deps**: ../components/Tabs/NotationPanel
 
-### midiService.ts (248 lines)
-- 9:export type MidiMessageType = 'note_on' | 'note_off' | 'cc';
+### midiService.ts (270 lines)
+- 9:export type MidiMessageType = 'note_on' | 'note_off' | 'cc' | 'program_change';
 - 11:export interface MidiMessage
 - 19:export type MidiCommand =
-- 29:export interface MidiMapping
-- 36:export interface MidiDeviceInfo
-- 42:export type MidiMessageListener = (message: MidiMessage)
-- 46:export const DEFAULT_MAPPINGS: MidiMapping[] = [
-- 65:export function isMidiSupported(): boolean
-- 69:export async function requestMidiAccess(): Promise<boolean>
-- 93:export function getMidiAccess(): MIDIAccess | null
-- 97:export function getInputDevices(): MidiDeviceInfo[]
-- 110:export function listenToAllInputs(): void
-- 118:export function listenToInput(inputId: string): void
-- 139:export function stopListening(): void
-- 150:export function addMessageListener(listener: MidiMessageListener): void
-- 154:export function removeMessageListener(listener: MidiMessageListener): void
-- 158:export function disconnect(): void
-- 169:export function matchMapping(
+- 33:export interface MidiMapping
+- 40:export interface MidiDeviceInfo
+- 46:export type MidiMessageListener = (message: MidiMessage)
+- 50:export const DEFAULT_MAPPINGS: MidiMapping[] = [
+- 73:export function isMidiSupported(): boolean
+- 77:export async function requestMidiAccess(): Promise<boolean>
+- 101:export function getMidiAccess(): MIDIAccess | null
+- 105:export function getInputDevices(): MidiDeviceInfo[]
+- 118:export function listenToAllInputs(): void
+- 126:export function listenToInput(inputId: string): void
+- 147:export function stopListening(): void
+- 158:export function addMessageListener(listener: MidiMessageListener): void
+- 162:export function removeMessageListener(listener: MidiMessageListener): void
+- 166:export function disconnect(): void
+- 177:export function matchMapping(
 - **deps**: ../stores/useToastStore
 
 ### syncEmitter.ts (134 lines)
@@ -223,8 +223,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 56:export function useMetronome({
 - **deps**: ../components/Tabs/NotationPanel,../services/metronomeScheduler,../stores/useCountInStore,../stores/useMetronomeStore
 
-### useMidiInput.ts (179 lines)
-- 31:export function useMidiInput({
+### useMidiInput.ts (222 lines)
+- 32:export function useMidiInput({
 - **deps**: ../services/midiService,../stores/useLoopStore,../stores/useMidiStore,../stores/useSongStore,../stores/useTempoStore,../utils/songNavigation
 
 ### usePlayback.ts (98 lines)
@@ -253,8 +253,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
 - **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
 
-### MidiSettingsDialog.tsx (176 lines)
-- 30:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
+### MidiSettingsDialog.tsx (181 lines)
+- 35:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore
 
 ### Sidebar.tsx (645 lines)

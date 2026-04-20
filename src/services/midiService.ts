@@ -6,7 +6,7 @@ import { useToastStore } from '../stores/useToastStore';
 
 // --- Types ---
 
-export type MidiMessageType = 'note_on' | 'note_off' | 'cc';
+export type MidiMessageType = 'note_on' | 'note_off' | 'cc' | 'program_change';
 
 export interface MidiMessage {
   type: MidiMessageType;
@@ -24,7 +24,11 @@ export type MidiCommand =
   | 'SONG_PREV'
   | 'SONG_NEXT'
   | 'TEMPO_DOWN'
-  | 'TEMPO_UP';
+  | 'TEMPO_UP'
+  | 'SEEK_BACK'
+  | 'SEEK_FORWARD'
+  | 'LOOP_SET_A'
+  | 'LOOP_SET_B';
 
 export interface MidiMapping {
   command: MidiCommand;
@@ -52,6 +56,10 @@ export const DEFAULT_MAPPINGS: MidiMapping[] = [
   { command: 'SONG_NEXT', type: 'cc', channel: -1, note: 6 },
   { command: 'TEMPO_DOWN', type: 'cc', channel: -1, note: 7 },
   { command: 'TEMPO_UP', type: 'cc', channel: -1, note: 8 },
+  { command: 'SEEK_BACK', type: 'cc', channel: -1, note: 9 },
+  { command: 'SEEK_FORWARD', type: 'cc', channel: -1, note: 10 },
+  { command: 'LOOP_SET_A', type: 'cc', channel: -1, note: 11 },
+  { command: 'LOOP_SET_B', type: 'cc', channel: -1, note: 12 },
 ];
 
 // --- Module-level state ---
@@ -188,11 +196,25 @@ function parseMidiMessage(
   data: Uint8Array,
   deviceId: string,
 ): MidiMessage | null {
-  if (data.length < 3) return null;
+  if (data.length < 2) return null;
 
   const status = data[0];
   const channel = status & 0x0f;
   const messageType = status & 0xf0;
+
+  // Program Change: 2 bytes only (status + program number)
+  if (messageType === 0xc0) {
+    return {
+      type: 'program_change',
+      channel,
+      note: data[1],
+      value: 0,
+      deviceId,
+    };
+  }
+
+  // All other handled messages need 3 bytes
+  if (data.length < 3) return null;
 
   switch (messageType) {
     case 0x90: // Note On
