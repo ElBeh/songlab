@@ -1,8 +1,10 @@
 // MIDI controller settings dialog.
 // Shows connected devices, command mappings with MIDI Learn, and reset option.
 
+import { useRef } from 'react';
 import { useMidiStore } from '../../stores/useMidiStore';
-import type { MidiCommand, MidiMessageType } from '../../services/midiService';
+import { useToastStore } from '../../stores/useToastStore';
+import type { MidiCommand, MidiMapping, MidiMessageType } from '../../services/midiService';
 
 interface MidiSettingsDialogProps {
   onClose: () => void;
@@ -38,6 +40,9 @@ export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps) {
   const learnTarget = useMidiStore((s) => s.learnTarget);
   const setLearnTarget = useMidiStore((s) => s.setLearnTarget);
   const resetMappings = useMidiStore((s) => s.resetMappings);
+  const setMappings = useMidiStore((s) => s.setMappings);
+  const addToast = useToastStore((s) => s.addToast);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -55,6 +60,55 @@ export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps) {
 
   const handleReset = async () => {
     await resetMappings();
+  };
+
+  const handleExport = () => {
+    const blob = new Blob(
+      [JSON.stringify(mappings, null, 2)],
+      { type: 'application/json' },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'midi-mappings.songlab.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as MidiMapping[];
+
+      // Validate structure
+      if (!Array.isArray(data) || data.length === 0) {
+        addToast('Invalid mapping file: expected a non-empty array', 'error');
+        return;
+      }
+
+      const isValid = data.every(
+        (m) => m.command && m.type && typeof m.note === 'number',
+      );
+      if (!isValid) {
+        addToast('Invalid mapping file: entries are missing required fields', 'error');
+        return;
+      }
+
+      setMappings(data);
+      await import('../../services/db').then(
+        (db) => db.setConfig('midiMappings', data),
+      );
+      addToast('MIDI mappings imported', 'success');
+    } catch (error) {
+      console.error('Failed to import MIDI mappings:', error);
+      addToast('Failed to import MIDI mappings', 'error');
+    }
+
+    // Reset file input so the same file can be re-imported
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -156,15 +210,41 @@ export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps) {
         </div>
 
         {/* Buttons */}
-        <div className='flex justify-between mt-2'>
-          <button
-            onClick={handleReset}
-            className='px-3 py-1.5 text-xs font-mono text-slate-500 hover:text-slate-300
-                       transition-colors'
-            aria-label='Reset MIDI mappings to defaults'
-          >
-            Reset defaults
-          </button>
+        <div className='flex items-center justify-between mt-2'>
+          <div className='flex gap-2'>
+            <button
+              onClick={handleReset}
+              className='px-4 py-1.5 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                         text-slate-200 rounded-lg transition-colors'
+              aria-label='Reset MIDI mappings to defaults'
+            >
+              Reset
+            </button>
+            <button
+              onClick={handleExport}
+              className='px-4 py-1.5 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                         text-slate-200 rounded-lg transition-colors'
+              aria-label='Export MIDI mappings'
+            >
+              Export
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className='px-4 py-1.5 text-xs font-mono bg-slate-700 hover:bg-slate-600
+                         text-slate-200 rounded-lg transition-colors'
+              aria-label='Import MIDI mappings'
+            >
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type='file'
+              accept='.json'
+              onChange={handleImport}
+              className='hidden'
+              aria-hidden='true'
+            />
+          </div>
           <button
             onClick={() => {
               setLearnTarget(null);

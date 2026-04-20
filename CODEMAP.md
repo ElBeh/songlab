@@ -253,9 +253,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
 - **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
 
-### MidiSettingsDialog.tsx (181 lines)
-- 35:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
-- **deps**: ../../services/midiService,../../stores/useMidiStore
+### MidiSettingsDialog.tsx (261 lines)
+- 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
+- **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
 ### Sidebar.tsx (645 lines)
 - 19:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
