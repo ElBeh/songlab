@@ -129,6 +129,12 @@ Fine-tune audio-to-notation synchronization with offset nudge (±10ms/±100ms) a
 ### Metronome
 - Continuous click during playback synced to song BPM, with solo mode, volume control, and real-time GP file tempo tracking
 
+### MIDI Input
+- Connect USB MIDI footswitches and controllers via Web MIDI API (Chromium-based browsers)
+- Configurable command mapping: play/pause, section/song navigation, loop toggle, tempo control
+- MIDI Learn — assign any MIDI button to any command with one click
+- Mappings persist across sessions (stored in IndexedDB)
+
 ### UI & Workflow
 - Accordion sidebar with collapsible Sections and Setlist panels
 - Collapsible sidebar for maximum practice space
