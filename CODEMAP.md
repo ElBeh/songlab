@@ -34,6 +34,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### useMetronomeStore.ts (41 lines)
 - 27:export const useMetronomeStore = create<MetronomeStore>((set)
 
+### useMidiStore.ts (89 lines)
+- 34:export const useMidiStore = create<MidiStore>((set, get)
+- **deps**: ../services/db,../services/midiService
+
 ### useModeStore.ts (22 lines)
 - 3:export type AppMode = 'practice' | 'band';
 - 14:export const useModeStore = create<ModeStore>((set)
@@ -106,6 +110,27 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 59:export function startMetronome(opts: MetronomeOptions): MetronomeHandle
 - **deps**: ../components/Tabs/NotationPanel
 
+### midiService.ts (248 lines)
+- 9:export type MidiMessageType = 'note_on' | 'note_off' | 'cc';
+- 11:export interface MidiMessage
+- 19:export type MidiCommand =
+- 29:export interface MidiMapping
+- 36:export interface MidiDeviceInfo
+- 42:export type MidiMessageListener = (message: MidiMessage)
+- 46:export const DEFAULT_MAPPINGS: MidiMapping[] = [
+- 65:export function isMidiSupported(): boolean
+- 69:export async function requestMidiAccess(): Promise<boolean>
+- 93:export function getMidiAccess(): MIDIAccess | null
+- 97:export function getInputDevices(): MidiDeviceInfo[]
+- 110:export function listenToAllInputs(): void
+- 118:export function listenToInput(inputId: string): void
+- 139:export function stopListening(): void
+- 150:export function addMessageListener(listener: MidiMessageListener): void
+- 154:export function removeMessageListener(listener: MidiMessageListener): void
+- 158:export function disconnect(): void
+- 169:export function matchMapping(
+- **deps**: ../stores/useToastStore
+
 ### syncEmitter.ts (134 lines)
 - 27:export function setSyncSocket(socket: SyncSocket | null): void
 - 33:export function isRemoteUpdate(): boolean
@@ -144,6 +169,11 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 3:export const SECTION_COLORS: Record<SectionType, string> =
 - **deps**: ../types
 
+### songNavigation.ts (34 lines)
+- 7:export async function navigateSong(
+- 30:export async function navigateToSong(songId: string): Promise<void>
+- **deps**: ../stores/useSongStore,../stores/useTabStore
+
 ### tuningPresets.ts (99 lines)
 - 4:export function midiToNoteName(midi: number): string
 - 10:export function midiToNoteNameShort(midi: number): string
@@ -165,9 +195,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 15:export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions = {})
 - **deps**: ../services/audioAnalysis,../services/db,../stores/useSongStore,../stores/useTabStore,../types
 
-### useControlCommandHandler.ts (91 lines)
-- 17:export function useControlCommandHandler({
-- **deps**: ../../shared/syncProtocol,../stores/useSongStore,../stores/useTabStore,../stores/useTempoStore
+### useControlCommandHandler.ts (58 lines)
+- 16:export function useControlCommandHandler({
+- **deps**: ../../shared/syncProtocol,../stores/useTempoStore,../utils/songNavigation
 
 ### useCountIn.ts (62 lines)
 - 16:export function useCountIn({ bpm, timeSignature, onComplete, audible = true }: UseCountInOptions)
@@ -193,6 +223,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 56:export function useMetronome({
 - **deps**: ../components/Tabs/NotationPanel,../services/metronomeScheduler,../stores/useCountInStore,../stores/useMetronomeStore
 
+### useMidiInput.ts (179 lines)
+- 31:export function useMidiInput({
+- **deps**: ../services/midiService,../stores/useLoopStore,../stores/useMidiStore,../stores/useSongStore,../stores/useTempoStore,../utils/songNavigation
+
 ### usePlayback.ts (98 lines)
 - 14:export function usePlayback({ onTimeUpdate, onFinish, onLoopRestart }: UsePlaybackOptions = {})
 - **deps**: ../stores/useLoopStore
@@ -211,13 +245,17 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1140 lines)
-- 48:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/LoopControls,../Player/MetronomeToggle,../Player/TempoControls,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport
+### AppShell.tsx (1148 lines)
+- 49:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/LoopControls,../Player/MetronomeToggle,../Player/TempoControls,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport
 
 ### CreateDummySongDialog.tsx (263 lines)
 - 12:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
 - **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
+
+### MidiSettingsDialog.tsx (176 lines)
+- 30:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
+- **deps**: ../../services/midiService,../../stores/useMidiStore
 
 ### Sidebar.tsx (645 lines)
 - 19:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
@@ -227,9 +265,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
 - **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
 
-### SyncStatus.tsx (212 lines)
-- 10:export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps)
-- **deps**: ../../../shared/syncProtocol,../../stores/useSyncStore
+### SyncStatus.tsx (266 lines)
+- 13:export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps)
+- **deps**: ../../services/midiService,../../../shared/syncProtocol,../../stores/useMidiStore,../../stores/useSyncStore
 
 ### Toast.tsx (38 lines)
 - 9:export function ToastContainer()

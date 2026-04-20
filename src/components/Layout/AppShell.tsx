@@ -36,6 +36,7 @@ import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerI
 import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
 import type * as alphaTab from '@coderline/alphatab';
 import { useControlCommandHandler } from '../../hooks/useControlCommandHandler';
+import { useMidiInput } from '../../hooks/useMidiInput';
 import { useCountIn } from '../../hooks/useCountIn';
 import { useCountInStore } from '../../stores/useCountInStore';
 import { CountInToggle } from '../Player/CountInToggle';
@@ -320,6 +321,13 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     isPlaying: _isPlaying,
   });
   controlCommandRef.current = handleControlCommand;
+
+  // MIDI input: footswitch / controller via Web MIDI API
+  useMidiInput({
+    handlePlayPause: handlePlayPauseWithCountIn,
+    handleSeekTo,
+    currentTime: _currentTime,
+  });
 
   // Viewer overrides: use synced playback from host
   const syncedTime = useSyncStore((s) => s.syncedTime);

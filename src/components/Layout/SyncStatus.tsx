@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSyncStore } from '../../stores/useSyncStore';
+import { useMidiStore } from '../../stores/useMidiStore';
+import { isMidiSupported } from '../../services/midiService';
+import { MidiSettingsDialog } from './MidiSettingsDialog';
 import type { SyncRole } from '../../../shared/syncProtocol';
 
 interface SyncStatusProps {
@@ -14,10 +17,15 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
   const error = useSyncStore((s) => s.error);
 
   const [showPanel, setShowPanel] = useState(false);
-  const [serverUrl, setServerUrl] = useState('');
+  const [showMidiDialog, setShowMidiDialog] = useState(false);
+  const [serverUrl, setServerUrl] = useState(window.location.origin);
   const [displayName, setDisplayName] = useState('');
   const [selectedRole, setSelectedRole] = useState<SyncRole>('host');
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const midiEnabled = useMidiStore((s) => s.enabled);
+  const midiToggle = useMidiStore((s) => s.toggle);
+  const midiDeviceCount = useMidiStore((s) => s.devices.length);
 
   // Close panel on outside click
   useEffect(() => {
@@ -30,13 +38,6 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showPanel]);
-
-  // Auto-fill server URL for host (current origin)
-  useEffect(() => {
-    if (!serverUrl) {
-      setServerUrl(window.location.origin);
-    }
-  }, [serverUrl]);
 
   const handleConnect = useCallback(() => {
     if (!serverUrl.trim() || !displayName.trim()) return;
@@ -205,7 +206,61 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
               </button>
             </>
           )}
+
+          {/* MIDI Controller section */}
+          {isMidiSupported() && (
+            <>
+              <div className='border-t border-slate-700' />
+
+              <div className='flex flex-col gap-2'>
+                <div className='flex items-center justify-between'>
+                  <span className='text-xs font-mono text-slate-400 uppercase tracking-widest'>
+                    MIDI Controller
+                  </span>
+                  <button
+                    onClick={midiToggle}
+                    aria-label='Toggle MIDI input'
+                    aria-pressed={midiEnabled}
+                    className='px-2 py-0.5 text-[10px] font-mono rounded transition-colors'
+                    style={{
+                      backgroundColor: midiEnabled ? '#166534' : '#1e293b',
+                      color: midiEnabled ? '#86efac' : '#64748b',
+                      border: midiEnabled ? 'none' : '1px solid #334155',
+                    }}
+                  >
+                    {midiEnabled ? 'On' : 'Off'}
+                  </button>
+                </div>
+
+                {midiEnabled && (
+                  <div className='flex items-center justify-between'>
+                    <span className='text-xs font-mono text-slate-500'>
+                      {midiDeviceCount > 0
+                        ? `${midiDeviceCount} device${midiDeviceCount !== 1 ? 's' : ''} connected`
+                        : 'No devices detected'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setShowPanel(false);
+                        setShowMidiDialog(true);
+                      }}
+                      className='px-2 py-0.5 text-[10px] font-mono rounded
+                                 bg-slate-700 text-slate-300 hover:bg-slate-600
+                                 transition-colors'
+                      aria-label='Open MIDI settings'
+                    >
+                      Settings
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
+      )}
+
+      {showMidiDialog && (
+        <MidiSettingsDialog onClose={() => setShowMidiDialog(false)} />
       )}
     </div>
   );
