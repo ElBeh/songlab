@@ -5,6 +5,7 @@ import { MarkerList } from '../Markers/MarkerList';
 import { exportSong, importSong, exportSetlist, importSetlist } from '../../services/exportService';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
+import { UrlImportDialog } from './UrlImportDialog';
 
 interface SidebarProps {
   onSeekTo: (time: number) => void;
@@ -26,6 +27,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
   const [setlistExportMode, setSetlistExportMode] = useState(false);
+  const [showUrlImport, setShowUrlImport] = useState(false);
   const importExportRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -635,12 +637,39 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                   >
                     ↑ Import Setlist
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowUrlImport(true);
+                      setShowImportExport(false);
+                    }}
+                    className='w-full text-left px-3 py-1.5 text-xs font-mono
+                               text-slate-300 hover:bg-slate-700 transition-colors'
+                  >
+                    ↑ Import from URL
+                  </button>
                 </>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* URL Import Dialog */}
+      {showUrlImport && (
+        <UrlImportDialog
+          onClose={() => setShowUrlImport(false)}
+          onImported={async (importedSongs) => {
+            for (const song of importedSongs) {
+              await addSong(song);
+            }
+            if (importedSongs.length > 0) {
+              await setActiveSongId(importedSongs[0].id);
+              await useTabStore.getState().loadTabsForSong(importedSongs[0].id);
+              await useTabStore.getState().loadSheetsForSong(importedSongs[0].id);
+            }
+          }}
+        />
+      )}
     </aside>
   );
 }

@@ -149,9 +149,8 @@ export async function exportSetlist(name: string, songs: SongData[]): Promise<vo
   downloadJson(setlist, `${name}.setlist.json`);
 }
 
-export async function importSetlist(file: File): Promise<SongData[]> {
-  const text = await readFileAsText(file);
-  const setlist: SetlistExport = JSON.parse(text);
+/** Restore all songs from a parsed setlist export into IndexedDB */
+async function restoreSetlist(setlist: SetlistExport): Promise<SongData[]> {
   const importedSongs: SongData[] = [];
 
   for (const entry of setlist.entries ?? []) {
@@ -161,4 +160,29 @@ export async function importSetlist(file: File): Promise<SongData[]> {
   }
 
   return importedSongs;
+}
+
+export async function importSetlist(file: File): Promise<SongData[]> {
+  const text = await readFileAsText(file);
+  const setlist: SetlistExport = JSON.parse(text);
+  return restoreSetlist(setlist);
+}
+
+export async function importSetlistFromUrl(
+  serverUrl: string,
+  setlistUrl: string,
+): Promise<SongData[]> {
+  const base = serverUrl.replace(/\/+$/, '');
+  const endpoint = `${base}/api/fetch-setlist?url=${encodeURIComponent(setlistUrl)}`;
+
+  const response = await fetch(endpoint);
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message = (body as { error?: string })?.error ?? `Server returned ${response.status}`;
+    throw new Error(message);
+  }
+
+  const setlist: SetlistExport = await response.json();
+  return restoreSetlist(setlist);
 }

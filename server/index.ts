@@ -27,6 +27,137 @@ const httpServer = createServer(app);
 // Serve Vite production build
 app.use(express.static(DIST_DIR));
 
+// --- API: Fetch setlist from external URL ---
+
+const MAX_SETLIST_SIZE = 50 * 1024 * 1024; // 50 MB
+const FETCH_TIMEOUT_MS = 15_000;
+
+// CORS for API routes (allow Vite dev server)
+const API_CORS_ORIGINS = [
+  'http://localhost:5173', 'http://127.0.0.1:5173',
+  'http://localhost:5174', 'http://127.0.0.1:5174',
+];
+
+function isPrivateUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    const hostname = parsed.hostname;
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+      hostname.endsWith('.local')
+    );
+  } catch {
+    return true;
+  }
+}
+
+/** Transform cloud sharing links into direct download URLs */
+function toDirectDownloadUrl(url: string): string {
+  // Dropbox: replace dl=0 with dl=1 to force direct download
+  if (url.match(/^https:\/\/(www\.)?dropbox\.com\//)) {
+    return url.replace(/[?&]dl=0/, (m) => m[0] + 'dl=1');
+  }
+
+  // Google Drive: https://drive.google.com/file/d/{fileId}/...
+  // → https://drive.google.com/uc?export=download&id={fileId}
+  const gdMatch = url.match(/^https:\/\/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (gdMatch) {
+    return `https://drive.google.com/uc?export=download&id=${gdMatch[1]}`;
+  }
+
+  return url;
+}
+
+app.get('/api/fetch-setlist', async (req, res) => {
+  // CORS
+  const origin = req.headers.origin;
+  if (origin && API_CORS_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  const url = req.query.url;
+  if (typeof url !== 'string' || !url) {
+    res.status(400).json({ error: 'Missing "url" query parameter' });
+    return;
+  }
+
+  if (!url.startsWith('https://')) {
+    res.status(400).json({ error: 'Only HTTPS URLs are allowed' });
+    return;
+  }
+
+  if (isPrivateUrl(url)) {
+    res.status(400).json({ error: 'Private/local URLs are not allowed' });
+    return;
+  }
+
+  try {
+    const downloadUrl = toDirectDownloadUrl(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    const response = await fetch(downloadUrl, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json, */*',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36',
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      res.status(502).json({ error: `Remote server returned ${response.status}` });
+      return;
+    }
+
+    // Check content length if available
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > MAX_SETLIST_SIZE) {
+      res.status(413).json({ error: 'File exceeds 50 MB size limit' });
+      return;
+    }
+
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_SETLIST_SIZE) {
+      res.status(413).json({ error: 'File exceeds 50 MB size limit' });
+      return;
+    }
+
+    const text = new TextDecoder().decode(buffer);
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      res.status(422).json({ error: 'Response is not valid JSON' });
+      return;
+    }
+
+    // Basic setlist format validation: must be an object with an entries array
+    if (
+      typeof data !== 'object' || data === null ||
+      !Array.isArray((data as Record<string, unknown>).entries)
+    ) {
+      res.status(422).json({ error: 'Invalid setlist format: expected { entries: [...] }' });
+      return;
+    }
+
+    console.log(`[api] Fetched setlist from ${url} (${buffer.byteLength} bytes)`);
+    res.json(data);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      res.status(504).json({ error: 'Request timed out after 15 seconds' });
+      return;
+    }
+    console.error('[api] Fetch setlist error:', error);
+    res.status(502).json({ error: 'Failed to fetch from the provided URL' });
+  }
+});
+
 // SPA fallback – all non-asset routes serve index.html
 app.get('/{*splat}', (_req, res) => {
   res.sendFile(path.join(DIST_DIR, 'index.html'));

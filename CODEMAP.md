@@ -98,11 +98,12 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 207:export async function deleteGpFile(songId: string): Promise<void>
 - **deps**: ../types
 
-### exportService.ts (163 lines)
+### exportService.ts (187 lines)
 - 119:export async function exportSong(song: SongData): Promise<void>
 - 125:export async function importSong(file: File): Promise<SongData>
 - 134:export async function exportSetlist(name: string, songs: SongData[]): Promise<void>
-- 152:export async function importSetlist(file: File): Promise<SongData[]>
+- 165:export async function importSetlist(file: File): Promise<SongData[]>
+- 171:export async function importSetlistFromUrl(
 - **deps**: ../types,../utils/encoding
 
 ### metronomeScheduler.ts (179 lines)
@@ -257,8 +258,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (645 lines)
-- 19:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
+### Sidebar.tsx (674 lines)
+- 20:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
 - **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
 
 ### SongTabs.tsx (248 lines)
@@ -272,6 +273,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### Toast.tsx (38 lines)
 - 9:export function ToastContainer()
 - **deps**: ../../stores/useToastStore
+
+### UrlImportDialog.tsx (165 lines)
+- 16:export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps)
+- **deps**: ../../services/db,../../services/exportService,../../stores/useSyncStore,../../stores/useToastStore,../../types
 
 ## src/components/Player
 
@@ -379,7 +384,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## server
 
-### index.ts (244 lines)
+### index.ts (375 lines)
 - **deps**: ../shared/syncProtocol.js
 
 ## src/
