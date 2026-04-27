@@ -541,7 +541,9 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
         )}
       </div>
 
-      {/* ── Import / Export (pinned to bottom) ── */}
+      {/* ── Import / Export (pinned to bottom, practice mode only) ── */}
+      {!isBand && (
+      <>
       <div className='mt-auto border-t border-slate-700 p-3' ref={importExportRef}>
         <div className='relative'>
           <button
@@ -579,76 +581,72 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
               >
                 ↑ Import Song
               </button>
-              {!isBand && (
-                <>
-                  <div className='border-t border-slate-700 my-1' />
-                  {!setlistExportMode ? (
-                    <button
-                      onClick={() => setSetlistExportMode(true)}
-                      disabled={songs.length === 0}
-                      className='w-full text-left px-3 py-1.5 text-xs font-mono
-                                 text-slate-300 hover:bg-slate-700 transition-colors
-                                 disabled:opacity-30 disabled:cursor-not-allowed'
-                    >
-                      ↓ Export Setlist
-                    </button>
-                  ) : (
-                    <div className='px-3 py-1.5 flex flex-col gap-1.5'>
-                      <input
-                        type='text'
-                        placeholder='Setlist name...'
-                        value={setlistName}
-                        onChange={(e) => setSetlistName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && setlistName.trim()) {
-                            handleExportSetlist();
-                            setShowImportExport(false);
-                            setSetlistExportMode(false);
-                          }
-                        }}
-                        autoFocus
-                        className='bg-slate-900 text-slate-200 text-xs rounded px-2
-                                   py-1 border border-slate-600 focus:border-indigo-500
-                                   outline-none font-mono w-full'
-                      />
-                      <button
-                        onClick={() => {
-                          handleExportSetlist();
-                          setShowImportExport(false);
-                          setSetlistExportMode(false);
-                        }}
-                        disabled={!setlistName.trim()}
-                        className='px-2 py-1 text-xs font-mono bg-indigo-600
-                                   hover:bg-indigo-500 text-white rounded
-                                   transition-colors disabled:opacity-30
-                                   disabled:cursor-not-allowed'
-                      >
-                        ↓ Export
-                      </button>
-                    </div>
-                  )}
+              <div className='border-t border-slate-700 my-1' />
+              {!setlistExportMode ? (
+                <button
+                  onClick={() => setSetlistExportMode(true)}
+                  disabled={songs.length === 0}
+                  className='w-full text-left px-3 py-1.5 text-xs font-mono
+                             text-slate-300 hover:bg-slate-700 transition-colors
+                             disabled:opacity-30 disabled:cursor-not-allowed'
+                >
+                  ↓ Export Setlist
+                </button>
+              ) : (
+                <div className='px-3 py-1.5 flex flex-col gap-1.5'>
+                  <input
+                    type='text'
+                    placeholder='Setlist name...'
+                    value={setlistName}
+                    onChange={(e) => setSetlistName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && setlistName.trim()) {
+                        handleExportSetlist();
+                        setShowImportExport(false);
+                        setSetlistExportMode(false);
+                      }
+                    }}
+                    autoFocus
+                    className='bg-slate-900 text-slate-200 text-xs rounded px-2
+                               py-1 border border-slate-600 focus:border-indigo-500
+                               outline-none font-mono w-full'
+                  />
                   <button
                     onClick={() => {
-                      handleImportSetlist();
+                      handleExportSetlist();
                       setShowImportExport(false);
+                      setSetlistExportMode(false);
                     }}
-                    className='w-full text-left px-3 py-1.5 text-xs font-mono
-                               text-slate-300 hover:bg-slate-700 transition-colors'
+                    disabled={!setlistName.trim()}
+                    className='px-2 py-1 text-xs font-mono bg-indigo-600
+                               hover:bg-indigo-500 text-white rounded
+                               transition-colors disabled:opacity-30
+                               disabled:cursor-not-allowed'
                   >
-                    ↑ Import Setlist
+                    ↓ Export
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowUrlImport(true);
-                      setShowImportExport(false);
-                    }}
-                    className='w-full text-left px-3 py-1.5 text-xs font-mono
-                               text-slate-300 hover:bg-slate-700 transition-colors'
-                  >
-                    ↑ Import from URL
-                  </button>
-                </>
+                </div>
               )}
+              <button
+                onClick={() => {
+                  handleImportSetlist();
+                  setShowImportExport(false);
+                }}
+                className='w-full text-left px-3 py-1.5 text-xs font-mono
+                           text-slate-300 hover:bg-slate-700 transition-colors'
+              >
+                ↑ Import Setlist
+              </button>
+              <button
+                onClick={() => {
+                  setShowUrlImport(true);
+                  setShowImportExport(false);
+                }}
+                className='w-full text-left px-3 py-1.5 text-xs font-mono
+                           text-slate-300 hover:bg-slate-700 transition-colors'
+              >
+                ↑ Import from URL
+              </button>
             </div>
           )}
         </div>
@@ -669,6 +667,8 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
             }
           }}
         />
+      )}
+      </>
       )}
     </aside>
   );

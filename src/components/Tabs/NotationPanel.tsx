@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { SyncOffsetEditor } from './SyncOffsetEditor';
-import { useExternalMediaSync } from '../../hooks/useExternalMediaSync';
+import { useExternalMediaSync, buildTempoMap, tickToElapsedMs } from '../../hooks/useExternalMediaSync';
 import { analyzeTuning, formatTuning } from '../../utils/tuningPresets';
 
 interface TrackMixerState {
@@ -41,6 +41,8 @@ interface NotationPanelProps {
     timeSignature: [number, number];
     tempoMap: TempoMapEntry[];
   }) => void;
+    /** Fires when user clicks on a beat in notation (Audio + GP mode) */
+  onSeek?: (time: number) => void;
 }
 
 /** Tempo and time signature at a specific tick position in the score */
@@ -65,6 +67,7 @@ export function NotationPanel({
   onApiReady,
   onTickUpdate,
   onScoreInfo,
+  onSeek,
 }: NotationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -230,7 +233,7 @@ export function NotationPanel({
   // fire, so we handle scrolling ourselves via requestAnimationFrame.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !isPlaying) return;
 
     const beat = () => container.querySelector('.at-cursor-beat') as HTMLElement | null;
 
@@ -249,9 +252,6 @@ export function NotationPanel({
             container.scrollTo({ top: target, behavior: 'smooth' });
           }
         } else {
-          // Horizontal: page-turn style – jump when cursor leaves the
-          // visible area (past 85% of container width). Places the cursor
-          // back near the left edge (10%) for uninterrupted reading.
           const offset = beatRect.left - containerRect.left;
 
           if (offset < 0 || offset > containerRect.width * 0.85) {
@@ -265,7 +265,7 @@ export function NotationPanel({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [layout]);
+  }, [layout, isPlaying]);
 
   // Switch track
   useEffect(() => {
@@ -287,6 +287,25 @@ export function NotationPanel({
     currentTime: enableExternalMedia ? currentTime : 0,
     onTickUpdate: enableExternalMedia ? onTickUpdate : undefined,
   });
+
+// Click-to-seek: clicking a beat in the notation seeks the audio position
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api || !enableExternalMedia || !onSeek) return;
+
+      const handleBeatMouseDown = (beat: alphaTab.model.Beat) => {
+        const tempoMap = buildTempoMap(api)
+          .map((seg) => ({ ...seg, bpm: seg.bpm + (bpmAdjust ?? 0) }));
+        const elapsedMs = tickToElapsedMs(beat.absoluteDisplayStart, tempoMap);
+        const audioTime = (elapsedMs + (syncOffset ?? 0)) / 1000;
+        onSeek(audioTime);
+      };
+
+    api.beatMouseDown.on(handleBeatMouseDown);
+    return () => api.beatMouseDown.off(handleBeatMouseDown);
+  // onSeek intentionally excluded – stable callback ref from parent
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableExternalMedia, syncOffset, bpmAdjust, apiForEditor]);
 
   // --- Mixer controls ---
 

@@ -208,8 +208,11 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 18:export function useDummyPlayback({ duration, onTimeUpdate, onFinish, onLoopRestart }: UseDummyPlaybackOptions)
 - **deps**: ../stores/useLoopStore
 
-### useExternalMediaSync.ts (167 lines)
-- 99:export function useExternalMediaSync({
+### useExternalMediaSync.ts (197 lines)
+- 5:export interface TempoSegment
+- 33:export function buildTempoMap(api: alphaTab.AlphaTabApi | null): TempoSegment[]
+- 93:export function tickToElapsedMs(tick: number, tempoMap: TempoSegment[]): number
+- 129:export function useExternalMediaSync({
 
 ### useGpFile.ts (106 lines)
 - 9:export function isGpFile(fileName: string): boolean
@@ -246,7 +249,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1148 lines)
+### AppShell.tsx (1149 lines)
 - 49:export default function AppShell()
 - **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/LoopControls,../Player/MetronomeToggle,../Player/TempoControls,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport
 
@@ -338,9 +341,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function GpMarkerImportDialog({
 - **deps**: ../../utils/formatTime,../../utils/gpMarkerImport
 
-### NotationPanel.tsx (557 lines)
-- 47:export interface TempoMapEntry
-- 53:export function NotationPanel({
+### NotationPanel.tsx (576 lines)
+- 49:export interface TempoMapEntry
+- 55:export function NotationPanel({
 - **deps**: ../../hooks/useExternalMediaSync,../../utils/tuningPresets
 
 ### SheetBar.tsx (173 lines)

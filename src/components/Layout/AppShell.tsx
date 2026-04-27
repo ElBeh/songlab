@@ -868,13 +868,13 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                 <DummyWaveform
                   duration={duration}
                   currentTime={currentTime}
-                  height={isBand ? 64 : 96}
+                  height={isBand ? 32 : 96}
                   onSeek={isViewer ? undefined : handleSeekTo}
                 />
               ) : (
                 <WaveformPlayer
                   audioUrl={audioFile.audioUrl!}
-                  height={isBand ? 64 : 96}
+                  height={isBand ? 32 : 96}
                   onReady={handleReady}
                   onTimeUpdate={playback.handleTimeUpdate}
                   onFinish={playback.handleFinish}
@@ -1079,6 +1079,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       onApiReady={handleNotationApiReady}
                       onTickUpdate={handleExternalMediaTick}
                       onScoreInfo={handleScoreInfo}
+                      onSeek={handleSeekTo} 
                     />
                   ) : (
                     /* ASCII mode (existing behavior) */
