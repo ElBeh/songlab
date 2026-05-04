@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { X, Rewind, ChevronLeft, ChevronRight, FastForward } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface SyncOffsetEditorProps {
   /** Current sync offset in ms (null = not set) */
@@ -95,7 +97,7 @@ export function SyncOffsetEditor({
                    hover:bg-slate-600 transition-colors'
         title='Close sync editor'
       >
-        ✕
+        <X size={ICON_SIZE.ACTION} />
       </button>
 
       <div className='w-px h-4 bg-slate-600' />
@@ -116,7 +118,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='-100ms'
           >
-            ⏪
+            <Rewind size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={() => handleNudgeOffset(-10)}
@@ -124,7 +126,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='-10ms'
           >
-            ◀
+            <ChevronLeft size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={() => handleNudgeOffset(10)}
@@ -132,7 +134,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='+10ms'
           >
-            ▶
+            <ChevronRight size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={() => handleNudgeOffset(100)}
@@ -140,7 +142,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='+100ms'
           >
-            ⏩
+            <FastForward size={ICON_SIZE.ACTION} />
           </button>
         </div>
 
@@ -160,7 +162,7 @@ export function SyncOffsetEditor({
                        transition-colors'
             title='Reset offset to 0ms'
           >
-            ✕
+            <X size={ICON_SIZE.ACTION} />
           </button>
         )}
       </div>
@@ -184,7 +186,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='-1.0 BPM'
           >
-            ⏪
+            <Rewind size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={() => handleNudgeBpm(-0.1)}
@@ -192,7 +194,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='-0.1 BPM'
           >
-            ◀
+            <ChevronLeft size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={() => handleNudgeBpm(0.1)}
@@ -200,7 +202,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='+0.1 BPM'
           >
-            ▶
+            <ChevronRight size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={() => handleNudgeBpm(1)}
@@ -208,7 +210,7 @@ export function SyncOffsetEditor({
                        hover:bg-slate-600 transition-colors'
             title='+1.0 BPM'
           >
-            ⏩
+            <FastForward size={ICON_SIZE.ACTION} />
           </button>
         </div>
 
@@ -219,7 +221,7 @@ export function SyncOffsetEditor({
                        transition-colors'
             title='Reset BPM adjustment to 0'
           >
-            ✕
+            <X size={ICON_SIZE.ACTION} />
           </button>
         )}
       </div>

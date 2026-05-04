@@ -45,6 +45,8 @@ import { useMetronome } from '../../hooks/useMetronome';
 import { MetronomeToggle } from '../Player/MetronomeToggle';
 import type { ControlCommand } from '../../../shared/syncProtocol';
 import { RemoteControlView } from '../Controller/RemoteControlView';
+import { Music, Pause, Play, SkipBack, Repeat, Eye, Pencil, Music2, X } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -61,7 +63,7 @@ export default function AppShell() {
 
   const mode = useModeStore((state) => state.mode);
   const autoAdvance = useModeStore((state) => state.autoAdvance);
-  const isBand = mode === 'band';
+  const isSession = mode === 'session';
 
   const isDummy = activeSong?.isDummy ?? false;
 
@@ -73,7 +75,7 @@ export default function AppShell() {
   // Viewer: always force band mode
   useEffect(() => {
     if (isViewer) {
-      useModeStore.getState().setMode('band');
+      useModeStore.getState().setMode('session');
     }
   }, [isViewer]);
 
@@ -609,24 +611,24 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
         {!isViewer && (
         <div className='flex bg-slate-800 rounded-lg p-0.5 font-mono text-xs'>
           <button
-            onClick={() => useModeStore.getState().setMode('practice')}
+            onClick={() => useModeStore.getState().setMode('edit')}
             className='px-3 py-1 rounded-md transition-colors'
             style={{
-              backgroundColor: !isBand ? '#6366f1' : 'transparent',
-              color: !isBand ? '#fff' : '#64748b',
+              backgroundColor: !isSession ? '#6366f1' : 'transparent',
+              color: !isSession ? '#fff' : '#64748b',
             }}
           >
-            Practice
+            Edit
           </button>
           <button
-            onClick={() => useModeStore.getState().setMode('band')}
+            onClick={() => useModeStore.getState().setMode('session')}
             className='px-3 py-1 rounded-md transition-colors'
             style={{
-              backgroundColor: isBand ? '#6366f1' : 'transparent',
-              color: isBand ? '#fff' : '#64748b',
+              backgroundColor: isSession ? '#6366f1' : 'transparent',
+              color: isSession ? '#fff' : '#64748b',
             }}
           >
-            Band
+            Session
           </button>
         </div>
         )}
@@ -687,7 +689,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto relative'>
           <CountInIndicator />
           {/* Drop zone (only in practice mode when no active song) */}
-          {!isBand && !hasPlayer && (
+          {!isSession && !hasPlayer && (
             <div
               onDrop={(e) => {
                 e.preventDefault();
@@ -708,7 +710,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                             ? 'border-indigo-400 bg-indigo-950'
                             : 'border-slate-600 hover:border-slate-400'}`}
             >
-              <span className='text-4xl'>🎵</span>
+              <span className='text-4xl'><Music size={36} /></span>
               <p className='text-slate-400 font-mono text-sm'>
                 Drop an audio or Guitar Pro file here, or
               </p>
@@ -753,7 +755,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                   )}
                 </h2>
                 <div className='flex-1 flex justify-center'>
-                  {isBand && (
+                  {isSession && (
                     isViewer ? (
                       <div
                         className='rounded-lg px-6 py-2 font-mono text-sm'
@@ -783,8 +785,8 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                   )}
                 </div>
                 <div className='flex items-center gap-3'>
-                  {/* Band mode: compact play/pause + reset (host only) */}
-                  {isBand && !isViewer && (
+                  {/* Session mode: compact play/pause + reset (host only) */}
+                  {isSession && !isViewer && (
                     <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-3'>
                       <button
                         onClick={handlePlayPauseWithCountIn}
@@ -792,14 +794,14 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                                    bg-indigo-500 hover:bg-indigo-400 text-white
                                    transition-colors text-sm'
                       >
-                        {isPlaying ? '⏸' : '▶'}
+                        {isPlaying ? <Pause key='pause' size={ICON_SIZE.TRANSPORT} /> : <Play key='play' size={ICON_SIZE.TRANSPORT} />}
                       </button>
                       <button
                         onClick={handleReset}
                         className='text-slate-300 hover:text-white transition-colors'
                         title='Reset to start'
                       >
-                        ⏮
+                        <SkipBack size={ICON_SIZE.TRANSPORT} />
                       </button>
                       <div className='w-px h-6 bg-slate-600' />
                       <button
@@ -811,7 +813,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                         }}
                         title='Loop entire song'
                       >
-                        🔁 song
+                        <Repeat size={ICON_SIZE.ACTION} className='inline-block' /> song
                       </button>
                       <div className='w-px h-6 bg-slate-600' />
                       <LoopControls songLoop={songLoop} />
@@ -833,7 +835,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                     </div>
                   )}
 
-                  {!isBand && (
+                  {!isSession && (
                     isDummy ? (
                       <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-indigo-400
                                         hover:text-indigo-300 font-mono cursor-pointer
@@ -868,13 +870,13 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                 <DummyWaveform
                   duration={duration}
                   currentTime={currentTime}
-                  height={isBand ? 32 : 96}
+                  height={isSession ? 32 : 96}
                   onSeek={isViewer ? undefined : handleSeekTo}
                 />
               ) : (
                 <WaveformPlayer
                   audioUrl={audioFile.audioUrl!}
-                  height={isBand ? 32 : 96}
+                  height={isSession ? 32 : 96}
                   onReady={handleReady}
                   onTimeUpdate={playback.handleTimeUpdate}
                   onFinish={playback.handleFinish}
@@ -909,7 +911,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
               )}
 
               {/* Controls – practice mode only */}
-              {!isBand && (
+              {!isSession && (
                 <div className='flex items-stretch gap-3 flex-wrap'>
                   <div className='bg-slate-800 rounded-lg px-4 py-3 flex items-center'>
                     <TransportControls
@@ -945,7 +947,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
               )}
 
               {/* MarkerForm modal – practice mode only */}
-              {!isBand && showMarkerForm && (
+              {!isSession && showMarkerForm && (
                 <MarkerForm
                   currentTime={currentTime}
                   songId={activeSong.id}
@@ -965,7 +967,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
               )}
 
               {/* Keyboard shortcut hints – practice mode only */}
-              {!isBand && (
+              {!isSession && (
                 <p className='text-xs text-slate-600 font-mono'>
                   Space: play/pause · M: add marker · ←/→: seek 1s · L: loop toggle
                 </p>
@@ -1008,7 +1010,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       )}
 
                       {/* Edit toggle (ASCII mode only) */}
-                      {(!hasGpFile || tabMode === 'ascii') && !isBand && selectedMarker && (
+                      {(!hasGpFile || tabMode === 'ascii') && !isSession && selectedMarker && (
                         <button
                           onClick={() => setEditMode((v) => !v)}
                           className='self-start px-3 py-1 text-sm font-mono rounded
@@ -1018,16 +1020,16 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                             color: editMode ? '#fff' : '#cbd5e1',
                           }}
                         >
-                          {editMode ? '👁 View Tab' : '✎ Edit Tab'}
+                          {editMode ? <><Eye size={ICON_SIZE.ACTION} className='inline-block' /> View Tab</> : <><Pencil size={ICON_SIZE.ACTION} className='inline-block' /> Edit Tab</>}
                         </button>
                       )}
 
                       {/* GP file import button (no GP file yet) */}
-                      {!hasGpFile && !isBand && (
+                      {!hasGpFile && !isSession && (
                         <label className='px-2 py-1 text-xs font-mono rounded cursor-pointer
                                           transition-colors bg-slate-700 hover:bg-slate-600
                                           text-slate-300'>
-                          🎼 Add GP file
+                          <Music2 size={ICON_SIZE.LABEL} className='inline-block' /> Add GP file
                           <input
                             type='file'
                             accept='.gp,.gp3,.gp4,.gp5,.gpx,.gp8'
@@ -1038,19 +1040,19 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       )}
 
                       {/* Remove GP file button */}
-                      {hasGpFile && !isBand && (
+                      {hasGpFile && !isSession && (
                         <button
                           onClick={() => activeSong && gpFile.removeGp(activeSong.id)}
                           className='px-2 py-1 text-xs font-mono rounded transition-colors
                                     bg-slate-700 hover:bg-red-900 text-slate-400
                                     hover:text-red-300'
                         >
-                          ✕ Remove GP
+                          <X size={ICON_SIZE.ACTION} className='inline-block' /> Remove GP
                         </button>
                       )}
 
                       {/* Import markers from GP file */}
-                      {hasGpFile && !isBand && (
+                      {hasGpFile && !isSession && (
                         <button
                           onClick={handleGpMarkerImport}
                           className='px-2 py-1 text-xs font-mono rounded transition-colors
@@ -1070,7 +1072,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       enableSynth={isAlphaSynth || (isAudioGp && isViewer)}
                       enableExternalMedia={isAudioGp && !isViewer}
                       isPlaying={isPlaying}
-                      showSyncEditor={isAudioGp && !isBand}
+                      showSyncEditor={isAudioGp && !isSession}
                       syncOffset={syncOffset}
                       bpmAdjust={bpmAdjust}
                       currentTime={currentTime}
@@ -1085,7 +1087,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                     /* ASCII mode (existing behavior) */
                     selectedMarker && (
                       <>
-                        {!isBand && editMode ? (
+                        {!isSession && editMode ? (
                           <TabEditor marker={selectedMarker} songId={activeSong!.id} />
                         ) : (
                           <TabViewer
@@ -1121,7 +1123,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                            bg-slate-700 hover:bg-slate-600 text-slate-300
                            transition-colors'
               >
-                ✕ Close
+                <X size={ICON_SIZE.ACTION} className='inline-block' /> Close
               </button>
             </div>
             <div className='flex-1 overflow-hidden'>

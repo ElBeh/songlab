@@ -111,7 +111,7 @@ export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): Setlist
   }, [clearCountdown, onPlay]);
 
   const handleSongFinish = useCallback(() => {
-    if (mode !== 'band') return;
+    if (mode !== 'session') return;
 
     const next = findNextSong();
     if (!next) return; // Last song, nothing to do

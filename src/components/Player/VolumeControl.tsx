@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
+import { Volume2 } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 export function VolumeControl() {
   const activeSongId = useSongStore((state) => state.activeSongId);
@@ -32,7 +34,7 @@ export function VolumeControl() {
 
   return (
     <div className='flex items-center gap-3 font-mono text-xs'>
-      <span className='text-slate-400'>🔊</span>
+      <span className='text-slate-400'><Volume2 size={ICON_SIZE.LABEL} /></span>
 
       <input
         type='range'

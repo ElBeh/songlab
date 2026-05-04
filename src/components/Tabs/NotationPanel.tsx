@@ -3,6 +3,8 @@ import * as alphaTab from '@coderline/alphatab';
 import { SyncOffsetEditor } from './SyncOffsetEditor';
 import { useExternalMediaSync, buildTempoMap, tickToElapsedMs } from '../../hooks/useExternalMediaSync';
 import { analyzeTuning, formatTuning } from '../../utils/tuningPresets';
+import { ArrowLeftRight, ArrowUpDown, Minus, Plus, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface TrackMixerState {
   index: number;
@@ -414,7 +416,7 @@ export function NotationPanel({
             className="px-2 py-1 text-xs font-mono rounded transition-colors
                       bg-slate-700 hover:bg-slate-600 text-slate-300"
           >
-            {layout === 'page' ? '↔ Horizontal' : '↕ Page'}
+            {layout === 'page' ? <><ArrowLeftRight size={ICON_SIZE.ACTION} className='inline-block' /> Horizontal</> : <><ArrowUpDown size={ICON_SIZE.ACTION} className='inline-block' /> Page</>}
           </button>
 
           {/* Zoom controls */}
@@ -427,7 +429,7 @@ export function NotationPanel({
                         bg-slate-700 hover:bg-slate-600 text-slate-300"
               title="Zoom out"
             >
-              −
+              <Minus size={ICON_SIZE.ACTION} />
             </button>
 
             <span className="text-xs font-mono text-slate-400 min-w-8 text-center">
@@ -442,7 +444,7 @@ export function NotationPanel({
                         bg-slate-700 hover:bg-slate-600 text-slate-300"
               title="Zoom in"
             >
-              +
+              <Plus size={ICON_SIZE.ACTION} />
             </button>
           </div>
         
@@ -459,7 +461,7 @@ export function NotationPanel({
             onBpmAdjustChange={onBpmAdjustChange}
           />
         )}
-      </div>
+
 
         {/* Mixer toggle (only with synth) */}
         {enableSynth && tracks.length > 0 && (
@@ -471,7 +473,7 @@ export function NotationPanel({
               color: showMixer ? '#fff' : '#94a3b8',
             }}
           >
-            🎛 Mixer
+            <SlidersHorizontal size={ICON_SIZE.LABEL} className='inline-block' /> Mixer
           </button>
         )}
 
@@ -481,7 +483,9 @@ export function NotationPanel({
             Loading SoundFont…
           </span>
         )}
-      </div>
+
+      </div>        
+    </div>
 
       {/* Mixer panel */}
       {showMixer && enableSynth && (
@@ -546,7 +550,7 @@ export function NotationPanel({
                 }}
                 title={t.muted ? 'Unmute' : 'Mute'}
               >
-                {t.muted ? '🔇' : '🔊'}
+                {t.muted ? <VolumeX key='muted' size={ICON_SIZE.ACTION} /> : <Volume2 key='unmuted' size={ICON_SIZE.ACTION} />}
               </button>
 
               {/* Solo button */}

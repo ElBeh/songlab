@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useLoopStore } from '../../stores/useLoopStore';
 import { formatTime } from '../../utils/formatTime';
+import { Repeat, X } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface LoopControlsProps {
   songLoop: boolean;
@@ -8,7 +10,7 @@ interface LoopControlsProps {
 
 /**
  * A/B mode, loop toggle, loop info, counter, target input, and clear loop.
- * Shared between Practice and Band mode.
+ * Shared between Edit and Session mode.
  */
 export function LoopControls({ songLoop }: LoopControlsProps) {
   const [editingTarget, setEditingTarget] = useState(false);
@@ -52,7 +54,7 @@ export function LoopControls({ songLoop }: LoopControlsProps) {
         }}
         title='Toggle loop (L)'
       >
-        ↺ Loop
+        <Repeat size={ICON_SIZE.ACTION} className='inline-block' /> Loop
       </button>
 
       {/* Active loop info */}
@@ -127,7 +129,7 @@ export function LoopControls({ songLoop }: LoopControlsProps) {
           className='px-3 py-1 rounded font-mono text-xs bg-slate-700
                      hover:bg-red-900 text-slate-400 hover:text-red-300 transition-colors'
         >
-          ✕ clear loop
+          <X size={ICON_SIZE.ACTION} className='inline-block' /> clear loop
         </button>
       )}
     </>

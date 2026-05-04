@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AppMode = 'practice' | 'band';
+export type AppMode = 'edit' | 'session';
 
 interface ModeStore {
   mode: AppMode;
@@ -12,12 +12,12 @@ interface ModeStore {
 }
 
 export const useModeStore = create<ModeStore>((set) => ({
-  mode: 'practice',
+  mode: 'edit',
   autoAdvance: false,
 
   setMode: (mode) => set({ mode }),
   toggleMode: () => set((state) => ({
-    mode: state.mode === 'practice' ? 'band' : 'practice',
+    mode: state.mode === 'edit' ? 'session' : 'edit',
   })),
   setAutoAdvance: (enabled) => set({ autoAdvance: enabled }),
 }));

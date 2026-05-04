@@ -3,6 +3,8 @@ import { useSongStore } from '../../stores/useSongStore';
 import { MarkerEditForm } from './MarkerEditForm';
 import { useLoopStore } from '../../stores/useLoopStore';
 import { formatTime } from '../../utils/formatTime';
+import { Repeat, Pencil, X } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface MarkerListProps {
   onSeekTo: (time: number) => void;
@@ -118,7 +120,7 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
                 }}
                 title='Loop this section'
               >
-                ↺
+                <Repeat size={ICON_SIZE.ACTION} />
               </button>
 
               {/* Edit */}
@@ -128,7 +130,7 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
                            opacity-0 group-hover:opacity-100 text-xl font-mono'
                 title='Edit marker'
               >
-                ✎
+                <Pencil size={ICON_SIZE.ACTION} />
               </button>
 
               {/* Delete */}
@@ -138,7 +140,7 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
                            opacity-0 group-hover:opacity-100 text-xl font-mono'
                 title='Delete marker'
               >
-                ✕
+                <X size={ICON_SIZE.ACTION} />
               </button>
             </div>
 

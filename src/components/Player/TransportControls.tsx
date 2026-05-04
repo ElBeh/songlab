@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { LoopControls } from './LoopControls';
+import { SkipBack, Rewind, Play, Pause, FastForward, Repeat } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface TransportControlsProps {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
@@ -80,16 +82,16 @@ export function TransportControls({
   return (
     <div className='flex items-center gap-3 flex-wrap'>
       {/* Seek controls */}
-      <button onClick={onReset} className='text-slate-300 hover:text-white transition-colors' title='Reset to start'>⏮</button>
-      <button onClick={handleSeekBack} className='text-slate-300 hover:text-white transition-colors' title='Back 1s'>⏪</button>
+      <button onClick={onReset} className='text-slate-300 hover:text-white transition-colors' title='Reset to start'><SkipBack size={ICON_SIZE.TRANSPORT} /></button>
+      <button onClick={handleSeekBack} className='text-slate-300 hover:text-white transition-colors' title='Back 1s'><Rewind size={ICON_SIZE.TRANSPORT} /></button>
       <button
         onClick={onPlayPause}
         className='w-10 h-10 flex items-center justify-center rounded-full
                    bg-indigo-500 hover:bg-indigo-400 text-white transition-colors'
       >
-        {isPlaying ? '⏸' : '▶'}
+        {isPlaying ? <Pause key='pause' size={ICON_SIZE.TRANSPORT} /> : <Play key='play' size={ICON_SIZE.TRANSPORT} />}
       </button>
-      <button onClick={handleSeekForward} className='text-slate-300 hover:text-white transition-colors' title='Forward 1s'>⏩</button>
+      <button onClick={handleSeekForward} className='text-slate-300 hover:text-white transition-colors' title='Forward 1s'><FastForward size={ICON_SIZE.TRANSPORT} /></button>
 
       {/* Time display */}
       <div className='font-mono text-sm text-slate-300'>
@@ -124,7 +126,7 @@ export function TransportControls({
         }}
         title='Loop entire song'
       >
-        🔁 song
+        <Repeat size={ICON_SIZE.ACTION} className='inline-block' /> song
       </button>
 
       <LoopControls songLoop={songLoop} />

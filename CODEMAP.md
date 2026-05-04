@@ -39,7 +39,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - **deps**: ../services/db,../services/midiService
 
 ### useModeStore.ts (22 lines)
-- 3:export type AppMode = 'practice' | 'band';
+- 3:export type AppMode = 'edit' | 'session';
 - 14:export const useModeStore = create<ModeStore>((set)
 
 ### useSongStore.ts (358 lines)
@@ -166,6 +166,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 149:export function gpMarksToSectionMarkers(
 - **deps**: ../types
 
+### iconSizes.ts (10 lines)
+- 2:export const ICON_SIZE =
+
 ### sectionColors.ts (12 lines)
 - 3:export const SECTION_COLORS: Record<SectionType, string> =
 - **deps**: ../types
@@ -249,9 +252,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1149 lines)
-- 49:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/LoopControls,../Player/MetronomeToggle,../Player/TempoControls,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport
+### AppShell.tsx (1151 lines)
+- 51:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/LoopControls,../Player/MetronomeToggle,../Player/TempoControls,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
 
 ### CreateDummySongDialog.tsx (263 lines)
 - 12:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
@@ -261,21 +264,21 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (674 lines)
-- 20:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
-- **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
+### Sidebar.tsx (676 lines)
+- 22:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
+- **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
 
-### SongTabs.tsx (248 lines)
-- 12:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
-- **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
+### SongTabs.tsx (250 lines)
+- 14:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
+- **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
 
 ### SyncStatus.tsx (266 lines)
 - 13:export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps)
 - **deps**: ../../services/midiService,../../../shared/syncProtocol,../../stores/useMidiStore,../../stores/useSyncStore
 
-### Toast.tsx (38 lines)
-- 9:export function ToastContainer()
-- **deps**: ../../stores/useToastStore
+### Toast.tsx (40 lines)
+- 11:export function ToastContainer()
+- **deps**: ../../stores/useToastStore,../../utils/iconSizes
 
 ### UrlImportDialog.tsx (165 lines)
 - 16:export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps)
@@ -295,24 +298,25 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 16:export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: DummyWaveformProps)
 - **deps**: ../../stores/useSongStore
 
-### LoopControls.tsx (134 lines)
-- 13:export function LoopControls({ songLoop }: LoopControlsProps)
-- **deps**: ../../stores/useLoopStore,../../utils/formatTime
+### LoopControls.tsx (136 lines)
+- 15:export function LoopControls({ songLoop }: LoopControlsProps)
+- **deps**: ../../stores/useLoopStore,../../utils/formatTime,../../utils/iconSizes
 
-### MetronomeToggle.tsx (131 lines)
-- 15:export function MetronomeToggle({
-- **deps**: ../../services/clickSoundGenerator,../../stores/useMetronomeStore
+### MetronomeToggle.tsx (133 lines)
+- 17:export function MetronomeToggle({
+- **deps**: ../../services/clickSoundGenerator,../../stores/useMetronomeStore,../../utils/iconSizes
 
 ### TempoControls.tsx (105 lines)
 - 10:export function TempoControls()
 - **deps**: ../../stores/useTempoStore
 
-### TransportControls.tsx (132 lines)
-- 38:export function TransportControls({
+### TransportControls.tsx (134 lines)
+- 40:export function TransportControls({
+- **deps**: ../../utils/iconSizes
 
-### VolumeControl.tsx (67 lines)
-- 4:export function VolumeControl()
-- **deps**: ../../stores/useSongStore
+### VolumeControl.tsx (69 lines)
+- 6:export function VolumeControl()
+- **deps**: ../../stores/useSongStore,../../utils/iconSizes
 
 ### WaveformPlayer.tsx (429 lines)
 - 24:export function WaveformPlayer({
@@ -331,9 +335,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 21:export function MarkerForm({ currentTime, songId, onAdd, onCancel }: MarkerFormProps)
 - **deps**: ../../types,../../utils/sectionColors
 
-### MarkerList.tsx (191 lines)
-- 14:export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: MarkerListProps)
-- **deps**: ../../stores/useLoopStore,../../stores/useSongStore,../../utils/formatTime
+### MarkerList.tsx (193 lines)
+- 16:export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: MarkerListProps)
+- **deps**: ../../stores/useLoopStore,../../stores/useSongStore,../../utils/formatTime,../../utils/iconSizes
 
 ## src/components/Tabs
 
@@ -341,21 +345,22 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function GpMarkerImportDialog({
 - **deps**: ../../utils/formatTime,../../utils/gpMarkerImport
 
-### NotationPanel.tsx (576 lines)
-- 49:export interface TempoMapEntry
-- 55:export function NotationPanel({
-- **deps**: ../../hooks/useExternalMediaSync,../../utils/tuningPresets
+### NotationPanel.tsx (580 lines)
+- 51:export interface TempoMapEntry
+- 57:export function NotationPanel({
+- **deps**: ../../hooks/useExternalMediaSync,../../utils/iconSizes,../../utils/tuningPresets
 
-### SheetBar.tsx (173 lines)
-- 17:export function SheetBar({ songId, isViewer = false }: SheetBarProps)
-- **deps**: ../../stores/useModeStore,../../stores/useTabStore,../../types
+### SheetBar.tsx (175 lines)
+- 19:export function SheetBar({ songId, isViewer = false }: SheetBarProps)
+- **deps**: ../../stores/useModeStore,../../stores/useTabStore,../../types,../../utils/iconSizes
 
-### SyncOffsetEditor.tsx (227 lines)
-- 24:export function SyncOffsetEditor({
+### SyncOffsetEditor.tsx (229 lines)
+- 26:export function SyncOffsetEditor({
+- **deps**: ../../utils/iconSizes
 
-### TabEditor.tsx (150 lines)
-- 18:export function TabEditor({ marker, songId }: TabEditorProps)
-- **deps**: ../../stores/useTabStore,../../types
+### TabEditor.tsx (152 lines)
+- 20:export function TabEditor({ marker, songId }: TabEditorProps)
+- **deps**: ../../stores/useTabStore,../../types,../../utils/iconSizes
 
 ### TabViewer.tsx (58 lines)
 - 14:export function TabViewer({ marker, currentTime, isPlaying, sectionEnd, isViewer = false }: TabViewerProps)
@@ -363,9 +368,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Controller
 
-### RemoteControlView.tsx (340 lines)
-- 15:export function RemoteControlView()
-- **deps**: ../../services/syncEmitter,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../utils/formatTime
+### RemoteControlView.tsx (342 lines)
+- 17:export function RemoteControlView()
+- **deps**: ../../services/syncEmitter,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../utils/formatTime,../../utils/iconSizes
 
 ## shared
 

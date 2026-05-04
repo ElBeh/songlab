@@ -3,6 +3,8 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useSyncStore } from '../../stores/useSyncStore';
 import { useTempoStore } from '../../stores/useTempoStore';
 import { useTabStore } from '../../stores/useTabStore';
+import { SkipBack, Play, Pause, SkipForward, Minus, Plus } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 import {
   emitControlCommand,
   emitControllerRequest,
@@ -186,7 +188,7 @@ export function RemoteControlView() {
                        bg-slate-700 hover:bg-slate-600 text-xl
                        disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
           >
-            ⏮
+            <SkipBack size={ICON_SIZE.TRANSPORT} />
           </button>
           <button
             onClick={handlePlayPause}
@@ -195,7 +197,7 @@ export function RemoteControlView() {
                        bg-indigo-500 hover:bg-indigo-400 text-white text-2xl
                        disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
           >
-            {syncedIsPlaying ? '⏸' : '▶'}
+            {syncedIsPlaying ? <Pause key='pause' size={ICON_SIZE.TRANSPORT} /> : <Play key='play' size={ICON_SIZE.TRANSPORT} />}
           </button>
           <button
             onClick={handleNextSong}
@@ -204,7 +206,7 @@ export function RemoteControlView() {
                        bg-slate-700 hover:bg-slate-600 text-xl
                        disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
           >
-            ⏭
+            <SkipForward size={ICON_SIZE.TRANSPORT} />
           </button>
         </div>
 
@@ -218,7 +220,7 @@ export function RemoteControlView() {
                        bg-slate-700 hover:bg-slate-600 font-mono text-sm
                        disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
           >
-            −
+            <Minus size={ICON_SIZE.ACTION} />
           </button>
           <span className='font-mono text-sm text-slate-200 w-12 text-center'>
             {Math.round(playbackRate * 100)}%
@@ -230,7 +232,7 @@ export function RemoteControlView() {
                        bg-slate-700 hover:bg-slate-600 font-mono text-sm
                        disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
           >
-            +
+            <Plus size={ICON_SIZE.ACTION} />
           </button>
         </div>
       </div>

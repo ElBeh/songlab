@@ -6,6 +6,8 @@ import { exportSong, importSong, exportSetlist, importSetlist } from '../../serv
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { UrlImportDialog } from './UrlImportDialog';
+import { ChevronsRight, ChevronsLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, X, Download, Upload } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface SidebarProps {
   onSeekTo: (time: number) => void;
@@ -65,7 +67,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const activeSong = getActiveSong();
   const orderedSongs = getOrderedSongs();
   const addToast = useToastStore((state) => state.addToast);
-  const isBand = useModeStore((state) => state.mode) === 'band';
+  const isSession = useModeStore((state) => state.mode) === 'session';
 
   // Build a song lookup for rendering
   const songMap = new Map(songs.map((s) => [s.id, s]));
@@ -195,14 +197,14 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                      transition-colors text-sm'
           title='Expand sidebar'
         >
-          »
+          <ChevronsRight size={ICON_SIZE.ACTION} />
         </button>
       </aside>
     );
   }
 
   return (
-    <aside className={`${isBand ? 'w-48' : 'w-64'} border-r border-slate-700 flex flex-col overflow-y-auto transition-all`}>
+    <aside className={`${isSession ? 'w-48' : 'w-64'} border-r border-slate-700 flex flex-col overflow-y-auto transition-all`}>
 
       {/* Collapse button */}
       <button
@@ -212,11 +214,11 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                    transition-colors text-sm'
         title='Collapse sidebar'
       >
-        «
+        <ChevronsLeft size={ICON_SIZE.ACTION} />
       </button>
 
       {/* ── Sections accordion ── */}
-      {!isBand && (
+      {!isSession && (
         <div className='flex flex-col'>
           {/* Header */}
           <button
@@ -224,9 +226,9 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
             className='flex items-center gap-2 px-4 py-2.5 border-b border-slate-700
                        hover:bg-slate-800/50 transition-colors text-left'
           >
-            <span className='text-[10px] text-slate-500 transition-transform'
+            <span className='text-slate-500 transition-transform'
                   style={{ transform: sectionsOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-              ▶
+              <ChevronRight size={ICON_SIZE.ACCORDION} />
             </span>
             <span className='text-xs font-mono uppercase tracking-widest text-slate-400 flex-1'>
               Sections
@@ -278,9 +280,9 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
           className='flex items-center gap-2 px-4 py-2.5 border-b border-slate-700
                      hover:bg-slate-800/50 transition-colors text-left'
         >
-          <span className='text-[10px] text-slate-500 transition-transform'
+          <span className='text-slate-500 transition-transform'
                 style={{ transform: setlistOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-            ▶
+            <ChevronRight size={ICON_SIZE.ACCORDION} />
           </span>
           <span className='text-xs font-mono uppercase tracking-widest text-slate-400 flex-1'>
             Setlist
@@ -343,7 +345,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                      transition-colors px-0.5'
                           title='Move up'
                         >
-                          ▲
+                          <ChevronUp size={ICON_SIZE.ACCORDION} />
                         </button>
                         <button
                           onClick={() => moveItem(idx, 'down')}
@@ -353,7 +355,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                      transition-colors px-0.5'
                           title='Move down'
                         >
-                          ▼
+                          <ChevronDown size={ICON_SIZE.ACCORDION} />
                         </button>
                       </div>
                       )}
@@ -398,7 +400,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                    text-sm font-mono opacity-0 group-hover:opacity-100'
                         title='Rename song'
                       >
-                        ✎
+                        <Pencil size={ICON_SIZE.ACTION} />
                       </button>
                       )}
 
@@ -413,7 +415,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                    opacity-0 group-hover:opacity-100'
                         title='Remove song'
                       >
-                        ✕
+                        <X size={ICON_SIZE.ACTION} />
                       </button>
                       )}
                     </div>
@@ -463,7 +465,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                    transition-colors px-0.5'
                         title='Move up'
                       >
-                        ▲
+                        <ChevronUp size={ICON_SIZE.ACCORDION} />
                       </button>
                       <button
                         onClick={() => moveItem(idx, 'down')}
@@ -473,7 +475,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                    transition-colors px-0.5'
                         title='Move down'
                       >
-                        ▼
+                        <ChevronDown size={ICON_SIZE.ACCORDION} />
                       </button>
                     </div>
 
@@ -519,14 +521,14 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                  opacity-0 group-hover:opacity-100'
                       title='Remove pause'
                     >
-                      ✕
+                      <X size={ICON_SIZE.ACTION} />
                     </button>
                   </div>
                 );
               })}
 
               {/* Add pause at end of setlist */}
-              {!isBand && songOrder.length > 0 && (
+              {!isSession && songOrder.length > 0 && (
                 <button
                   onClick={() => addPause(songOrder.length - 1)}
                   className='w-full px-2 py-1.5 text-xs font-mono text-slate-400
@@ -542,7 +544,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
       </div>
 
       {/* ── Import / Export (pinned to bottom, practice mode only) ── */}
-      {!isBand && (
+      {!isSession && (
       <>
       <div className='mt-auto border-t border-slate-700 p-3' ref={importExportRef}>
         <div className='relative'>
@@ -568,7 +570,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                   className='w-full text-left px-3 py-1.5 text-xs font-mono
                              text-slate-300 hover:bg-slate-700 transition-colors'
                 >
-                  ↓ Export Song
+                  <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Song
                 </button>
               )}
               <button
@@ -579,7 +581,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
                            text-slate-300 hover:bg-slate-700 transition-colors'
               >
-                ↑ Import Song
+                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Song
               </button>
               <div className='border-t border-slate-700 my-1' />
               {!setlistExportMode ? (
@@ -590,7 +592,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                              text-slate-300 hover:bg-slate-700 transition-colors
                              disabled:opacity-30 disabled:cursor-not-allowed'
                 >
-                  ↓ Export Setlist
+                  <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Setlist
                 </button>
               ) : (
                 <div className='px-3 py-1.5 flex flex-col gap-1.5'>
@@ -623,7 +625,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                                transition-colors disabled:opacity-30
                                disabled:cursor-not-allowed'
                   >
-                    ↓ Export
+                    <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export
                   </button>
                 </div>
               )}
@@ -635,7 +637,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
                            text-slate-300 hover:bg-slate-700 transition-colors'
               >
-                ↑ Import Setlist
+                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Setlist
               </button>
               <button
                 onClick={() => {
@@ -645,7 +647,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
                            text-slate-300 hover:bg-slate-700 transition-colors'
               >
-                ↑ Import from URL
+                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import from URL
               </button>
             </div>
           )}

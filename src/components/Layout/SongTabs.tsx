@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
+import { ChevronLeft, ChevronRight, X, Music, FilePlus } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface SongTabsProps {
   onAddSong: () => void;
@@ -98,7 +100,7 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
                      hover:text-slate-200 transition-colors z-10'
           aria-label='Scroll tabs left'
         >
-          ᐊ
+          <ChevronLeft size={ICON_SIZE.ACTION} />
         </button>
       )}
 
@@ -179,7 +181,7 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
                 className='text-slate-600 hover:text-red-400 transition-colors text-xs'
                 title='Remove song'
               >
-                ✕
+                <X size={ICON_SIZE.ACTION} />
               </button>
             ))}
           </div>
@@ -218,14 +220,14 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
             className='w-full text-left px-4 py-2 text-sm font-mono text-slate-300
                        hover:bg-slate-700 hover:text-white transition-colors'
           >
-            🎵 Load audio / GP file
+            <Music size={ICON_SIZE.LABEL} className='inline-block' /> Load audio / GP file
           </button>
           <button
             onClick={() => { setShowMenu(false); onCreateDummy(); }}
             className='w-full text-left px-4 py-2 text-sm font-mono text-slate-300
                        hover:bg-slate-700 hover:text-white transition-colors'
           >
-            📝 Create without audio
+            <FilePlus size={ICON_SIZE.LABEL} className='inline-block' /> Create without audio
           </button>
         </div>
       )}
@@ -241,7 +243,7 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
                      hover:text-slate-200 transition-colors z-10'
           aria-label='Scroll tabs right'
         >
-          ᐅ
+          <ChevronRight size={ICON_SIZE.ACTION} />
         </button>
       )}
     </div>

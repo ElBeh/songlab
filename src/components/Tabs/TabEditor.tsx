@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTabStore } from '../../stores/useTabStore';
 import { SheetBar } from './SheetBar';
 import type { SectionMarker } from '../../types';
+import { Upload, Download, X } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface TabEditorProps {
   marker: SectionMarker;
@@ -97,7 +99,7 @@ export function TabEditor({ marker, songId }: TabEditorProps) {
                          text-slate-300 rounded transition-colors'
               title='Import from .txt'
             >
-              ↑ import
+              <Upload size={ICON_SIZE.ACTION} className='inline-block' /> import
             </button>
             <button
               onClick={handleExport}
@@ -105,7 +107,7 @@ export function TabEditor({ marker, songId }: TabEditorProps) {
                          text-slate-300 rounded transition-colors'
               title='Export to .txt'
             >
-              ↓ export
+              <Download size={ICON_SIZE.ACTION} className='inline-block' /> export
             </button>
             {existingTab && (
               <button
@@ -113,7 +115,7 @@ export function TabEditor({ marker, songId }: TabEditorProps) {
                 className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-red-900
                            text-slate-400 hover:text-red-300 rounded transition-colors'
               >
-                ✕ delete
+                <X size={ICON_SIZE.ACTION} className='inline-block' /> delete
               </button>
             )}
             <button

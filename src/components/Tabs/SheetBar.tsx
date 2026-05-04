@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTabStore } from '../../stores/useTabStore';
 import type { TabSheetType } from '../../types';
 import { useModeStore } from '../../stores/useModeStore';
+import { Pencil, X } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 const SHEET_TYPES: TabSheetType[] = ['Guitar', 'Bass', 'Keys', 'Vocals', 'Other'];
 
@@ -21,7 +23,7 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
   const addSheet = useTabStore((state) => state.addSheet);
   const updateSheet = useTabStore((state) => state.updateSheet);
   const removeSheet = useTabStore((state) => state.removeSheet);
-  const isBand = useModeStore((state) => state.mode) === 'band';
+  const isSession = useModeStore((state) => state.mode) === 'session';
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -99,7 +101,7 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
                        hover:text-slate-300 transition-opacity text-xs ml-1'
             title='Rename sheet'
           >
-            ✎
+            <Pencil size={ICON_SIZE.ACTION} />
           </button>
           <button
             onClick={(e) => {
@@ -110,7 +112,7 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
                        hover:text-red-400 transition-opacity text-xs'
             title='Delete sheet'
           >
-            ✕
+            <X size={ICON_SIZE.ACTION} />
           </button>
           </>
           )}
@@ -118,7 +120,7 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
       ))}
 
       {/* Add sheet */}
-      {!isBand && (
+      {!isSession && (
         <>
       {showAddForm ? (
         <div className='flex items-center gap-2 px-2 py-1 bg-slate-800 rounded-lg shrink-0'>
@@ -154,7 +156,7 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
             onClick={() => setShowAddForm(false)}
             className='text-xs font-mono text-slate-500 hover:text-slate-300 transition-colors'
           >
-            ✕
+            <X size={ICON_SIZE.ACTION} />
           </button>
         </div>
       ) : (

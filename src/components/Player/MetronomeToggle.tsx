@@ -1,5 +1,7 @@
 import { useMetronomeStore } from '../../stores/useMetronomeStore';
 import { ensureAudioReady } from '../../services/clickSoundGenerator';
+import { Play, Square } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface MetronomeToggleProps {
   /** Whether we're in solo mode (no song BPM) */
@@ -91,7 +93,7 @@ export function MetronomeToggle({
             title={isRunning ? 'Stop metronome' : 'Start metronome'}
             aria-label={isRunning ? 'Stop metronome' : 'Start metronome'}
           >
-            {isRunning ? '⏹' : '▶'}
+            {isRunning ? <Square key='stop' size={ICON_SIZE.TRANSPORT} /> : <Play key='play' size={ICON_SIZE.TRANSPORT} />}
           </button>
           <input
             type='number'

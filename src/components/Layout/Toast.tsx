@@ -1,4 +1,6 @@
 import { useToastStore, type ToastType } from '../../stores/useToastStore';
+import { X } from 'lucide-react';
+import { ICON_SIZE } from '../../utils/iconSizes';
 
 const TOAST_STYLES: Record<ToastType, { bg: string; border: string; text: string }> = {
   success: { bg: 'bg-emerald-950', border: 'border-emerald-700', text: 'text-emerald-200' },
@@ -29,7 +31,7 @@ export function ToastContainer() {
               onClick={() => removeToast(toast.id)}
               className='text-slate-500 hover:text-slate-300 transition-colors text-xs'
             >
-              ✕
+              <X size={ICON_SIZE.ACTION} />
             </button>
           </div>
         );
