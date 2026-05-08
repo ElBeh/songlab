@@ -252,9 +252,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1151 lines)
-- 51:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/LoopControls,../Player/MetronomeToggle,../Player/TempoControls,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
+### AppShell.tsx (1162 lines)
+- 53:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
 
 ### CreateDummySongDialog.tsx (263 lines)
 - 12:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
@@ -290,8 +290,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 8:export function CountInIndicator()
 - **deps**: ../../stores/useCountInStore
 
-### CountInToggle.tsx (107 lines)
-- 6:export function CountInToggle()
+### CountInToggle.tsx (116 lines)
+- 11:export function CountInToggle({ compact = false }: CountInToggleProps = {})
 - **deps**: ../../services/clickSoundGenerator,../../stores/useCountInStore,../../stores/useMetronomeStore,../../stores/useSongStore
 
 ### DummyWaveform.tsx (145 lines)
@@ -302,6 +302,14 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 15:export function LoopControls({ songLoop }: LoopControlsProps)
 - **deps**: ../../stores/useLoopStore,../../utils/formatTime,../../utils/iconSizes
 
+### Looppopoverbutton.tsx (31 lines)
+- 13:export function LoopPopoverButton({ songLoop }: LoopPopoverButtonProps)
+- **deps**: ../Common/Popover
+
+### MetronomeSplitButton.tsx (195 lines)
+- 25:export function MetronomeSplitButton({
+- **deps**: ../Common/Popover,../../services/clickSoundGenerator,../../stores/useMetronomeStore,../../stores/useSongStore
+
 ### MetronomeToggle.tsx (133 lines)
 - 17:export function MetronomeToggle({
 - **deps**: ../../services/clickSoundGenerator,../../stores/useMetronomeStore,../../utils/iconSizes
@@ -309,6 +317,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### TempoControls.tsx (105 lines)
 - 10:export function TempoControls()
 - **deps**: ../../stores/useTempoStore
+
+### TempoIndicator.tsx (32 lines)
+- 10:export function TempoIndicator()
+- **deps**: ../Common/Popover,../../stores/useTempoStore
 
 ### TransportControls.tsx (134 lines)
 - 40:export function TransportControls({

@@ -3,7 +3,8 @@ import { WaveformPlayer } from '../Player/WaveformPlayer';
 import { DummyWaveform } from '../Player/DummyWaveform';
 import { TransportControls } from '../Player/TransportControls';
 import { TempoControls } from '../Player/TempoControls';
-import { LoopControls } from '../Player/LoopControls';
+import { LoopPopoverButton } from '../Player/Looppopoverbutton';
+import { TempoIndicator } from '../Player/TempoIndicator';
 import { MarkerForm } from '../Markers/MarkerForm';
 import { TabEditor } from '../Tabs/TabEditor';
 import { TabViewer } from '../Tabs/TabViewer';
@@ -43,6 +44,7 @@ import { CountInToggle } from '../Player/CountInToggle';
 import { CountInIndicator } from '../Player/CountInIndicator';
 import { useMetronome } from '../../hooks/useMetronome';
 import { MetronomeToggle } from '../Player/MetronomeToggle';
+import { MetronomeSplitButton } from '../Player/MetronomeSplitButton';
 import type { ControlCommand } from '../../../shared/syncProtocol';
 import { RemoteControlView } from '../Controller/RemoteControlView';
 import { Music, Pause, Play, SkipBack, Repeat, Eye, Pencil, Music2, X } from 'lucide-react';
@@ -787,7 +789,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                 <div className='flex items-center gap-3'>
                   {/* Session mode: compact play/pause + reset (host only) */}
                   {isSession && !isViewer && (
-                    <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-3'>
+                    <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center gap-2'>
                       <button
                         onClick={handlePlayPauseWithCountIn}
                         className='w-8 h-8 flex items-center justify-center rounded-full
@@ -804,28 +806,37 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                         <SkipBack size={ICON_SIZE.TRANSPORT} />
                       </button>
                       <div className='w-px h-6 bg-slate-600' />
-                      <button
-                        onClick={toggleSongLoop}
-                        className='px-3 py-1 rounded font-mono text-xs transition-colors'
-                        style={{
-                          backgroundColor: songLoop ? '#22c55e' : '#334155',
-                          color: songLoop ? '#fff' : '#94a3b8',
-                        }}
-                        title='Loop entire song'
-                      >
-                        <Repeat size={ICON_SIZE.ACTION} className='inline-block' /> song
-                      </button>
+
+                      <div className='bg-slate-800 rounded-lg flex items-center gap-1'>
+                        <button
+                          onClick={toggleSongLoop}
+                          className='px-3 py-1 rounded font-mono text-xs transition-colors'
+                          style={{
+                            backgroundColor: songLoop ? '#22c55e' : '#334155',
+                            color: songLoop ? '#fff' : '#94a3b8',
+                          }}
+                          title='Loop entire song'
+                        >
+                          <Repeat size={ICON_SIZE.ACTION} className='inline-block' /> song
+                        </button>
+                        <LoopPopoverButton songLoop={songLoop} />
+                      </div>
+
                       <div className='w-px h-6 bg-slate-600' />
-                      <LoopControls songLoop={songLoop} />
+                      <CountInToggle compact />
                       <div className='w-px h-6 bg-slate-600' />
-                      <CountInToggle />
-                      <div className='w-px h-6 bg-slate-600' />
-                      <MetronomeToggle
+                      <MetronomeSplitButton
                         isSoloMode={metronome.isSoloMode}
                         isRunning={metronome.isRunning}
                         onStartSolo={metronome.startSolo}
                         onStopSolo={metronome.stopSolo}
                       />
+                      {(!isDummy || isAlphaSynth) && (
+                        <>
+                          <div className='w-px h-6 bg-slate-600' />
+                          <TempoIndicator />
+                        </>
+                      )}
                     </div>
                   )}
 

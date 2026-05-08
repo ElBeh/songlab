@@ -3,7 +3,12 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useMetronomeStore } from '../../stores/useMetronomeStore';
 import { ensureAudioReady } from '../../services/clickSoundGenerator';
 
-export function CountInToggle() {
+interface CountInToggleProps {
+  /** Hide BPM and time signature inputs (used when those are handled elsewhere) */
+  compact?: boolean;
+}
+
+export function CountInToggle({ compact = false }: CountInToggleProps = {}) {
   const enabled = useCountInStore((s) => s.enabled);
   const toggle = useCountInStore((s) => s.toggle);
   const activeSong = useSongStore((s) => s.getActiveSong)();
@@ -15,38 +20,42 @@ export function CountInToggle() {
 
   const hasBpm = !!activeSong?.bpm;
 
-  // Show effective values from tempo map when metronome is running
   const showEffective = metronomeRunning && effectiveBpm !== null;
   const displayBpm = showEffective ? effectiveBpm : (activeSong?.bpm ?? null);
-  const displayTimeSig = showEffective && effectiveBeatsPerBar !== null
-    ? `${effectiveBeatsPerBar}/4`
-    : activeSong?.timeSignature
-      ? `${activeSong.timeSignature[0]}/${activeSong.timeSignature[1]}`
-      : '4/4';
+  const displayTimeSig =
+    showEffective && effectiveBeatsPerBar !== null
+      ? `${effectiveBeatsPerBar}/4`
+      : activeSong?.timeSignature
+        ? `${activeSong.timeSignature[0]}/${activeSong.timeSignature[1]}`
+        : '4/4';
 
   const handleToggle = () => {
-    // Warm up AudioContext on enable (user gesture required)
     if (!enabled) ensureAudioReady();
     toggle();
   };
 
+  const toggleButton = (
+    <button
+      onClick={handleToggle}
+      disabled={!hasBpm}
+      className='px-3 py-1 rounded font-mono text-xs transition-colors
+                 disabled:opacity-30 disabled:cursor-not-allowed'
+      style={{
+        backgroundColor: enabled && hasBpm ? '#6366f1' : '#334155',
+        color: enabled && hasBpm ? '#fff' : '#94a3b8',
+      }}
+      title={hasBpm ? 'Toggle count-in before playback' : 'Set BPM to enable count-in'}
+      aria-pressed={enabled && hasBpm}
+    >
+      Count-in
+    </button>
+  );
+
+  if (compact) return toggleButton;
+
   return (
     <div className='flex items-center gap-3'>
-      <button
-        onClick={handleToggle}
-        disabled={!hasBpm}
-        className='px-3 py-1 rounded font-mono text-xs transition-colors
-                   disabled:opacity-30 disabled:cursor-not-allowed'
-        style={{
-          backgroundColor: enabled && hasBpm ? '#6366f1' : '#334155',
-          color: enabled && hasBpm ? '#fff' : '#94a3b8',
-        }}
-        title={hasBpm ? 'Toggle count-in before playback' : 'Set BPM to enable count-in'}
-        aria-pressed={enabled && hasBpm}
-      >
-        Count-in
-      </button>
-
+      {toggleButton}
       {activeSong && (
         <>
           <div className='w-px h-6 bg-slate-600' />
