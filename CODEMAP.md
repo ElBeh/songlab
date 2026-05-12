@@ -41,7 +41,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 3:export type AppMode = 'edit' | 'session';
 - 14:export const useModeStore = create<ModeStore>((set)
 
-### useSetlistStore.ts (400 lines)
+### useSetlistStore.ts (409 lines)
 - 77:export const useSetlistStore = create<SetlistStore>((set, get)
 - **deps**: ../services/db,../types
 

@@ -133,21 +133,27 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
         return;
       }
 
-      // Migration: no setlists yet — create default from legacy songOrder
-      const songs = useSongStore.getState().songs;
+      // Migration: create default from legacy songOrder if present
       const savedOrder = await getConfig<unknown>('songOrder');
-      const items = migrateOrder(savedOrder, songs.map((s) => s.id));
+      if (savedOrder) {
+        const songs = useSongStore.getState().songs;
+        const items = migrateOrder(savedOrder, songs.map((s) => s.id));
 
-      const defaultSetlist: Setlist = {
-        id: generateId(),
-        name: 'Default',
-        items,
-        isDefault: true,
-        createdAt: Date.now(),
-      };
+        const defaultSetlist: Setlist = {
+          id: generateId(),
+          name: 'Default',
+          items,
+          isDefault: true,
+          createdAt: Date.now(),
+        };
 
-      await saveSetlist(defaultSetlist);
-      set({ setlists: [defaultSetlist], activeSetlistId: defaultSetlist.id });
+        await saveSetlist(defaultSetlist);
+        set({ setlists: [defaultSetlist], activeSetlistId: defaultSetlist.id });
+        return;
+      }
+
+      // No setlists and no legacy data — start empty
+      set({ setlists: [], activeSetlistId: null });
     } catch (error) {
       console.error('Failed to load setlists:', error);
       useToastStore.getState().addToast('Could not load setlists', 'error');
@@ -202,15 +208,12 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
   },
 
   deleteSetlist: async (id) => {
-    const { setlists, activeSetlistId } = get();
-    if (setlists.length <= 1) {
-      useToastStore.getState().addToast('Cannot delete the last setlist', 'error');
-      return;
-    }
-
     await dbDeleteSetlist(id);
+    const { setlists, activeSetlistId } = get();
     const remaining = setlists.filter((s) => s.id !== id);
-    const newActiveId = activeSetlistId === id ? remaining[0].id : activeSetlistId;
+    const newActiveId = activeSetlistId === id
+      ? (remaining[0]?.id ?? null)
+      : activeSetlistId;
     set({ setlists: remaining, activeSetlistId: newActiveId });
   },
 
@@ -221,8 +224,14 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
   // --- Item actions ---
 
   addSongToActiveSetlist: async (songId) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
+    let active = get().getActiveSetlist();
+
+    // Lazy-create a default setlist if none exists
+    if (!active) {
+      const id = await get().createSetlist('Default');
+      active = get().setlists.find((s) => s.id === id) ?? null;
+      if (!active) return;
+    }
 
     // Don't add if already in this setlist
     if (active.items.some((i) => i.type === 'song' && i.songId === songId)) return;

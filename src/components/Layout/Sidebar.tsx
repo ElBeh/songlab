@@ -543,7 +543,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                       Duplicate
                     </button>
 
-                    {allSetlists.length > 1 && (
+                    {allSetlists.length > 0 && (
                       confirmDeleteSetlist ? (
                         <button
                           onClick={async () => {
