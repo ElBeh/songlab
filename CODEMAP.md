@@ -105,13 +105,14 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 236:export async function deleteSetlist(id: string): Promise<void>
 - **deps**: ../types
 
-### exportService.ts (232 lines)
+### exportService.ts (251 lines)
 - 45:export interface SetlistImportResult
 - 136:export async function exportSong(song: SongData): Promise<void>
 - 142:export async function importSong(file: File): Promise<SongData>
 - 151:export async function exportSetlist(
 - 210:export async function importSetlist(file: File): Promise<SetlistImportResult>
 - 216:export async function importSetlistFromUrl(
+- 235:export async function exportGig(
 - **deps**: ../types,../utils/encoding
 
 ### metronomeScheduler.ts (179 lines)
@@ -272,7 +273,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (1080 lines)
+### Sidebar.tsx (1060 lines)
 - 25:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
 - **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/formatTime,../../utils/iconSizes
 

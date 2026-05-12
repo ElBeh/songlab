@@ -3,7 +3,7 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useSetlistStore } from '../../stores/useSetlistStore';
 import { useModeStore } from '../../stores/useModeStore';
 import { MarkerList } from '../Markers/MarkerList';
-import { exportSong, importSong, exportSetlist, importSetlist } from '../../services/exportService';
+import { exportSong, importSong, exportSetlist, importSetlist, exportGig } from '../../services/exportService';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { UrlImportDialog } from './UrlImportDialog';
@@ -25,13 +25,11 @@ interface SidebarProps {
 export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, onAddMarker }: SidebarProps) {
   const [sectionsOpen, setSectionsOpen] = useState(true);
   const [setlistOpen, setSetlistOpen] = useState(true);
-  const [setlistName, setSetlistName] = useState('');
   const [editingPauseId, setEditingPauseId] = useState<string | null>(null);
   const [editingPauseValue, setEditingPauseValue] = useState('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
-  const [setlistExportMode, setSetlistExportMode] = useState(false);
   const [showUrlImport, setShowUrlImport] = useState(false);
   const importExportRef = useRef<HTMLDivElement>(null);
 
@@ -64,7 +62,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
     const handleClick = (e: MouseEvent) => {
       if (importExportRef.current && !importExportRef.current.contains(e.target as Node)) {
         setShowImportExport(false);
-        setSetlistExportMode(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -950,7 +947,6 @@ const handleImportSetlist = () => {
           <button
             onClick={() => {
               setShowImportExport((v) => !v);
-              setSetlistExportMode(false);
             }}
             className='w-full px-2 py-1.5 text-xs font-mono rounded transition-colors
                        bg-slate-700 hover:bg-slate-600 text-slate-300'
@@ -983,7 +979,28 @@ const handleImportSetlist = () => {
                 <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Song
               </button>
               <div className='border-t border-slate-700 my-1' />
-              {!setlistExportMode ? (
+
+                            <button
+                onClick={() => {
+                  handleImportSetlist();
+                  setShowImportExport(false);
+                }}
+                className='w-full text-left px-3 py-1.5 text-xs font-mono
+                           text-slate-300 hover:bg-slate-700 transition-colors'
+              >
+                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Gig/Setlist
+              </button>
+              <button
+                onClick={() => {
+                  setShowUrlImport(true);
+                  setShowImportExport(false);
+                }}
+                className='w-full text-left px-3 py-1.5 text-xs font-mono
+                           text-slate-300 hover:bg-slate-700 transition-colors'
+              >
+                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import from URL
+              </button>
+
               <button
                 onClick={() => {
                   handleExportSetlist();
@@ -996,60 +1013,23 @@ const handleImportSetlist = () => {
               >
                 <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Setlist
               </button>
-              ) : (
-                <div className='px-3 py-1.5 flex flex-col gap-1.5'>
-                  <input
-                    type='text'
-                    placeholder='Setlist name...'
-                    value={setlistName}
-                    onChange={(e) => setSetlistName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && setlistName.trim()) {
-                        handleExportSetlist();
-                        setShowImportExport(false);
-                        setSetlistExportMode(false);
-                      }
-                    }}
-                    autoFocus
-                    className='bg-slate-900 text-slate-200 text-xs rounded px-2
-                               py-1 border border-slate-600 focus:border-indigo-500
-                               outline-none font-mono w-full'
-                  />
-                  <button
-                    onClick={() => {
-                      handleExportSetlist();
-                      setShowImportExport(false);
-                      setSetlistExportMode(false);
-                    }}
-                    disabled={!setlistName.trim()}
-                    className='px-2 py-1 text-xs font-mono bg-indigo-600
-                               hover:bg-indigo-500 text-white rounded
-                               transition-colors disabled:opacity-30
-                               disabled:cursor-not-allowed'
-                  >
-                    <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export
-                  </button>
-                </div>
-              )}
+
               <button
-                onClick={() => {
-                  handleImportSetlist();
+                onClick={async () => {
+                  const allItems = allSetlists.map((sl) => ({
+                    name: sl.name,
+                    items: sl.items,
+                  }));
+                  await exportGig(allItems, songs);
+                  addToast('Exported gig', 'success');
                   setShowImportExport(false);
                 }}
+                disabled={allSetlists.length === 0}
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
-                           text-slate-300 hover:bg-slate-700 transition-colors'
+                           text-slate-300 hover:bg-slate-700 transition-colors
+                           disabled:opacity-30 disabled:cursor-not-allowed'
               >
-                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Setlist
-              </button>
-              <button
-                onClick={() => {
-                  setShowUrlImport(true);
-                  setShowImportExport(false);
-                }}
-                className='w-full text-left px-3 py-1.5 text-xs font-mono
-                           text-slate-300 hover:bg-slate-700 transition-colors'
-              >
-                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import from URL
+                <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Gig
               </button>
             </div>
           )}

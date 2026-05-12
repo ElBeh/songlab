@@ -231,3 +231,22 @@ export async function importSetlistFromUrl(
   const raw = await response.json();
   return restoreSetlistData(raw);
 }
+
+export async function exportGig(
+  setlists: { name: string; items: SetlistItem[] }[],
+  songs: SongData[],
+): Promise<void> {
+  // Deduplicate songs (same song can be in multiple setlists)
+  const uniqueSongs = new Map(songs.map((s) => [s.id, s]));
+  const bundles = await Promise.all(
+    [...uniqueSongs.values()].map((song) => bundleSong(song)),
+  );
+
+  const data: SetlistExportV2 = {
+    version: 2,
+    setlists,
+    songs: bundles,
+  };
+
+  downloadJson(data, 'gig.setlist.json');
+}
