@@ -131,6 +131,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const orderedSongs = getOrderedSongs();
   const addToast = useToastStore((state) => state.addToast);
   const isSession = useModeStore((state) => state.mode) === 'session';
+  const canEdit = !isViewer && !isSession;
 
   // Build a song lookup for rendering
   const songMap = useMemo(() => new Map(songs.map((s) => [s.id, s])), [songs]);
@@ -224,9 +225,9 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   };
 
   const handleExportSetlist = async () => {
-    if (!setlistName.trim()) return;
-    await exportSetlist(setlistName.trim(), songOrder, orderedSongs);
-    addToast(`Exported setlist "${setlistName.trim()}"`, 'success');
+    const name = activeSetlist?.name ?? 'Setlist';
+    await exportSetlist(name, songOrder, orderedSongs);
+    addToast(`Exported "${name}"`, 'success');
   };
 
 const handleImportSetlist = () => {
@@ -411,7 +412,6 @@ const handleImportSetlist = () => {
         {setlistOpen && (
           <div className='flex flex-col p-4 gap-4'>
             {/* Setlist selector row */}
-            {!isSession && (
               <div className='relative' ref={setlistMenuRef}>
                 <div className='flex items-center gap-2'>
                   {renamingSetlist ? (
@@ -565,7 +565,6 @@ const handleImportSetlist = () => {
                   </div>
                 )}
               </div>
-            )}
 
             {/* Song search */}
             <input
@@ -635,11 +634,11 @@ const handleImportSetlist = () => {
                   return (
                     <div
                       key={item.songId}
-                      draggable={!isViewer}
-                      onDragStart={isViewer ? undefined : (e) => handleDragStart(e, idx)}
-                      onDragOver={isViewer ? undefined : (e) => handleDragOver(e, idx)}
-                      onDrop={isViewer ? undefined : (e) => handleDrop(e, idx)}
-                      onDragEnd={isViewer ? undefined : handleDragEnd}
+                      draggable={canEdit}
+                      onDragStart={canEdit ? (e) => handleDragStart(e, idx) : undefined}
+                      onDragOver={canEdit ? (e) => handleDragOver(e, idx) : undefined}
+                      onDrop={canEdit ? (e) => handleDrop(e, idx) : undefined}
+                      onDragEnd={canEdit ? handleDragEnd : undefined}
                       className='flex flex-col rounded transition-colors group'
                       style={{
                         backgroundColor: song.id === activeSongId ? '#1e293b' : 'transparent',
@@ -648,13 +647,13 @@ const handleImportSetlist = () => {
                           ? '2px solid #6366f1' : '2px solid transparent',
                         borderBottom: dropIndex === idx && dragIndex !== null && dragIndex < idx
                           ? '2px solid #6366f1' : '2px solid transparent',
-                        cursor: isViewer ? 'default' : 'grab',
+                        cursor: canEdit ? 'default' : 'grab',
                       }}
                     >
                       <div className='flex items-center gap-1 px-2 py-1.5'
                            style={{ color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8' }}>
                         {/* Reorder buttons */}
-                        {!isViewer && (
+                        {canEdit && (
                         <div className='flex flex-col opacity-0 group-hover:opacity-100
                                         transition-opacity'>
                           <button
@@ -710,7 +709,7 @@ const handleImportSetlist = () => {
                         )}
 
                         {/* Rename button */}
-                        {!isViewer && (
+                        {canEdit && (
                         <button
                           onClick={() => {
                             setEditingSongId(song.id);
@@ -725,7 +724,7 @@ const handleImportSetlist = () => {
                         )}
 
                         {/* Context menu (copy/move to setlist) */}
-                        {!isViewer && allSetlists.length > 1 && (
+                        {canEdit && allSetlists.length > 1 && (
                         <div className='relative'
                              ref={songMenuId === song.id ? songMenuRef : undefined}>
                           <button
@@ -781,7 +780,7 @@ const handleImportSetlist = () => {
                         )}
 
                         {/* Delete button */}
-                        {!isViewer && (
+                        {canEdit && (
                         <button
                           onClick={() => handleDeleteSong(song.id)}
                           className='text-slate-600 hover:text-red-400 transition-colors text-xs
@@ -822,7 +821,7 @@ const handleImportSetlist = () => {
                 }
 
                 // Pause item
-                if (isViewer) {
+                if (!canEdit) {
                   return (
                     <div key={item.id} className='flex items-center gap-1 px-2 py-1'>
                       <div className='flex-1 flex items-center gap-2'>
@@ -850,7 +849,7 @@ const handleImportSetlist = () => {
                         ? '2px solid #6366f1' : '2px solid transparent',
                       borderBottom: dropIndex === idx && dragIndex !== null && dragIndex < idx
                         ? '2px solid #6366f1' : '2px solid transparent',
-                      cursor: 'grab',
+                      cursor: canEdit ? 'grab' : 'default',
                     }}
                   >
                     {/* Reorder buttons */}
@@ -927,7 +926,7 @@ const handleImportSetlist = () => {
               })}
 
               {/* Add pause at end of setlist */}
-              {!isSession && songOrder.length > 0 && (
+              {canEdit && songOrder.length > 0 && (
                 <button
                   onClick={() => addPause(songOrder.length - 1)}
                   className='w-full px-2 py-1.5 text-xs font-mono text-slate-400
@@ -985,15 +984,18 @@ const handleImportSetlist = () => {
               </button>
               <div className='border-t border-slate-700 my-1' />
               {!setlistExportMode ? (
-                <button
-                  onClick={() => setSetlistExportMode(true)}
-                  disabled={songs.length === 0}
-                  className='w-full text-left px-3 py-1.5 text-xs font-mono
-                             text-slate-300 hover:bg-slate-700 transition-colors
-                             disabled:opacity-30 disabled:cursor-not-allowed'
-                >
-                  <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Setlist
-                </button>
+              <button
+                onClick={() => {
+                  handleExportSetlist();
+                  setShowImportExport(false);
+                }}
+                disabled={songOrder.length === 0}
+                className='w-full text-left px-3 py-1.5 text-xs font-mono
+                           text-slate-300 hover:bg-slate-700 transition-colors
+                           disabled:opacity-30 disabled:cursor-not-allowed'
+              >
+                <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Setlist
+              </button>
               ) : (
                 <div className='px-3 py-1.5 flex flex-col gap-1.5'>
                   <input

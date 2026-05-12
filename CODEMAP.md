@@ -272,7 +272,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (1078 lines)
+### Sidebar.tsx (1080 lines)
 - 25:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
 - **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/formatTime,../../utils/iconSizes
 
