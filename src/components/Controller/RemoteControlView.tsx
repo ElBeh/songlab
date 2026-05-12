@@ -13,10 +13,10 @@ import {
 import { formatTime } from '../../utils/formatTime';
 import { useSetlistStore } from '../../stores/useSetlistStore';
 
-type Tab = 'setlist' | 'sections';
+type Tab = 'setlists' | 'songs' | 'sections';
 
 export function RemoteControlView() {
-  const [activeTab, setActiveTab] = useState<Tab>('setlist');
+  const [activeTab, setActiveTab] = useState<Tab>('setlists');
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
 
@@ -24,6 +24,9 @@ export function RemoteControlView() {
   const activeSong = useSongStore((s) => s.getActiveSong)();
   const markers = useSongStore((s) => s.getActiveMarkers)();
   const songOrder = useSetlistStore((s) => s.getActiveItems)();
+  const allSetlists = useSetlistStore((s) => s.setlists);
+  const activeSetlistId = useSetlistStore((s) => s.activeSetlistId);
+  const switchSetlist = useSetlistStore((s) => s.switchSetlist);
   const songs = useSongStore((s) => s.songs);
   const activeSongId = useSongStore((s) => s.activeSongId);
 
@@ -238,9 +241,9 @@ export function RemoteControlView() {
         </div>
       </div>
 
-      {/* Tab bar: Setlist / Sections */}
+      {/* Tab bar: Setlists / Songs / Sections */}
       <div className='flex bg-slate-800 border-b border-slate-700'>
-        {(['setlist', 'sections'] as const).map((tab) => (
+        {(['setlists', 'songs', 'sections'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -259,7 +262,46 @@ export function RemoteControlView() {
 
       {/* List content */}
       <div className='flex-1 overflow-y-auto'>
-        {activeTab === 'setlist' ? (
+        {activeTab === 'setlists' ? (
+          <div className='flex flex-col'>
+            {allSetlists.map((sl) => {
+              const isActive = sl.id === activeSetlistId;
+              const slSongCount = sl.items.filter((i) => i.type === 'song').length;
+              return (
+                <button
+                  key={sl.id}
+                  onClick={() => {
+                    switchSetlist(sl.id);
+                    setActiveTab('songs');
+                  }}
+                  className='flex items-center gap-2 px-4 py-3 text-left
+                             border-b border-slate-800 transition-colors'
+                  style={{
+                    backgroundColor: isActive ? '#1e293b' : 'transparent',
+                  }}
+                >
+                  {isActive && (
+                    <span className='text-indigo-400 text-xs'>▸</span>
+                  )}
+                  <span
+                    className='font-mono text-sm truncate flex-1'
+                    style={{ color: isActive ? '#e2e8f0' : '#94a3b8' }}
+                  >
+                    {sl.name}
+                  </span>
+                  <span className='font-mono text-xs text-slate-600'>
+                    {slSongCount} song{slSongCount !== 1 ? 's' : ''}
+                  </span>
+                </button>
+              );
+            })}
+            {allSetlists.length === 0 && (
+              <div className='px-4 py-6 text-center font-mono text-xs text-slate-600'>
+                No setlists
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'songs' ? (
           <div className='flex flex-col'>
             {songItems.map((item) => {
               if (item.type !== 'song') return null;

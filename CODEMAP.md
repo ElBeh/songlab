@@ -105,14 +105,14 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 236:export async function deleteSetlist(id: string): Promise<void>
 - **deps**: ../types
 
-### exportService.ts (251 lines)
-- 45:export interface SetlistImportResult
-- 136:export async function exportSong(song: SongData): Promise<void>
-- 142:export async function importSong(file: File): Promise<SongData>
-- 151:export async function exportSetlist(
-- 210:export async function importSetlist(file: File): Promise<SetlistImportResult>
-- 216:export async function importSetlistFromUrl(
-- 235:export async function exportGig(
+### exportService.ts (320 lines)
+- 46:export type ImportResult =
+- 51:export interface SetlistImportResult
+- 154:export async function exportSong(song: SongData): Promise<void>
+- 162:export async function exportSetlist(
+- 180:export async function exportGig(
+- 253:export async function importFile(file: File): Promise<ImportResult>
+- 304:export async function importSetlistFromUrl(
 - **deps**: ../types,../utils/encoding
 
 ### metronomeScheduler.ts (179 lines)
@@ -273,7 +273,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (1060 lines)
+### Sidebar.tsx (1083 lines)
 - 25:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
 - **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/formatTime,../../utils/iconSizes
 
@@ -389,7 +389,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Controller
 
-### RemoteControlView.tsx (343 lines)
+### RemoteControlView.tsx (385 lines)
 - 18:export function RemoteControlView()
 - **deps**: ../../services/syncEmitter,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../utils/formatTime,../../utils/iconSizes
 

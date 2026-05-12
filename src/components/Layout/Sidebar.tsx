@@ -3,7 +3,7 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useSetlistStore } from '../../stores/useSetlistStore';
 import { useModeStore } from '../../stores/useModeStore';
 import { MarkerList } from '../Markers/MarkerList';
-import { exportSong, importSong, exportSetlist, importSetlist, exportGig } from '../../services/exportService';
+import { exportSong, exportSetlist, exportGig, importFile } from '../../services/exportService';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { UrlImportDialog } from './UrlImportDialog';
@@ -30,6 +30,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
   const [showUrlImport, setShowUrlImport] = useState(false);
   const importExportRef = useRef<HTMLDivElement>(null);
 
@@ -62,6 +63,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
     const handleClick = (e: MouseEvent) => {
       if (importExportRef.current && !importExportRef.current.contains(e.target as Node)) {
         setShowImportExport(false);
+        setShowExportOptions(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -198,7 +200,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
     addToast(`Exported "${activeSong.title}"`, 'success');
   };
 
-  const handleImportSong = () => {
+  const handleImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -206,16 +208,48 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const song = await importSong(file);
-        await addSong(song);
-        await useSetlistStore.getState().addSongToActiveSetlist(song.id);
-        await setActiveSongId(song.id);
-        await useTabStore.getState().loadTabsForSong(song.id);
-        await useTabStore.getState().loadSheetsForSong(song.id);
-        addToast(`Imported "${song.title}"`, 'success');
+        const result = await importFile(file);
+
+        if (result.type === 'song') {
+          // Single song import
+          await addSong(result.song);
+          await useSetlistStore.getState().addSongToActiveSetlist(result.song.id);
+          await setActiveSongId(result.song.id);
+          await useTabStore.getState().loadTabsForSong(result.song.id);
+          await useTabStore.getState().loadSheetsForSong(result.song.id);
+          addToast(`Imported "${result.song.title}"`, 'success');
+        } else {
+          // Gig / setlist import (one or more setlists)
+          for (const song of result.songs) {
+            await addSong(song);
+          }
+
+          let firstSetlistId: string | null = null;
+          for (const sl of result.setlists) {
+            const id = await createSetlist(sl.name);
+            await useSetlistStore.getState().setActiveItems(sl.items);
+            if (!firstSetlistId) firstSetlistId = id;
+          }
+
+          if (firstSetlistId) {
+            switchSetlist(firstSetlistId);
+          }
+          if (result.songs.length > 0) {
+            await setActiveSongId(result.songs[0].id);
+            await useTabStore.getState().loadTabsForSong(result.songs[0].id);
+            await useTabStore.getState().loadSheetsForSong(result.songs[0].id);
+          }
+
+          const setlistCount = result.setlists.length;
+          const importedSongCount = result.songs.length;
+          const label = setlistCount > 1
+            ? `Imported ${setlistCount} setlists with ${importedSongCount} song(s)`
+            : `Imported ${importedSongCount} song(s)`;
+          addToast(label, 'success');
+        }
       } catch (err) {
         console.error('Import failed:', err);
-        addToast('Song import failed', 'error');
+        addToast('Import failed', 'error');
       }
     };
     input.click();
@@ -225,34 +259,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
     const name = activeSetlist?.name ?? 'Setlist';
     await exportSetlist(name, songOrder, orderedSongs);
     addToast(`Exported "${name}"`, 'success');
-  };
-
-const handleImportSetlist = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const result = await importSetlist(file);
-        for (const song of result.songs) {
-          await addSong(song);
-        }
-        await createSetlist(result.name);
-        await useSetlistStore.getState().setActiveItems(result.items);
-        if (result.songs.length > 0) {
-          await setActiveSongId(result.songs[0].id);
-          await useTabStore.getState().loadTabsForSong(result.songs[0].id);
-          await useTabStore.getState().loadSheetsForSong(result.songs[0].id);
-        }
-        addToast(`Imported ${result.songs.length} song(s)`, 'success');
-      } catch (err) {
-        console.error('Setlist import failed:', err);
-        addToast('Setlist import failed', 'error');
-      }
-    };
-    input.click();
   };
 
   const handlePauseEditCommit = (id: string) => {
@@ -474,6 +480,9 @@ const handleImportSetlist = () => {
                         {sl.name}
                       </button>
                     ))}
+
+                    {canEdit && (
+                    <>
                     <div className='border-t border-slate-700 my-1' />
 
                     {creatingSetlist ? (
@@ -559,6 +568,8 @@ const handleImportSetlist = () => {
                         </button>
                       )
                     )}
+                    </>
+                    )}
                   </div>
                 )}
               </div>
@@ -583,7 +594,8 @@ const handleImportSetlist = () => {
                 {searchResults.map((result) => (
                   <button
                     key={`${result.songId}:${result.setlistId}`}
-                    onClick={async () => {
+                    disabled={isViewer}
+                    onClick={isViewer ? undefined : async () => {
                       if (result.setlistId !== activeSetlistId) {
                         switchSetlist(result.setlistId);
                       }
@@ -593,8 +605,8 @@ const handleImportSetlist = () => {
                       setSearchQuery('');
                     }}
                     className={`flex flex-col px-2 py-1.5 rounded text-left transition-colors
-                               hover:bg-slate-800 ${
-                                 result.songId === activeSongId
+                               ${isViewer ? 'cursor-default' : 'hover:bg-slate-800'}
+                               ${result.songId === activeSongId
                                    ? 'bg-slate-800 text-slate-100'
                                    : 'text-slate-400'
                                }`}
@@ -956,81 +968,92 @@ const handleImportSetlist = () => {
           {showImportExport && (
             <div className='absolute left-0 right-0 bottom-full mb-1 bg-slate-800 border
                             border-slate-600 rounded-lg shadow-xl py-1 z-50'>
-              {activeSong && (
-                <button
-                  onClick={() => {
-                    handleExportSong();
-                    setShowImportExport(false);
-                  }}
-                  className='w-full text-left px-3 py-1.5 text-xs font-mono
-                             text-slate-300 hover:bg-slate-700 transition-colors'
-                >
-                  <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Song
-                </button>
-              )}
               <button
                 onClick={() => {
-                  handleImportSong();
+                  handleImport();
                   setShowImportExport(false);
+                  setShowExportOptions(false);
                 }}
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
                            text-slate-300 hover:bg-slate-700 transition-colors'
               >
-                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Song
-              </button>
-              <div className='border-t border-slate-700 my-1' />
-
-                            <button
-                onClick={() => {
-                  handleImportSetlist();
-                  setShowImportExport(false);
-                }}
-                className='w-full text-left px-3 py-1.5 text-xs font-mono
-                           text-slate-300 hover:bg-slate-700 transition-colors'
-              >
-                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import Gig/Setlist
+                <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import
               </button>
               <button
                 onClick={() => {
                   setShowUrlImport(true);
                   setShowImportExport(false);
+                  setShowExportOptions(false);
                 }}
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
                            text-slate-300 hover:bg-slate-700 transition-colors'
               >
                 <Upload size={ICON_SIZE.ACTION} className='inline-block' /> Import from URL
               </button>
-
+              <div className='border-t border-slate-700 my-1' />
               <button
-                onClick={() => {
-                  handleExportSetlist();
-                  setShowImportExport(false);
-                }}
-                disabled={songOrder.length === 0}
+                onClick={() => setShowExportOptions((v) => !v)}
                 className='w-full text-left px-3 py-1.5 text-xs font-mono
                            text-slate-300 hover:bg-slate-700 transition-colors
-                           disabled:opacity-30 disabled:cursor-not-allowed'
+                           flex items-center justify-between'
               >
-                <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Setlist
+                <span><Download size={ICON_SIZE.ACTION} className='inline-block' /> Export</span>
+                <ChevronRight
+                  size={ICON_SIZE.ACTION}
+                  className={`transition-transform ${showExportOptions ? 'rotate-90' : ''}`}
+                />
               </button>
-
-              <button
-                onClick={async () => {
-                  const allItems = allSetlists.map((sl) => ({
-                    name: sl.name,
-                    items: sl.items,
-                  }));
-                  await exportGig(allItems, songs);
-                  addToast('Exported gig', 'success');
-                  setShowImportExport(false);
-                }}
-                disabled={allSetlists.length === 0}
-                className='w-full text-left px-3 py-1.5 text-xs font-mono
-                           text-slate-300 hover:bg-slate-700 transition-colors
-                           disabled:opacity-30 disabled:cursor-not-allowed'
-              >
-                <Download size={ICON_SIZE.ACTION} className='inline-block' /> Export Gig
-              </button>
+              {showExportOptions && (
+                <>
+                  {activeSong && (
+                    <button
+                      onClick={() => {
+                        handleExportSong();
+                        setShowImportExport(false);
+                        setShowExportOptions(false);
+                      }}
+                      className='w-full text-left pl-6 pr-3 py-1.5 text-xs font-mono
+                                 text-slate-400 hover:text-slate-300 hover:bg-slate-700
+                                 transition-colors'
+                    >
+                      Song
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleExportSetlist();
+                      setShowImportExport(false);
+                      setShowExportOptions(false);
+                    }}
+                    disabled={songOrder.length === 0}
+                    className='w-full text-left pl-6 pr-3 py-1.5 text-xs font-mono
+                               text-slate-400 hover:text-slate-300 hover:bg-slate-700
+                               transition-colors
+                               disabled:opacity-30 disabled:cursor-not-allowed'
+                  >
+                    Setlist
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const allItems = allSetlists.map((sl) => ({
+                        name: sl.name,
+                        items: sl.items,
+                      }));
+                      await exportGig(allItems, songs);
+                      addToast('Exported gig', 'success');
+                      setShowImportExport(false);
+                      setShowExportOptions(false);
+                    }}
+                    disabled={allSetlists.length === 0}
+                    className='w-full text-left pl-6 pr-3 py-1.5 text-xs font-mono
+                               text-slate-400 hover:text-slate-300 hover:bg-slate-700
+                               transition-colors
+                               disabled:opacity-30 disabled:cursor-not-allowed'
+                  >
+                    Gig
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

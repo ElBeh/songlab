@@ -42,6 +42,12 @@ interface SetlistExportLegacy {
   createdAt?: number;
 }
 
+// Unified import result — auto-detected from file structure
+export type ImportResult =
+  | { type: 'song'; song: SongData }
+  | { type: 'gig'; songs: SongData[]; setlists: { name: string; items: SetlistItem[] }[] };
+
+// Single-setlist result (used by UrlImportDialog)
 export interface SetlistImportResult {
   songs: SongData[];
   items: SetlistItem[];
@@ -131,22 +137,27 @@ function readFileAsText(file: File): Promise<string> {
   });
 }
 
-// --- Song export/import ---
+// --- Format detection ---
+
+/** Song exports have a top-level `song` object with `markers` alongside it */
+function isSongExport(raw: object): raw is SongExport {
+  return 'song' in raw && 'markers' in raw;
+}
+
+/** v2 exports have `version: 2` and a `setlists` array */
+function isV2Export(raw: object): raw is SetlistExportV2 {
+  return 'version' in raw && (raw as { version: unknown }).version === 2 && 'setlists' in raw;
+}
+
+// --- Song export ---
 
 export async function exportSong(song: SongData): Promise<void> {
   const bundle = await bundleSong(song);
   const data: SongExport = { version: 3, ...bundle };
-  downloadJson(data, `${song.title}.songlab.json`);
+  downloadJson(data, `${song.title}.json`);
 }
 
-export async function importSong(file: File): Promise<SongData> {
-  const text = await readFileAsText(file);
-  const data: SongExport = JSON.parse(text);
-  await restoreBundle(data);
-  return data.song;
-}
-
-// --- Setlist export/import ---
+// --- Setlist export ---
 
 export async function exportSetlist(
   name: string,
@@ -161,10 +172,93 @@ export async function exportSetlist(
     songs: bundles,
   };
 
-  downloadJson(data, `${name}.setlist.json`);
+  downloadJson(data, `${name}.json`);
 }
 
-/** Detect format and restore songs, returning structured result */
+// --- Gig export ---
+
+export async function exportGig(
+  setlists: { name: string; items: SetlistItem[] }[],
+  songs: SongData[],
+): Promise<void> {
+  // Deduplicate songs (same song can be in multiple setlists)
+  const uniqueSongs = new Map(songs.map((s) => [s.id, s]));
+  const bundles = await Promise.all(
+    [...uniqueSongs.values()].map((song) => bundleSong(song)),
+  );
+
+  const data: SetlistExportV2 = {
+    version: 2,
+    setlists,
+    songs: bundles,
+  };
+
+  downloadJson(data, 'gig.json');
+}
+
+// --- Unified import (auto-detects song / setlist / gig / legacy) ---
+
+/** Restore data from parsed JSON and return a tagged ImportResult */
+async function restoreImportData(raw: object): Promise<ImportResult> {
+  // Song export: top-level `song` + `markers`
+  if (isSongExport(raw)) {
+    await restoreBundle(raw);
+    return { type: 'song', song: raw.song };
+  }
+
+  // v2 format: setlists[] + songs[]
+  if (isV2Export(raw)) {
+    const importedSongs: SongData[] = [];
+
+    for (const bundle of raw.songs ?? []) {
+      if (!bundle.song) continue;
+      await restoreBundle(bundle);
+      importedSongs.push(bundle.song);
+    }
+
+    // Build setlist entries — fall back to flat song list if setlists array is empty
+    const setlists = raw.setlists.length > 0
+      ? raw.setlists.map((sl) => ({ name: sl.name, items: sl.items }))
+      : [{
+          name: 'Imported',
+          items: importedSongs.map((s) => ({
+            type: 'song' as const,
+            songId: s.id,
+          })),
+        }];
+
+    return { type: 'gig', songs: importedSongs, setlists };
+  }
+
+  // Legacy format: entries[] with embedded song bundles → single setlist
+  const legacy = raw as SetlistExportLegacy;
+  const importedSongs: SongData[] = [];
+
+  for (const entry of legacy.entries ?? []) {
+    if (!entry.song) continue;
+    await restoreBundle(entry);
+    importedSongs.push(entry.song);
+  }
+
+  return {
+    type: 'gig',
+    songs: importedSongs,
+    setlists: [{
+      name: legacy.name ?? 'Imported',
+      items: importedSongs.map((s) => ({ type: 'song' as const, songId: s.id })),
+    }],
+  };
+}
+
+export async function importFile(file: File): Promise<ImportResult> {
+  const text = await readFileAsText(file);
+  const raw = JSON.parse(text);
+  return restoreImportData(raw);
+}
+
+// --- URL import (used by UrlImportDialog) ---
+
+/** Detect format and restore songs, returning single-setlist result */
 async function restoreSetlistData(
   raw: SetlistExportV2 | SetlistExportLegacy,
 ): Promise<SetlistImportResult> {
@@ -207,12 +301,6 @@ async function restoreSetlistData(
   };
 }
 
-export async function importSetlist(file: File): Promise<SetlistImportResult> {
-  const text = await readFileAsText(file);
-  const raw = JSON.parse(text);
-  return restoreSetlistData(raw);
-}
-
 export async function importSetlistFromUrl(
   serverUrl: string,
   setlistUrl: string,
@@ -230,23 +318,4 @@ export async function importSetlistFromUrl(
 
   const raw = await response.json();
   return restoreSetlistData(raw);
-}
-
-export async function exportGig(
-  setlists: { name: string; items: SetlistItem[] }[],
-  songs: SongData[],
-): Promise<void> {
-  // Deduplicate songs (same song can be in multiple setlists)
-  const uniqueSongs = new Map(songs.map((s) => [s.id, s]));
-  const bundles = await Promise.all(
-    [...uniqueSongs.values()].map((song) => bundleSong(song)),
-  );
-
-  const data: SetlistExportV2 = {
-    version: 2,
-    setlists,
-    songs: bundles,
-  };
-
-  downloadJson(data, 'gig.setlist.json');
 }
