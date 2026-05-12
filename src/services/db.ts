@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { SongData, SectionMarker, SectionTab, TabSheet } from '../types';
+import type { SongData, SectionMarker, SectionTab, TabSheet, Setlist } from '../types';
 
 // IndexedDB schema – idb uses this for type safety
 interface SongLabDB extends DBSchema {
@@ -34,6 +34,10 @@ interface SongLabDB extends DBSchema {
   key: string;           // songId
   value: { songId: string; data: ArrayBuffer; fileName: string };
   };
+  setlists: {
+    key: string;
+    value: Setlist;
+  };
 }
 
 const DB_NAME = 'songlab';
@@ -67,6 +71,9 @@ async function getDB(): Promise<IDBPDatabase<SongLabDB>> {
       }
       if (oldVersion < 7) {
         db.createObjectStore('gpFiles', { keyPath: 'songId' });
+      }
+      if (oldVersion < 8) {
+        db.createObjectStore('setlists', { keyPath: 'id' });
       }
     },
   });
@@ -207,4 +214,26 @@ export async function getGpFile(
 export async function deleteGpFile(songId: string): Promise<void> {
   const db = await getDB();
   await db.delete('gpFiles', songId);
+}
+
+// --- Setlists ---
+
+export async function saveSetlist(setlist: Setlist): Promise<void> {
+  const db = await getDB();
+  await db.put('setlists', setlist);
+}
+
+export async function getSetlist(id: string): Promise<Setlist | undefined> {
+  const db = await getDB();
+  return db.get('setlists', id);
+}
+
+export async function getAllSetlists(): Promise<Setlist[]> {
+  const db = await getDB();
+  return db.getAll('setlists');
+}
+
+export async function deleteSetlist(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('setlists', id);
 }

@@ -11,6 +11,7 @@ import {
   emitControllerRelease,
 } from '../../services/syncEmitter';
 import { formatTime } from '../../utils/formatTime';
+import { useSetlistStore } from '../../stores/useSetlistStore';
 
 type Tab = 'setlist' | 'sections';
 
@@ -22,7 +23,7 @@ export function RemoteControlView() {
   // --- Store data ---
   const activeSong = useSongStore((s) => s.getActiveSong)();
   const markers = useSongStore((s) => s.getActiveMarkers)();
-  const songOrder = useSongStore((s) => s.songOrder);
+  const songOrder = useSetlistStore((s) => s.getActiveItems)();
   const songs = useSongStore((s) => s.songs);
   const activeSongId = useSongStore((s) => s.activeSongId);
 

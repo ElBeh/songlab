@@ -2,12 +2,15 @@
 // Used by useControlCommandHandler (Band Sync) and useMidiInput (MIDI footswitch).
 
 import { useSongStore } from '../stores/useSongStore';
+import { useSetlistStore } from '../stores/useSetlistStore';
 import { useTabStore } from '../stores/useTabStore';
 
 export async function navigateSong(
   direction: 'next' | 'prev',
 ): Promise<void> {
-  const { songOrder, activeSongId, setActiveSongId } = useSongStore.getState();
+  const { activeSongId, setActiveSongId } = useSongStore.getState();
+  const songOrder = useSetlistStore.getState().getActiveItems();
+  
   if (!activeSongId) return;
 
   const songItems = songOrder.filter((item) => item.type === 'song');

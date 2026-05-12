@@ -49,6 +49,8 @@ import type { ControlCommand } from '../../../shared/syncProtocol';
 import { RemoteControlView } from '../Controller/RemoteControlView';
 import { Music, Pause, Play, SkipBack, Repeat, Eye, Pencil, Music2, X } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
+import { useSetlistStore } from '../../stores/useSetlistStore';
+import { useShallow } from 'zustand/shallow';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -80,6 +82,15 @@ export default function AppShell() {
       useModeStore.getState().setMode('session');
     }
   }, [isViewer]);
+
+  // Load song library + setlists from IndexedDB on mount
+  useEffect(() => {
+    const init = async () => {
+      await useSongStore.getState().loadAllSongs();
+      await useSetlistStore.getState().loadSetlists();
+    };
+    init();
+  }, []);
 
 const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
@@ -548,14 +559,24 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     return () => clearTimeout(timer);
   }, [activeSongId, activeSong, syncStatus, syncRole, sheets, tabs, gpFile.activeGpData]);
 
-  // Host: push setlist to viewers on connect + when songs/order change
+// Host: push setlist to viewers on connect + when songs/order change
   const songs = useSongStore((s) => s.songs);
-  const songOrder = useSongStore((s) => s.songOrder);
+  const songOrder = useSetlistStore(useShallow((state) => {
+    const active = state.setlists.find((s) => s.id === state.activeSetlistId);
+    return active?.items ?? [];
+  }));
+  
   useEffect(() => {
     if (syncStatus !== 'connected' || syncRole !== 'host') return;
     if (songs.length === 0) return;
 
-    emitSetlistSync({ songs, songOrder });
+    const items = useSetlistStore.getState().getActiveItems();
+    const activeSetlist = useSetlistStore.getState().getActiveSetlist();
+    emitSetlistSync({
+      songs,
+      songOrder: items,
+      activeSetlistName: activeSetlist?.name ?? null,
+    });
   }, [songs, songOrder, syncStatus, syncRole]);
 
   // --- Add marker handler ---

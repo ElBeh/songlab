@@ -1,4 +1,4 @@
-import type { Setlist, SongData, SectionMarker, SectionTab, TabSheet } from '../types';
+import type { SongData, SectionMarker, SectionTab, TabSheet, SetlistItem } from '../types';
 import {
   getMarkersForSong,
   getTabsForSong,
@@ -27,8 +27,25 @@ interface SongExport extends SongBundle {
   version: number;
 }
 
-interface SetlistExport extends Omit<Setlist, 'entries'> {
-  entries: (SongBundle & { songId: string; title: string })[];
+// v2 multi-setlist export format
+interface SetlistExportV2 {
+  version: 2;
+  setlists: { name: string; items: SetlistItem[] }[];
+  songs: SongBundle[];
+}
+
+// Legacy single-setlist export format (for import detection)
+interface SetlistExportLegacy {
+  id?: string;
+  name?: string;
+  entries?: (SongBundle & { songId: string; title: string })[];
+  createdAt?: number;
+}
+
+export interface SetlistImportResult {
+  songs: SongData[];
+  items: SetlistItem[];
+  name: string;
 }
 
 // --- Shared helpers ---
@@ -131,47 +148,75 @@ export async function importSong(file: File): Promise<SongData> {
 
 // --- Setlist export/import ---
 
-export async function exportSetlist(name: string, songs: SongData[]): Promise<void> {
-  const entries = await Promise.all(
-    songs.map(async (song) => {
-      const bundle = await bundleSong(song);
-      return { songId: song.id, title: song.title, ...bundle };
-    }),
-  );
+export async function exportSetlist(
+  name: string,
+  items: SetlistItem[],
+  songs: SongData[],
+): Promise<void> {
+  const bundles = await Promise.all(songs.map((song) => bundleSong(song)));
 
-  const setlist: SetlistExport = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    name,
-    entries,
-    createdAt: Date.now(),
+  const data: SetlistExportV2 = {
+    version: 2,
+    setlists: [{ name, items }],
+    songs: bundles,
   };
 
-  downloadJson(setlist, `${name}.setlist.json`);
+  downloadJson(data, `${name}.setlist.json`);
 }
 
-/** Restore all songs from a parsed setlist export into IndexedDB */
-async function restoreSetlist(setlist: SetlistExport): Promise<SongData[]> {
+/** Detect format and restore songs, returning structured result */
+async function restoreSetlistData(
+  raw: SetlistExportV2 | SetlistExportLegacy,
+): Promise<SetlistImportResult> {
+  // v2 format: has version field and setlists array
+  if ('version' in raw && raw.version === 2 && 'setlists' in raw) {
+    const v2 = raw as SetlistExportV2;
+    const importedSongs: SongData[] = [];
+
+    for (const bundle of v2.songs ?? []) {
+      if (!bundle.song) continue;
+      await restoreBundle(bundle);
+      importedSongs.push(bundle.song);
+    }
+
+    const firstSetlist = v2.setlists[0];
+    return {
+      songs: importedSongs,
+      items: firstSetlist?.items ?? importedSongs.map((s) => ({
+        type: 'song' as const,
+        songId: s.id,
+      })),
+      name: firstSetlist?.name ?? 'Imported',
+    };
+  }
+
+  // Legacy format: entries array with embedded song bundles
+  const legacy = raw as SetlistExportLegacy;
   const importedSongs: SongData[] = [];
 
-  for (const entry of setlist.entries ?? []) {
+  for (const entry of legacy.entries ?? []) {
     if (!entry.song) continue;
     await restoreBundle(entry);
     importedSongs.push(entry.song);
   }
 
-  return importedSongs;
+  return {
+    songs: importedSongs,
+    items: importedSongs.map((s) => ({ type: 'song' as const, songId: s.id })),
+    name: legacy.name ?? 'Imported',
+  };
 }
 
-export async function importSetlist(file: File): Promise<SongData[]> {
+export async function importSetlist(file: File): Promise<SetlistImportResult> {
   const text = await readFileAsText(file);
-  const setlist: SetlistExport = JSON.parse(text);
-  return restoreSetlist(setlist);
+  const raw = JSON.parse(text);
+  return restoreSetlistData(raw);
 }
 
 export async function importSetlistFromUrl(
   serverUrl: string,
   setlistUrl: string,
-): Promise<SongData[]> {
+): Promise<SetlistImportResult> {
   const base = serverUrl.replace(/\/+$/, '');
   const endpoint = `${base}/api/fetch-setlist?url=${encodeURIComponent(setlistUrl)}`;
 
@@ -183,6 +228,6 @@ export async function importSetlistFromUrl(
     throw new Error(message);
   }
 
-  const setlist: SetlistExport = await response.json();
-  return restoreSetlist(setlist);
+  const raw = await response.json();
+  return restoreSetlistData(raw);
 }

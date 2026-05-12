@@ -7,7 +7,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/types
 
-### index.ts (96 lines)
+### index.ts (92 lines)
 - 3:export type SectionType =
 - 14:export interface SectionMarker
 - 23:export interface SongData
@@ -15,12 +15,11 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 48:export type TabSheetType = 'Guitar' | 'Bass' | 'Keys' | 'Vocals' | 'Drums' | 'Other';
 - 50:export interface TabSheet
 - 58:export interface SectionTab
-- 67:export interface SetlistEntry
-- 72:export interface SetlistPause
-- 79:export interface SetlistSong
-- 84:export type SetlistItem = SetlistSong | SetlistPause;
-- 86:export interface Setlist
-- 93:export interface SyncPoint
+- 67:export interface SetlistPause
+- 74:export interface SetlistSong
+- 79:export type SetlistItem = SetlistSong | SetlistPause;
+- 81:export interface Setlist
+- 89:export interface SyncPoint
 
 ## src/stores
 
@@ -42,8 +41,12 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 3:export type AppMode = 'edit' | 'session';
 - 14:export const useModeStore = create<ModeStore>((set)
 
-### useSongStore.ts (358 lines)
-- 63:export const useSongStore = create<SongStore>((set, get)
+### useSetlistStore.ts (400 lines)
+- 77:export const useSetlistStore = create<SetlistStore>((set, get)
+- **deps**: ../services/db,../types
+
+### useSongStore.ts (216 lines)
+- 39:export const useSongStore = create<SongStore>((set, get)
 - **deps**: ../services/db,../services/syncEmitter,../types
 
 ### useSyncStore.ts (83 lines)
@@ -74,36 +77,41 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 64:export interface ScheduledBar
 - 79:export function scheduleBar(
 
-### db.ts (209 lines)
-- 79:export async function saveSong(song: SongData): Promise<void>
-- 88:export async function getSong(id: string): Promise<SongData | undefined>
-- 93:export async function getAllSongs(): Promise<SongData[]>
-- 98:export async function deleteSong(id: string): Promise<void>
-- 105:export async function saveMarker(marker: SectionMarker): Promise<void>
-- 110:export async function getMarkersForSong(songId: string): Promise<SectionMarker[]>
-- 115:export async function deleteMarker(id: string): Promise<void>
-- 122:export async function saveTab(tab: SectionTab): Promise<void>
-- 127:export async function getTabsForSong(songId: string): Promise<SectionTab[]>
-- 132:export async function deleteTab(id: string): Promise<void>
-- 137:export async function saveTabSheet(sheet: TabSheet): Promise<void>
-- 142:export async function getTabSheetsForSong(songId: string): Promise<TabSheet[]>
-- 147:export async function deleteTabSheet(id: string): Promise<void>
-- 154:export async function getConfig<T>(key: string): Promise<T | undefined>
-- 160:export async function setConfig<T>(key: string, value: T): Promise<void>
-- 167:export async function saveAudioFile(
-- 176:export async function getAudioFile(
-- 183:export async function deleteAudioFile(songId: string): Promise<void>
-- 190:export async function saveGpFile(
-- 199:export async function getGpFile(
-- 207:export async function deleteGpFile(songId: string): Promise<void>
+### db.ts (238 lines)
+- 86:export async function saveSong(song: SongData): Promise<void>
+- 95:export async function getSong(id: string): Promise<SongData | undefined>
+- 100:export async function getAllSongs(): Promise<SongData[]>
+- 105:export async function deleteSong(id: string): Promise<void>
+- 112:export async function saveMarker(marker: SectionMarker): Promise<void>
+- 117:export async function getMarkersForSong(songId: string): Promise<SectionMarker[]>
+- 122:export async function deleteMarker(id: string): Promise<void>
+- 129:export async function saveTab(tab: SectionTab): Promise<void>
+- 134:export async function getTabsForSong(songId: string): Promise<SectionTab[]>
+- 139:export async function deleteTab(id: string): Promise<void>
+- 144:export async function saveTabSheet(sheet: TabSheet): Promise<void>
+- 149:export async function getTabSheetsForSong(songId: string): Promise<TabSheet[]>
+- 154:export async function deleteTabSheet(id: string): Promise<void>
+- 161:export async function getConfig<T>(key: string): Promise<T | undefined>
+- 167:export async function setConfig<T>(key: string, value: T): Promise<void>
+- 174:export async function saveAudioFile(
+- 183:export async function getAudioFile(
+- 190:export async function deleteAudioFile(songId: string): Promise<void>
+- 197:export async function saveGpFile(
+- 206:export async function getGpFile(
+- 214:export async function deleteGpFile(songId: string): Promise<void>
+- 221:export async function saveSetlist(setlist: Setlist): Promise<void>
+- 226:export async function getSetlist(id: string): Promise<Setlist | undefined>
+- 231:export async function getAllSetlists(): Promise<Setlist[]>
+- 236:export async function deleteSetlist(id: string): Promise<void>
 - **deps**: ../types
 
-### exportService.ts (187 lines)
-- 119:export async function exportSong(song: SongData): Promise<void>
-- 125:export async function importSong(file: File): Promise<SongData>
-- 134:export async function exportSetlist(name: string, songs: SongData[]): Promise<void>
-- 165:export async function importSetlist(file: File): Promise<SongData[]>
-- 171:export async function importSetlistFromUrl(
+### exportService.ts (232 lines)
+- 45:export interface SetlistImportResult
+- 136:export async function exportSong(song: SongData): Promise<void>
+- 142:export async function importSong(file: File): Promise<SongData>
+- 151:export async function exportSetlist(
+- 210:export async function importSetlist(file: File): Promise<SetlistImportResult>
+- 216:export async function importSetlistFromUrl(
 - **deps**: ../types,../utils/encoding
 
 ### metronomeScheduler.ts (179 lines)
@@ -173,10 +181,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 3:export const SECTION_COLORS: Record<SectionType, string> =
 - **deps**: ../types
 
-### songNavigation.ts (34 lines)
-- 7:export async function navigateSong(
-- 30:export async function navigateToSong(songId: string): Promise<void>
-- **deps**: ../stores/useSongStore,../stores/useTabStore
+### songNavigation.ts (37 lines)
+- 8:export async function navigateSong(
+- 33:export async function navigateToSong(songId: string): Promise<void>
+- **deps**: ../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore
 
 ### tuningPresets.ts (99 lines)
 - 4:export function midiToNoteName(midi: number): string
@@ -195,9 +203,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 24:export function useAlphaSynthPlayback({
 - **deps**: ../stores/useLoopStore,../stores/useTempoStore
 
-### useAudioFile.ts (149 lines)
-- 15:export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions = {})
-- **deps**: ../services/audioAnalysis,../services/db,../stores/useSongStore,../stores/useTabStore,../types
+### useAudioFile.ts (151 lines)
+- 16:export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions = {})
+- **deps**: ../services/audioAnalysis,../services/db,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore,../types
 
 ### useControlCommandHandler.ts (58 lines)
 - 16:export function useControlCommandHandler({
@@ -230,47 +238,47 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 56:export function useMetronome({
 - **deps**: ../components/Tabs/NotationPanel,../services/metronomeScheduler,../stores/useCountInStore,../stores/useMetronomeStore
 
-### useMidiInput.ts (222 lines)
-- 32:export function useMidiInput({
-- **deps**: ../services/midiService,../stores/useLoopStore,../stores/useMidiStore,../stores/useSongStore,../stores/useTempoStore,../utils/songNavigation
+### useMidiInput.ts (223 lines)
+- 33:export function useMidiInput({
+- **deps**: ../services/midiService,../stores/useLoopStore,../stores/useMidiStore,../stores/useSetlistStore,../stores/useSongStore,../stores/useTempoStore,../utils/songNavigation
 
 ### usePlayback.ts (98 lines)
 - 14:export function usePlayback({ onTimeUpdate, onFinish, onLoopRestart }: UsePlaybackOptions = {})
 - **deps**: ../stores/useLoopStore
 
-### useSetlistAdvance.ts (132 lines)
-- 26:export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): SetlistAdvanceResult
-- **deps**: ../stores/useModeStore,../stores/useSongStore,../stores/useTabStore
+### useSetlistAdvance.ts (134 lines)
+- 27:export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): SetlistAdvanceResult
+- **deps**: ../stores/useModeStore,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore
 
 ### useSyncBroadcast.ts (118 lines)
 - 23:export function useSyncBroadcast({ isPlaying, currentTime, countdownRemaining, tickPosition, countInBeat }: UseSync...
 - **deps**: ../services/syncEmitter,../../shared/syncProtocol,../stores/useModeStore,../stores/useSyncStore,../stores/useTempoStore
 
-### useSyncSession.ts (379 lines)
-- 44:export function useSyncSession({
-- **deps**: ../services/db,../services/syncEmitter,../../shared/syncProtocol,../stores/useSongStore,../stores/useSyncStore,../stores/useTabStore,../stores/useTempoStore,../types
+### useSyncSession.ts (381 lines)
+- 45:export function useSyncSession({
+- **deps**: ../services/db,../services/syncEmitter,../../shared/syncProtocol,../stores/useSetlistStore,../stores/useSongStore,../stores/useSyncStore,../stores/useTabStore,../stores/useTempoStore,../types
 
 ## src/components/Layout
 
-### AppShell.tsx (1162 lines)
-- 53:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
+### AppShell.tsx (1183 lines)
+- 55:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
 
-### CreateDummySongDialog.tsx (263 lines)
-- 12:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
-- **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
+### CreateDummySongDialog.tsx (265 lines)
+- 13:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
+- **deps**: ../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
 
 ### MidiSettingsDialog.tsx (261 lines)
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (676 lines)
-- 22:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
-- **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
+### Sidebar.tsx (1078 lines)
+- 25:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
+- **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/formatTime,../../utils/iconSizes
 
-### SongTabs.tsx (250 lines)
-- 14:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
-- **deps**: ../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
+### SongTabs.tsx (253 lines)
+- 15:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
+- **deps**: ../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
 
 ### SyncStatus.tsx (266 lines)
 - 13:export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps)
@@ -280,9 +288,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 11:export function ToastContainer()
 - **deps**: ../../stores/useToastStore,../../utils/iconSizes
 
-### UrlImportDialog.tsx (165 lines)
-- 16:export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps)
-- **deps**: ../../services/db,../../services/exportService,../../stores/useSyncStore,../../stores/useToastStore,../../types
+### UrlImportDialog.tsx (164 lines)
+- 15:export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps)
+- **deps**: ../../services/db,../../services/exportService,../../stores/useSyncStore,../../stores/useToastStore
 
 ## src/components/Player
 
@@ -380,13 +388,13 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Controller
 
-### RemoteControlView.tsx (342 lines)
-- 17:export function RemoteControlView()
-- **deps**: ../../services/syncEmitter,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../utils/formatTime,../../utils/iconSizes
+### RemoteControlView.tsx (343 lines)
+- 18:export function RemoteControlView()
+- **deps**: ../../services/syncEmitter,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../utils/formatTime,../../utils/iconSizes
 
 ## shared
 
-### syncProtocol.ts (203 lines)
+### syncProtocol.ts (204 lines)
 - 7:export type SyncRole = 'host' | 'viewer';
 - 11:export type ControlCommandType =
 - 20:export interface ControlCommand
@@ -399,8 +407,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 151:export interface SongSyncPayload
 - 169:export interface SongDataPayload
 - 181:export interface SetlistSyncPayload
-- 188:export interface PeerInfo
-- 195:export interface SessionSnapshot
+- 189:export interface PeerInfo
+- 196:export interface SessionSnapshot
 
 ## server
 

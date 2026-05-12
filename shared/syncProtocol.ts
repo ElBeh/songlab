@@ -181,6 +181,7 @@ export interface SongDataPayload {
 export interface SetlistSyncPayload {
   songs: SongSyncPayload[];
   songOrder: unknown[];  // SetlistItem[] – kept generic for server passthrough
+  activeSetlistName: string | null;
 }
 
 // --- Session snapshot (sent to late joiners) ---

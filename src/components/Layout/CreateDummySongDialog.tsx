@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
+import { useSetlistStore } from '../../stores/useSetlistStore';
 
 interface CreateDummySongDialogProps {
   onClose: () => void;
@@ -67,6 +68,7 @@ export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps) {
     };
 
     await addSong(song);
+    await useSetlistStore.getState().addSongToActiveSetlist(song.id);
     await setActiveSongId(song.id);
     await useTabStore.getState().loadTabsForSong(song.id);
     await useTabStore.getState().loadSheetsForSong(song.id);

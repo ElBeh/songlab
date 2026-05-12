@@ -4,6 +4,7 @@ import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { ChevronLeft, ChevronRight, X, Music, FilePlus } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
+import { useSetlistStore } from '../../stores/useSetlistStore';
 
 interface SongTabsProps {
   onAddSong: () => void;
@@ -12,13 +13,14 @@ interface SongTabsProps {
 }
 
 export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps) {
-  const getOrderedSongs = useSongStore((state) => state.getOrderedSongs);
+  const getOrderedSongs = useSetlistStore((state) => state.getOrderedSongs);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const removeSong = useSongStore((state) => state.removeSong);
 
   // Subscribe to songOrder so tabs re-render on reorder
-  useSongStore((state) => state.songOrder);
+  useSetlistStore((state) => state.setlists);
+  useSetlistStore((state) => state.activeSetlistId);
 
   const updateSong = useSongStore((state) => state.updateSong);
 
@@ -161,6 +163,7 @@ export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTab
                 onClick={(e) => {
                   e.stopPropagation();
                   addToast(`Removed "${song.title}"`, 'info');
+                  useSetlistStore.getState().removeSongFromAllSetlists(song.id);
                   removeSong(song.id);
                   setConfirmDeleteId(null);
                 }}

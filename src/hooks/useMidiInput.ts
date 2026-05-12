@@ -19,6 +19,7 @@ import { useSongStore } from '../stores/useSongStore';
 import { useLoopStore } from '../stores/useLoopStore';
 import { useTempoStore } from '../stores/useTempoStore';
 import { navigateSong, navigateToSong } from '../utils/songNavigation';
+import { useSetlistStore } from '../stores/useSetlistStore';
 
 interface UseMidiInputOptions {
   handlePlayPause: () => void;
@@ -108,7 +109,7 @@ export function useMidiInput({
 
     // Program Change: navigate to song by setlist index (0-based)
     if (message.type === 'program_change') {
-      const { songOrder } = useSongStore.getState();
+       const songOrder = useSetlistStore.getState().getActiveItems();
       const songItems = songOrder.filter((item) => item.type === 'song');
       const target = songItems[message.note];
       if (target && target.type === 'song') {

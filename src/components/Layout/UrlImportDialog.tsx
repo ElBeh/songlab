@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { importSetlistFromUrl } from '../../services/exportService';
+import { importSetlistFromUrl, type SetlistImportResult } from '../../services/exportService';
 import { getConfig, setConfig } from '../../services/db';
 import { useSyncStore } from '../../stores/useSyncStore';
 import { useToastStore } from '../../stores/useToastStore';
-import type { SongData } from '../../types';
 
 interface UrlImportDialogProps {
   onClose: () => void;
-  onImported: (songs: SongData[]) => void;
+  onImported: (result: SetlistImportResult) => void;
 }
 
 const CONFIG_KEY_SERVER_URL = 'importServerUrl';
@@ -57,16 +56,16 @@ export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps) {
       await setConfig(CONFIG_KEY_SERVER_URL, serverUrl.trim());
       await setConfig(CONFIG_KEY_SETLIST_URL, setlistUrl.trim());
 
-      const songs = await importSetlistFromUrl(serverUrl.trim(), setlistUrl.trim());
+      const result = await importSetlistFromUrl(serverUrl.trim(), setlistUrl.trim());
 
-      if (songs.length === 0) {
+      if (result.songs.length === 0) {
         setError('Setlist contained no songs');
         setLoading(false);
         return;
       }
 
-      addToast(`Imported ${songs.length} song(s) from URL`, 'success');
-      onImported(songs);
+      addToast(`Imported ${result.songs.length} song(s) from URL`, 'success');
+      onImported(result);
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed';

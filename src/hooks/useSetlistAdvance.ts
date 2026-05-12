@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSongStore } from '../stores/useSongStore';
 import { useModeStore } from '../stores/useModeStore';
 import { useTabStore } from '../stores/useTabStore';
+import { useSetlistStore } from '../stores/useSetlistStore';
 
 interface UseSetlistAdvanceOptions {
   /** Trigger playback of the new song after advancing */
@@ -56,7 +57,8 @@ export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): Setlist
    * consecutive pause items between the current song and the next.
    */
   const findNextSong = useCallback(() => {
-    const { songOrder, activeSongId } = useSongStore.getState();
+    const { activeSongId } = useSongStore.getState();
+    const songOrder = useSetlistStore.getState().getActiveItems();
     if (!activeSongId) return null;
 
     // Find current song's index in songOrder

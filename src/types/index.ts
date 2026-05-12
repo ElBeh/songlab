@@ -64,11 +64,6 @@ export interface SectionTab {
   updatedAt: number;
 }
 
-export interface SetlistEntry {
-  songId: string;
-  title: string;
-}
-
 export interface SetlistPause {
   type: 'pause';
   id: string;
@@ -86,7 +81,8 @@ export type SetlistItem = SetlistSong | SetlistPause;
 export interface Setlist {
   id: string;
   name: string;
-  entries: SetlistEntry[];
+  items: SetlistItem[];
+  isDefault: boolean;
   createdAt: number;
 }
 

@@ -1,13 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
+import { useSetlistStore } from '../../stores/useSetlistStore';
 import { useModeStore } from '../../stores/useModeStore';
 import { MarkerList } from '../Markers/MarkerList';
 import { exportSong, importSong, exportSetlist, importSetlist } from '../../services/exportService';
 import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { UrlImportDialog } from './UrlImportDialog';
+import { formatTime } from '../../utils/formatTime';
 import { ChevronsRight, ChevronsLeft, ChevronRight, ChevronUp, ChevronDown, Pencil, X, Download, Upload } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
+import { useShallow } from 'zustand/shallow';
 
 interface SidebarProps {
   onSeekTo: (time: number) => void;
@@ -32,7 +35,30 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const [showUrlImport, setShowUrlImport] = useState(false);
   const importExportRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Setlist management state
+  const [showSetlistMenu, setShowSetlistMenu] = useState(false);
+  const [renamingSetlist, setRenamingSetlist] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [confirmDeleteSetlist, setConfirmDeleteSetlist] = useState(false);
+  const [creatingSetlist, setCreatingSetlist] = useState(false);
+  const [newSetlistName, setNewSetlistName] = useState('');
+  const setlistMenuRef = useRef<HTMLDivElement>(null);
+
+  // Song context menu state
+  const [songMenuId, setSongMenuId] = useState<string | null>(null);
+  const songMenuRef = useRef<HTMLDivElement>(null);
+
+  // Song delete confirmation state
+  const [confirmDeleteSongId, setConfirmDeleteSongId] = useState<string | null>(null);
+
+  // Song search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Song rename state
+  const [editingSongId, setEditingSongId] = useState<string | null>(null);
+  const [editingSongValue, setEditingSongValue] = useState('');
+
+  // Close import/export dropdown on outside click
   useEffect(() => {
     if (!showImportExport) return;
     const handleClick = (e: MouseEvent) => {
@@ -45,24 +71,61 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showImportExport]);
 
+  // Close setlist dropdown on outside click
+  useEffect(() => {
+    if (!showSetlistMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (setlistMenuRef.current && !setlistMenuRef.current.contains(e.target as Node)) {
+        setShowSetlistMenu(false);
+        setConfirmDeleteSetlist(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showSetlistMenu]);
+
+  // Close song context menu on outside click
+  useEffect(() => {
+    if (!songMenuId) return;
+    const handleClick = (e: MouseEvent) => {
+      if (songMenuRef.current && !songMenuRef.current.contains(e.target as Node)) {
+        setSongMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [songMenuId]);
+
+  // --- Song store ---
   const songs = useSongStore((state) => state.songs);
-  const songOrder = useSongStore((state) => state.songOrder);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const markersBySong = useSongStore((state) => state.markersBySong);
   const getActiveSong = useSongStore((state) => state.getActiveSong);
-  const getOrderedSongs = useSongStore((state) => state.getOrderedSongs);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const addSong = useSongStore((state) => state.addSong);
   const removeSong = useSongStore((state) => state.removeSong);
-  const moveItem = useSongStore((state) => state.moveItem);
-  const reorderItem = useSongStore((state) => state.reorderItem);
-  const addPause = useSongStore((state) => state.addPause);
-  const updatePause = useSongStore((state) => state.updatePause);
-  const removePause = useSongStore((state) => state.removePause);
   const updateSong = useSongStore((state) => state.updateSong);
 
-  const [editingSongId, setEditingSongId] = useState<string | null>(null);
-  const [editingSongValue, setEditingSongValue] = useState('');
+  // --- Setlist store ---
+  const allSetlists = useSetlistStore((state) => state.setlists);
+  const activeSetlistId = useSetlistStore((state) => state.activeSetlistId);
+  const activeSetlist = allSetlists.find((s) => s.id === activeSetlistId);
+  const songOrder = useSetlistStore(useShallow((state) => {
+    const active = state.setlists.find((s) => s.id === state.activeSetlistId);
+    return active?.items ?? [];
+  }));
+  const getOrderedSongs = useSetlistStore((state) => state.getOrderedSongs);
+  const moveItem = useSetlistStore((state) => state.moveItem);
+  const reorderItem = useSetlistStore((state) => state.reorderItem);
+  const addPause = useSetlistStore((state) => state.addPause);
+  const updatePause = useSetlistStore((state) => state.updatePause);
+  const removePause = useSetlistStore((state) => state.removePause);
+  const switchSetlist = useSetlistStore((state) => state.switchSetlist);
+  const createSetlist = useSetlistStore((state) => state.createSetlist);
+  const renameSetlist = useSetlistStore((state) => state.renameSetlist);
+  const duplicateSetlist = useSetlistStore((state) => state.duplicateSetlist);
+  const deleteSetlist = useSetlistStore((state) => state.deleteSetlist);
+  const totalDuration = useSetlistStore.getState().getTotalDuration();
 
   const activeSong = getActiveSong();
   const orderedSongs = getOrderedSongs();
@@ -70,9 +133,56 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const isSession = useModeStore((state) => state.mode) === 'session';
 
   // Build a song lookup for rendering
-  const songMap = new Map(songs.map((s) => [s.id, s]));
+  const songMap = useMemo(() => new Map(songs.map((s) => [s.id, s])), [songs]);
   const markerCount = activeSongId ? (markersBySong[activeSongId] ?? []).length : 0;
   const songCount = songOrder.filter((i) => i.type === 'song').length;
+
+  // --- Search: find matching songs across all setlists ---
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return null;
+
+    const results: { songId: string; title: string; setlistName: string; setlistId: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const sl of allSetlists) {
+      for (const item of sl.items) {
+        if (item.type !== 'song') continue;
+        const song = songMap.get(item.songId);
+        if (!song) continue;
+        if (!song.title.toLowerCase().includes(q)) continue;
+        const key = `${item.songId}:${sl.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        results.push({
+          songId: item.songId,
+          title: song.title,
+          setlistName: sl.name,
+          setlistId: sl.id,
+        });
+      }
+    }
+    return results;
+  }, [searchQuery, allSetlists, songMap]);
+
+  // --- Song delete handler with cross-setlist warning ---
+  const handleDeleteSong = useCallback((songId: string) => {
+    const song = songMap.get(songId);
+    if (!song) return;
+
+    const referencedIn = useSetlistStore.getState().getSetlistsContainingSong(songId);
+    const otherSetlists = referencedIn.filter((s) => s.id !== activeSetlistId);
+
+    if (otherSetlists.length > 0 && confirmDeleteSongId !== songId) {
+      setConfirmDeleteSongId(songId);
+      return;
+    }
+
+    useSetlistStore.getState().removeSongFromAllSetlists(songId);
+    removeSong(songId);
+    addToast(`Removed "${song.title}"`, 'info');
+    setConfirmDeleteSongId(null);
+  }, [songMap, activeSetlistId, confirmDeleteSongId, removeSong, addToast]);
 
   // Commit song title rename
   const commitSongRename = async (song: typeof songs[0]) => {
@@ -100,6 +210,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
       try {
         const song = await importSong(file);
         await addSong(song);
+        await useSetlistStore.getState().addSongToActiveSetlist(song.id);
         await setActiveSongId(song.id);
         await useTabStore.getState().loadTabsForSong(song.id);
         await useTabStore.getState().loadSheetsForSong(song.id);
@@ -114,11 +225,11 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
 
   const handleExportSetlist = async () => {
     if (!setlistName.trim()) return;
-    await exportSetlist(setlistName.trim(), orderedSongs);
+    await exportSetlist(setlistName.trim(), songOrder, orderedSongs);
     addToast(`Exported setlist "${setlistName.trim()}"`, 'success');
   };
 
-  const handleImportSetlist = () => {
+const handleImportSetlist = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -126,16 +237,18 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const importedSongs = await importSetlist(file);
-        for (const song of importedSongs) {
+        const result = await importSetlist(file);
+        for (const song of result.songs) {
           await addSong(song);
         }
-        if (importedSongs.length > 0) {
-          await setActiveSongId(importedSongs[0].id);
-          await useTabStore.getState().loadTabsForSong(importedSongs[0].id);
-          await useTabStore.getState().loadSheetsForSong(importedSongs[0].id);
+        await createSetlist(result.name);
+        await useSetlistStore.getState().setActiveItems(result.items);
+        if (result.songs.length > 0) {
+          await setActiveSongId(result.songs[0].id);
+          await useTabStore.getState().loadTabsForSong(result.songs[0].id);
+          await useTabStore.getState().loadSheetsForSong(result.songs[0].id);
         }
-        addToast(`Imported ${importedSongs.length} song(s)`, 'success');
+        addToast(`Imported ${result.songs.length} song(s)`, 'success');
       } catch (err) {
         console.error('Setlist import failed:', err);
         addToast('Setlist import failed', 'error');
@@ -157,7 +270,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const handleDragStart = useCallback((e: React.DragEvent, idx: number) => {
     setDragIndex(idx);
     e.dataTransfer.effectAllowed = 'move';
-    // Minimal data required for Firefox DnD support
     e.dataTransfer.setData('text/plain', String(idx));
   }, []);
 
@@ -298,13 +410,215 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
         {/* Content */}
         {setlistOpen && (
           <div className='flex flex-col p-4 gap-4'>
-            {/* Setlist items (songs + pauses) */}
+            {/* Setlist selector row */}
+            {!isSession && (
+              <div className='relative' ref={setlistMenuRef}>
+                <div className='flex items-center gap-2'>
+                  {renamingSetlist ? (
+                    <input
+                      type='text'
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={() => {
+                        if (renameValue.trim() && activeSetlistId) {
+                          renameSetlist(activeSetlistId, renameValue.trim());
+                        }
+                        setRenamingSetlist(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renameValue.trim() && activeSetlistId) {
+                          renameSetlist(activeSetlistId, renameValue.trim());
+                          setRenamingSetlist(false);
+                        }
+                        if (e.key === 'Escape') setRenamingSetlist(false);
+                      }}
+                      autoFocus
+                      className='flex-1 bg-slate-900 text-slate-200 text-xs rounded px-2 py-1
+                                 border border-indigo-500 outline-none font-mono'
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setShowSetlistMenu((v) => !v)}
+                      className='flex-1 flex items-center gap-1.5 px-2 py-1 text-xs font-mono
+                                 text-slate-300 bg-slate-800 hover:bg-slate-700 rounded
+                                 transition-colors text-left'
+                    >
+                      <span className='flex-1 truncate'>
+                        {activeSetlist?.name ?? 'No setlist'}
+                      </span>
+                      <ChevronDown size={12} className='text-slate-500 shrink-0' />
+                    </button>
+                  )}
+                  {totalDuration > 0 && !renamingSetlist && (
+                    <span className='text-[10px] font-mono text-slate-600 whitespace-nowrap'>
+                      {formatTime(totalDuration)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Setlist dropdown menu */}
+                {showSetlistMenu && (
+                  <div className='absolute left-0 right-0 top-full mt-1 bg-slate-800 border
+                                  border-slate-600 rounded-lg shadow-xl py-1 z-50'>
+                    {allSetlists.map((sl) => (
+                      <button
+                        key={sl.id}
+                        onClick={() => {
+                          switchSetlist(sl.id);
+                          setShowSetlistMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs font-mono
+                                   transition-colors ${
+                                     sl.id === activeSetlistId
+                                       ? 'text-indigo-400 bg-slate-700/50'
+                                       : 'text-slate-300 hover:bg-slate-700'
+                                   }`}
+                      >
+                        {sl.name}
+                      </button>
+                    ))}
+                    <div className='border-t border-slate-700 my-1' />
+
+                    {creatingSetlist ? (
+                      <div className='px-3 py-1.5'>
+                        <input
+                          type='text'
+                          placeholder='Setlist name...'
+                          value={newSetlistName}
+                          onChange={(e) => setNewSetlistName(e.target.value)}
+                          onBlur={() => setCreatingSetlist(false)}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter' && newSetlistName.trim()) {
+                              await createSetlist(newSetlistName.trim());
+                              setNewSetlistName('');
+                              setCreatingSetlist(false);
+                              setShowSetlistMenu(false);
+                            }
+                            if (e.key === 'Escape') setCreatingSetlist(false);
+                          }}
+                          autoFocus
+                          className='w-full bg-slate-900 text-slate-200 text-xs rounded px-2
+                                     py-1 border border-slate-600 focus:border-indigo-500
+                                     outline-none font-mono'
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setCreatingSetlist(true)}
+                        className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                   text-slate-400 hover:bg-slate-700 transition-colors'
+                      >
+                        + New Setlist
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setRenameValue(activeSetlist?.name ?? '');
+                        setRenamingSetlist(true);
+                        setShowSetlistMenu(false);
+                      }}
+                      className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                 text-slate-400 hover:bg-slate-700 transition-colors'
+                    >
+                      Rename
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        if (activeSetlistId) {
+                          await duplicateSetlist(activeSetlistId);
+                          setShowSetlistMenu(false);
+                        }
+                      }}
+                      className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                 text-slate-400 hover:bg-slate-700 transition-colors'
+                    >
+                      Duplicate
+                    </button>
+
+                    {allSetlists.length > 1 && (
+                      confirmDeleteSetlist ? (
+                        <button
+                          onClick={async () => {
+                            if (activeSetlistId) {
+                              await deleteSetlist(activeSetlistId);
+                              setConfirmDeleteSetlist(false);
+                              setShowSetlistMenu(false);
+                            }
+                          }}
+                          className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                     text-red-400 hover:bg-slate-700 transition-colors'
+                        >
+                          Confirm delete?
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteSetlist(true)}
+                          className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                     text-slate-400 hover:bg-slate-700 transition-colors'
+                        >
+                          Delete
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Song search */}
+            <input
+              type='text'
+              placeholder='Search songs...'
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className='bg-slate-900 text-slate-200 text-xs rounded px-2 py-1.5
+                         border border-slate-700 focus:border-indigo-500
+                         outline-none font-mono placeholder-slate-600'
+            />
+
+            {/* Search results (cross-setlist) */}
+            {searchResults !== null ? (
+              <div className='flex flex-col gap-0.5'>
+                {searchResults.length === 0 && (
+                  <p className='text-xs text-slate-600 font-mono'>No matches.</p>
+                )}
+                {searchResults.map((result) => (
+                  <button
+                    key={`${result.songId}:${result.setlistId}`}
+                    onClick={async () => {
+                      if (result.setlistId !== activeSetlistId) {
+                        switchSetlist(result.setlistId);
+                      }
+                      await setActiveSongId(result.songId);
+                      await useTabStore.getState().loadTabsForSong(result.songId);
+                      await useTabStore.getState().loadSheetsForSong(result.songId);
+                      setSearchQuery('');
+                    }}
+                    className={`flex flex-col px-2 py-1.5 rounded text-left transition-colors
+                               hover:bg-slate-800 ${
+                                 result.songId === activeSongId
+                                   ? 'bg-slate-800 text-slate-100'
+                                   : 'text-slate-400'
+                               }`}
+                  >
+                    <span className='text-xs font-mono truncate'>{result.title}</span>
+                    {result.setlistId !== activeSetlistId && (
+                      <span className='text-[10px] font-mono text-slate-600'>
+                        in {result.setlistName}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+            /* Normal setlist view */
             <div className='flex flex-col gap-0.5'>
               {songOrder.length === 0 && (
                 <p className='text-xs text-slate-600 font-mono'>No songs loaded.</p>
               )}
               {songOrder.map((item, idx) => {
-                // Song position number (pauses don't count)
                 const songNumber = item.type === 'song'
                   ? songOrder.filter((it, i) => i <= idx && it.type === 'song').length
                   : 0;
@@ -312,6 +626,12 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 if (item.type === 'song') {
                   const song = songMap.get(item.songId);
                   if (!song) return null;
+
+                  const otherSetlists = confirmDeleteSongId === song.id
+                    ? useSetlistStore.getState().getSetlistsContainingSong(song.id)
+                        .filter((s) => s.id !== activeSetlistId)
+                    : [];
+
                   return (
                     <div
                       key={item.songId}
@@ -320,11 +640,9 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                       onDragOver={isViewer ? undefined : (e) => handleDragOver(e, idx)}
                       onDrop={isViewer ? undefined : (e) => handleDrop(e, idx)}
                       onDragEnd={isViewer ? undefined : handleDragEnd}
-                      className='flex items-center gap-1 px-2 py-1.5 rounded
-                                 transition-colors group'
+                      className='flex flex-col rounded transition-colors group'
                       style={{
                         backgroundColor: song.id === activeSongId ? '#1e293b' : 'transparent',
-                        color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8',
                         opacity: dragIndex === idx ? 0.4 : 1,
                         borderTop: dropIndex === idx && dragIndex !== null && dragIndex > idx
                           ? '2px solid #6366f1' : '2px solid transparent',
@@ -333,90 +651,171 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                         cursor: isViewer ? 'default' : 'grab',
                       }}
                     >
-                      {/* Reorder buttons */}
-                      {!isViewer && (
-                      <div className='flex flex-col opacity-0 group-hover:opacity-100
-                                      transition-opacity'>
+                      <div className='flex items-center gap-1 px-2 py-1.5'
+                           style={{ color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8' }}>
+                        {/* Reorder buttons */}
+                        {!isViewer && (
+                        <div className='flex flex-col opacity-0 group-hover:opacity-100
+                                        transition-opacity'>
+                          <button
+                            onClick={() => moveItem(idx, 'up')}
+                            disabled={idx === 0}
+                            className='text-[10px] leading-none text-slate-500 hover:text-slate-200
+                                       disabled:opacity-20 disabled:cursor-not-allowed
+                                       transition-colors px-0.5'
+                            title='Move up'
+                          >
+                            <ChevronUp size={ICON_SIZE.ACCORDION} />
+                          </button>
+                          <button
+                            onClick={() => moveItem(idx, 'down')}
+                            disabled={idx === songOrder.length - 1}
+                            className='text-[10px] leading-none text-slate-500 hover:text-slate-200
+                                       disabled:opacity-20 disabled:cursor-not-allowed
+                                       transition-colors px-0.5'
+                            title='Move down'
+                          >
+                            <ChevronDown size={ICON_SIZE.ACCORDION} />
+                          </button>
+                        </div>
+                        )}
+
+                        {/* Song title */}
+                        {editingSongId === song.id ? (
+                          <input
+                            value={editingSongValue}
+                            onChange={(e) => setEditingSongValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitSongRename(song);
+                              if (e.key === 'Escape') setEditingSongId(null);
+                            }}
+                            onBlur={() => commitSongRename(song)}
+                            className='flex-1 bg-slate-700 text-slate-100 text-xs font-mono
+                                       px-1 rounded outline-none border border-indigo-500
+                                       min-w-0'
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className='flex-1 text-xs font-mono truncate cursor-pointer'
+                            onClick={isViewer ? undefined : async () => {
+                              await setActiveSongId(song.id);
+                              await useTabStore.getState().loadTabsForSong(song.id);
+                              await useTabStore.getState().loadSheetsForSong(song.id);
+                            }}
+                          >
+                            <span className='text-slate-500 mr-1.5'>{songNumber}.</span>
+                            {song.title}
+                          </span>
+                        )}
+
+                        {/* Rename button */}
+                        {!isViewer && (
                         <button
-                          onClick={() => moveItem(idx, 'up')}
-                          disabled={idx === 0}
-                          className='text-[10px] leading-none text-slate-500 hover:text-slate-200
-                                     disabled:opacity-20 disabled:cursor-not-allowed
-                                     transition-colors px-0.5'
-                          title='Move up'
+                          onClick={() => {
+                            setEditingSongId(song.id);
+                            setEditingSongValue(song.title);
+                          }}
+                          className='text-slate-600 hover:text-indigo-400 transition-colors
+                                     text-sm font-mono opacity-0 group-hover:opacity-100'
+                          title='Rename song'
                         >
-                          <ChevronUp size={ICON_SIZE.ACCORDION} />
+                          <Pencil size={ICON_SIZE.ACTION} />
                         </button>
+                        )}
+
+                        {/* Context menu (copy/move to setlist) */}
+                        {!isViewer && allSetlists.length > 1 && (
+                        <div className='relative'
+                             ref={songMenuId === song.id ? songMenuRef : undefined}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSongMenuId(songMenuId === song.id ? null : song.id);
+                            }}
+                            className='text-slate-600 hover:text-slate-300 transition-colors
+                                       text-xs opacity-0 group-hover:opacity-100 font-mono'
+                            title='Copy or move to another setlist'
+                          >
+                            ...
+                          </button>
+                          {songMenuId === song.id && (
+                            <div className='absolute right-0 top-full mt-1 bg-slate-800 border
+                                            border-slate-600 rounded-lg shadow-xl py-1 z-50
+                                            min-w-[140px]'>
+                              {allSetlists
+                                .filter((sl) => sl.id !== activeSetlistId)
+                                .map((sl) => (
+                                  <div key={sl.id} className='flex flex-col'>
+                                    <button
+                                      onClick={async () => {
+                                        await useSetlistStore.getState()
+                                          .copySongToSetlist(song.id, sl.id);
+                                        addToast(`Copied to "${sl.name}"`, 'info');
+                                        setSongMenuId(null);
+                                      }}
+                                      className='w-full text-left px-3 py-1 text-xs font-mono
+                                                 text-slate-300 hover:bg-slate-700
+                                                 transition-colors'
+                                    >
+                                      Copy to {sl.name}
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        await useSetlistStore.getState()
+                                          .moveSongToSetlist(song.id, sl.id);
+                                        addToast(`Moved to "${sl.name}"`, 'info');
+                                        setSongMenuId(null);
+                                      }}
+                                      className='w-full text-left px-3 py-1 text-xs font-mono
+                                                 text-slate-400 hover:bg-slate-700
+                                                 transition-colors'
+                                    >
+                                      Move to {sl.name}
+                                    </button>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                        )}
+
+                        {/* Delete button */}
+                        {!isViewer && (
                         <button
-                          onClick={() => moveItem(idx, 'down')}
-                          disabled={idx === songOrder.length - 1}
-                          className='text-[10px] leading-none text-slate-500 hover:text-slate-200
-                                     disabled:opacity-20 disabled:cursor-not-allowed
-                                     transition-colors px-0.5'
-                          title='Move down'
+                          onClick={() => handleDeleteSong(song.id)}
+                          className='text-slate-600 hover:text-red-400 transition-colors text-xs
+                                     opacity-0 group-hover:opacity-100'
+                          title='Remove song'
                         >
-                          <ChevronDown size={ICON_SIZE.ACCORDION} />
+                          <X size={ICON_SIZE.ACTION} />
                         </button>
+                        )}
                       </div>
-                      )}
 
-                      {/* Song title */}
-                      {editingSongId === song.id ? (
-                        <input
-                          value={editingSongValue}
-                          onChange={(e) => setEditingSongValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') commitSongRename(song);
-                            if (e.key === 'Escape') setEditingSongId(null);
-                          }}
-                          onBlur={() => commitSongRename(song)}
-                          className='flex-1 bg-slate-700 text-slate-100 text-xs font-mono
-                                     px-1 rounded outline-none border border-indigo-500
-                                     min-w-0'
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          className='flex-1 text-xs font-mono truncate cursor-pointer'
-                          onClick={isViewer ? undefined : async () => {
-                            await setActiveSongId(song.id);
-                            await useTabStore.getState().loadTabsForSong(song.id);
-                            await useTabStore.getState().loadSheetsForSong(song.id);
-                          }}
-                        >
-                          <span className='text-slate-500 mr-1.5'>{songNumber}.</span>
-                          {song.title}
-                        </span>
-                      )}
-
-                      {/* Rename button */}
-                      {!isViewer && (
-                      <button
-                        onClick={() => {
-                          setEditingSongId(song.id);
-                          setEditingSongValue(song.title);
-                        }}
-                        className='text-slate-600 hover:text-indigo-400 transition-colors
-                                   text-sm font-mono opacity-0 group-hover:opacity-100'
-                        title='Rename song'
-                      >
-                        <Pencil size={ICON_SIZE.ACTION} />
-                      </button>
-                      )}
-
-                      {/* Delete button */}
-                      {!isViewer && (
-                      <button
-                        onClick={() => {
-                          addToast(`Removed "${song.title}"`, 'info');
-                          removeSong(song.id);
-                        }}
-                        className='text-slate-600 hover:text-red-400 transition-colors text-xs
-                                   opacity-0 group-hover:opacity-100'
-                        title='Remove song'
-                      >
-                        <X size={ICON_SIZE.ACTION} />
-                      </button>
+                      {/* Delete warning: song referenced in other setlists */}
+                      {confirmDeleteSongId === song.id && otherSetlists.length > 0 && (
+                        <div className='px-2 pb-1.5 flex flex-col gap-1'>
+                          <span className='text-[10px] font-mono text-amber-400'>
+                            Also in: {otherSetlists.map((s) => s.name).join(', ')}
+                          </span>
+                          <div className='flex gap-2'>
+                            <button
+                              onClick={() => handleDeleteSong(song.id)}
+                              className='text-[10px] font-mono text-red-400
+                                         hover:text-red-300 transition-colors'
+                            >
+                              Delete anyway
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteSongId(null)}
+                              className='text-[10px] font-mono text-slate-500
+                                         hover:text-slate-300 transition-colors'
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
@@ -539,6 +938,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 </button>
               )}
             </div>
+            )}
           </div>
         )}
       </div>
@@ -658,14 +1058,16 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
       {showUrlImport && (
         <UrlImportDialog
           onClose={() => setShowUrlImport(false)}
-          onImported={async (importedSongs) => {
-            for (const song of importedSongs) {
+          onImported={async (result) => {
+            for (const song of result.songs) {
               await addSong(song);
             }
-            if (importedSongs.length > 0) {
-              await setActiveSongId(importedSongs[0].id);
-              await useTabStore.getState().loadTabsForSong(importedSongs[0].id);
-              await useTabStore.getState().loadSheetsForSong(importedSongs[0].id);
+            await createSetlist(result.name);
+            await useSetlistStore.getState().setActiveItems(result.items);
+            if (result.songs.length > 0) {
+              await setActiveSongId(result.songs[0].id);
+              await useTabStore.getState().loadTabsForSong(result.songs[0].id);
+              await useTabStore.getState().loadSheetsForSong(result.songs[0].id);
             }
           }}
         />

@@ -23,6 +23,7 @@ import {
   deleteGpFile as dbDeleteGpFile,
 } from '../services/db';
 import type { SongData, SectionMarker, SectionTab, TabSheet } from '../types';
+import { useSetlistStore } from '../stores/useSetlistStore';
 
 type SyncSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -175,7 +176,8 @@ export function useSyncSession({
       runAsRemote(() => {
         const songs = payload.songs as SongData[];
         const songOrder = payload.songOrder as import('../types').SetlistItem[];
-        useSongStore.setState({ songs, songOrder });
+        useSongStore.setState({ songs });
+        useSetlistStore.getState().setActiveItems(songOrder);
       });
     }
 

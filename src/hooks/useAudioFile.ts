@@ -4,6 +4,7 @@ import { useTabStore } from '../stores/useTabStore';
 import { analyzeRmsGain } from '../services/audioAnalysis';
 import { saveAudioFile, getAudioFile, getSong } from '../services/db';
 import type { SongData } from '../types';
+import { useSetlistStore } from '../stores/useSetlistStore';
 
 interface UseAudioFileOptions {
   /** Called after a new file is loaded, before wavesurfer picks it up */
@@ -69,6 +70,7 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
     await saveAudioFile(song.id, arrayBuffer, file.type || 'audio/mpeg');
 
     await addSong(song);
+    await useSetlistStore.getState().addSongToActiveSetlist(song.id);
     await setActiveSongId(song.id);
     await loadTabsForSong(song.id);
     await useTabStore.getState().loadSheetsForSong(song.id);
