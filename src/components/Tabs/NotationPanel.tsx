@@ -73,11 +73,11 @@ export function NotationPanel({
 }: NotationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
-  const layoutRef = useRef<'page' | 'horizontal'>('page');
+  const layoutRef = useRef<'page' | 'horizontal'>('horizontal');
 
   const [tracks, setTracks] = useState<{ index: number; name: string; tuning: number[] }[]>([]);
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
-  const [layout, setLayout] = useState<'page' | 'horizontal'>('page');
+  const [layout, setLayout] = useState<'page' | 'horizontal'>('horizontal');
   const [scale, setScale] = useState(0.5);
   const [synthLoading, setSynthLoading] = useState(false);
   const [showMixer, setShowMixer] = useState(false);

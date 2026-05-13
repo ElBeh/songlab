@@ -41,8 +41,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 3:export type AppMode = 'edit' | 'session';
 - 14:export const useModeStore = create<ModeStore>((set)
 
-### useSetlistStore.ts (409 lines)
-- 77:export const useSetlistStore = create<SetlistStore>((set, get)
+### useSetlistStore.ts (434 lines)
+- 79:export const useSetlistStore = create<SetlistStore>((set, get)
 - **deps**: ../services/db,../types
 
 ### useSongStore.ts (216 lines)
@@ -273,7 +273,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
 
-### Sidebar.tsx (1083 lines)
+### Sidebar.tsx (1116 lines)
 - 25:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
 - **deps**: ../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/formatTime,../../utils/iconSizes
 

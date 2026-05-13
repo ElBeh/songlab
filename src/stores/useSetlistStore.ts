@@ -5,6 +5,7 @@ import {
   saveSetlist,
   deleteSetlist as dbDeleteSetlist,
   getConfig,
+  setConfig,
 } from '../services/db';
 import { useToastStore } from './useToastStore';
 import { useSongStore } from './useSongStore';
@@ -44,6 +45,7 @@ interface SetlistStore {
   duplicateSetlist: (id: string) => Promise<string>;
   deleteSetlist: (id: string) => Promise<void>;
   switchSetlist: (id: string) => void;
+  moveSetlist: (id: string, direction: 'up' | 'down') => Promise<void>;
 
   // --- Item actions (operate on active setlist) ---
   addSongToActiveSetlist: (songId: string) => Promise<void>;
@@ -128,8 +130,16 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
       const existing = await getAllSetlists();
 
       if (existing.length > 0) {
-        // Use first setlist as active (per decision: always open first)
-        set({ setlists: existing, activeSetlistId: existing[0].id });
+        // Sort by persisted order if available
+        const order = await getConfig<string[]>('setlistOrder');
+        const sorted = order
+          ? [...existing].sort((a, b) => {
+              const ia = order.indexOf(a.id);
+              const ib = order.indexOf(b.id);
+              return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
+            })
+          : existing;
+        set({ setlists: sorted, activeSetlistId: sorted[0].id });
         return;
       }
 
@@ -219,6 +229,21 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
 
   switchSetlist: (id) => {
     set({ activeSetlistId: id });
+  },
+
+  moveSetlist: async (id, direction) => {
+    const { setlists } = get();
+    const index = setlists.findIndex((s) => s.id === id);
+    if (index === -1) return;
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= setlists.length) return;
+
+    const reordered = [...setlists];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+
+    set({ setlists: reordered });
+    await setConfig('setlistOrder', reordered.map((s) => s.id));
   },
 
   // --- Item actions ---

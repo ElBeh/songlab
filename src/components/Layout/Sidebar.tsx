@@ -125,6 +125,7 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const duplicateSetlist = useSetlistStore((state) => state.duplicateSetlist);
   const deleteSetlist = useSetlistStore((state) => state.deleteSetlist);
   const totalDuration = useSetlistStore.getState().getTotalDuration();
+  const moveSetlist = useSetlistStore((state) => state.moveSetlist);
 
   const activeSong = getActiveSong();
   const orderedSongs = getOrderedSongs();
@@ -463,22 +464,54 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 {showSetlistMenu && (
                   <div className='absolute left-0 right-0 top-full mt-1 bg-slate-800 border
                                   border-slate-600 rounded-lg shadow-xl py-1 z-50'>
-                    {allSetlists.map((sl) => (
-                      <button
+                {allSetlists.map((sl, index) => (
+                      <div
                         key={sl.id}
-                        onClick={() => {
-                          switchSetlist(sl.id);
-                          setShowSetlistMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-1.5 text-xs font-mono
+                        className={`flex items-center px-3 py-1.5 text-xs font-mono
                                    transition-colors ${
                                      sl.id === activeSetlistId
                                        ? 'text-indigo-400 bg-slate-700/50'
                                        : 'text-slate-300 hover:bg-slate-700'
                                    }`}
                       >
-                        {sl.name}
-                      </button>
+                        <button
+                          onClick={() => {
+                            switchSetlist(sl.id);
+                            setShowSetlistMenu(false);
+                          }}
+                          className='flex-1 text-left truncate'
+                        >
+                          {sl.name}
+                        </button>
+                        {canEdit && allSetlists.length > 1 && (
+                          <span className='flex gap-0.5 ml-2 shrink-0'>
+                            <button
+                              disabled={index === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveSetlist(sl.id, 'up');
+                              }}
+                              className='text-slate-500 hover:text-slate-300 disabled:opacity-20
+                                         disabled:cursor-not-allowed transition-colors'
+                              aria-label={`Move ${sl.name} up`}
+                            >
+                              <ChevronUp size={ICON_SIZE.ACTION} />
+                            </button>
+                            <button
+                              disabled={index === allSetlists.length - 1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveSetlist(sl.id, 'down');
+                              }}
+                              className='text-slate-500 hover:text-slate-300 disabled:opacity-20
+                                         disabled:cursor-not-allowed transition-colors'
+                              aria-label={`Move ${sl.name} down`}
+                            >
+                              <ChevronDown size={ICON_SIZE.ACTION} />
+                            </button>
+                          </span>
+                        )}
+                      </div>
                     ))}
 
                     {canEdit && (
