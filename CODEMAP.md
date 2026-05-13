@@ -261,7 +261,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1202 lines)
+### AppShell.tsx (1207 lines)
 - 55:export default function AppShell()
 - **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
 
@@ -331,8 +331,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 10:export function TempoIndicator()
 - **deps**: ../Common/Popover,../../stores/useTempoStore
 
-### TransportControls.tsx (134 lines)
-- 40:export function TransportControls({
+### TransportControls.tsx (176 lines)
+- 42:export function TransportControls({
 - **deps**: ../../utils/iconSizes
 
 ### VolumeControl.tsx (69 lines)

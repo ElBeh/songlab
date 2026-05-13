@@ -936,6 +936,11 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       songLoop={songLoop}
                       onSongLoopToggle={toggleSongLoop}
                       onReset={handleReset}
+                      canEditDuration={isPureDummy}
+                      onDurationChange={(seconds) => {
+                        if (!activeSong) return;
+                        useSongStore.getState().updateSong({ ...activeSong, duration: seconds });
+                      }}
                     />
                   </div>
 

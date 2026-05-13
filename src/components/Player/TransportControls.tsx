@@ -14,6 +14,8 @@ interface TransportControlsProps {
   songLoop: boolean;
   onSongLoopToggle: () => void;
   onReset: () => void;
+  canEditDuration?: boolean;
+  onDurationChange?: (seconds: number) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -47,9 +49,13 @@ export function TransportControls({
   songLoop,
   onSongLoopToggle,
   onReset,
+  canEditDuration,
+  onDurationChange,
 }: TransportControlsProps) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [editingDuration, setEditingDuration] = useState(false);
+  const [durationInputValue, setDurationInputValue] = useState('');
 
   const seekTo = (time: number) => {
     const clamped = Math.max(0, Math.min(duration, time));
@@ -68,7 +74,24 @@ export function TransportControls({
     if (seconds !== null) seekTo(seconds);
     setEditing(false);
   };
+  const handleDurationClick = () => {
+    if (!canEditDuration) return;
+    setDurationInputValue(formatTime(duration));
+    setEditingDuration(true);
+  };
 
+  const handleDurationCommit = () => {
+    const seconds = parseTimeInput(durationInputValue);
+    if (seconds !== null && seconds > 0) {
+      onDurationChange?.(seconds);
+    }
+    setEditingDuration(false);
+  };
+
+  const handleDurationKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleDurationCommit();
+    if (e.key === 'Escape') setEditingDuration(false);
+  };
   const handleTimeClick = () => {
     setInputValue(formatTime(currentTime));
     setEditing(true);
@@ -108,8 +131,27 @@ export function TransportControls({
           />
         ) : (
           <button onClick={handleTimeClick} className='hover:text-white transition-colors' title='Click to seek'>
-            {formatTime(currentTime)} / {formatTime(duration)}
+            {formatTime(currentTime)}
           </button>
+        )}
+        <span className='mx-1'>/</span>
+        {editingDuration ? (
+          <input
+            autoFocus
+            value={durationInputValue}
+            onChange={(e) => setDurationInputValue(e.target.value)}
+            onBlur={handleDurationCommit}
+            onKeyDown={handleDurationKeyDown}
+            className='w-20 bg-slate-700 text-slate-100 font-mono text-sm
+                       rounded px-1 py-0.5 border border-indigo-500 outline-none'
+            placeholder='m:ss'
+          />
+        ) : canEditDuration ? (
+          <button onClick={handleDurationClick} className='hover:text-white transition-colors' title='Click to edit duration'>
+            {formatTime(duration)}
+          </button>
+        ) : (
+          <span>{formatTime(duration)}</span>
         )}
       </div>
 

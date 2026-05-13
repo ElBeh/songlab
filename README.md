@@ -1,5 +1,6 @@
 # SongLab
 **Note:** This README is being restructured. Some screenshots and feature descriptions may be outdated. See [#2](https://github.com/ElBeh/songlab/issues/2) for the progress on the overhaul.
+
 **Practice tool & digital music stand for guitarists and bands.**
 
 **[Try it now](https://elbeh.github.io/songlab/)** – no install, runs entirely in your browser.
