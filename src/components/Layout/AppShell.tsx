@@ -771,12 +771,14 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
             <>
               {/* Title bar */}
                 <div className='flex items-center'>
-                <h2 className='font-mono text-slate-300 truncate'>
-                  {activeSong.title}
-                  {isDummy && (
-                    <span className='ml-2 text-xs text-slate-500'>(no audio)</span>
+                  {isSession && (
+                  <h2 className='font-mono text-slate-300 truncate'>
+                    {activeSong.title}
+                    {isDummy && (
+                      <span className='ml-2 text-xs text-slate-500'>(no audio)</span>
+                    )}
+                  </h2>
                   )}
-                </h2>
                 <div className='flex-1 flex justify-center'>
                   {isSession && (
                     isViewer ? (
@@ -846,6 +848,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       <div className='w-px h-6 bg-slate-600' />
                       <CountInToggle compact />
                       <div className='w-px h-6 bg-slate-600' />
+
                       <MetronomeSplitButton
                         isSoloMode={metronome.isSoloMode}
                         isRunning={metronome.isRunning}
@@ -858,42 +861,19 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                           <TempoIndicator />
                         </>
                       )}
+
+                      <div className='w-px h-6 bg-slate-600' />
+
+                      {!isDummy && (
+                        <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center'>
+                          <VolumeControl />
+                        </div>
+                      )}
+
+
                     </div>
                   )}
 
-                  {!isDummy && !isViewer && (
-                    <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center'>
-                      <VolumeControl />
-                    </div>
-                  )}
-
-                  {!isSession && (
-                    isDummy ? (
-                      <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-indigo-400
-                                        hover:text-indigo-300 font-mono cursor-pointer
-                                        transition-colors'>
-                        attach audio file
-                        <input
-                          type='file'
-                          accept='audio/*'
-                          className='hidden'
-                          onChange={handleUpgradeFile}
-                        />
-                      </label>
-                    ) : (
-                      <label className='bg-slate-800 rounded-lg px-4 py-2 text-xs text-slate-500
-                                        hover:text-slate-300 font-mono cursor-pointer
-                                        transition-colors'>
-                        change file
-                        <input
-                          type='file'
-                          accept='audio/*'
-                          className='hidden'
-                          onChange={audioFile.handleFileInput}
-                        />
-                      </label>
-                    )
-                  )}
                 </div>
               </div>
 
@@ -975,8 +955,47 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       <TempoControls />
                     </div>
                   )}
+
+                  {/* volume controls */}
+                  {!isDummy && !isViewer && (
+                    <div className='bg-slate-800 rounded-lg px-4 py-2 flex items-center'>
+                      <VolumeControl />
+                    </div>
+                  )}
+
+                  {/* attach or change audiofile */}
+
+                    {isDummy ? (
+                      <label className='flex items-center bg-slate-800 rounded-lg px-4 py-2 text-xs text-indigo-400
+                                        hover:text-indigo-300 font-mono cursor-pointer
+                                        transition-colors'>
+                        attach audio file
+                        <input
+                          type='file'
+                          accept='audio/*'
+                          className='hidden'
+                          onChange={handleUpgradeFile}
+                        />
+                      </label>
+                    ) : (
+                      <label className='flex items-center bg-slate-800 rounded-lg px-4 py-2 text-xs text-slate-500
+                                        hover:text-slate-300 font-mono cursor-pointer
+                                        transition-colors'>
+                        change audio file
+                        <input
+                          type='file'
+                          accept='audio/*'
+                          className='hidden'
+                          onChange={audioFile.handleFileInput}
+                        />
+                      </label>
+                    )}
+
+
                 </div>
-              )}
+                )
+              }
+
 
               {/* MarkerForm modal – practice mode only */}
               {!isSession && showMarkerForm && (
