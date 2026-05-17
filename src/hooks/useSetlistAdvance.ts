@@ -120,11 +120,8 @@ export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): Setlist
 
     if (autoAdvance) {
       startCountdownThenPlay(next.pauseDuration, next.songId);
-    } else {
-      // Manual mode: load next song but don't play
-      loadSong(next.songId);
-    }
-  }, [mode, autoAdvance, findNextSong, startCountdownThenPlay, loadSong]);
+    } 
+  }, [mode, autoAdvance, findNextSong, startCountdownThenPlay]);
 
   return {
     handleSongFinish,

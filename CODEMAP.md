@@ -247,7 +247,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 14:export function usePlayback({ onTimeUpdate, onFinish, onLoopRestart }: UsePlaybackOptions = {})
 - **deps**: ../stores/useLoopStore
 
-### useSetlistAdvance.ts (134 lines)
+### useSetlistAdvance.ts (131 lines)
 - 27:export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): SetlistAdvanceResult
 - **deps**: ../stores/useModeStore,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore
 
