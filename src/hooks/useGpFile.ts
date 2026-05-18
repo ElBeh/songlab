@@ -3,6 +3,7 @@ import { useSongStore } from '../stores/useSongStore';
 import { useTabStore } from '../stores/useTabStore';
 import { saveGpFile, getGpFile, deleteGpFile } from '../services/db';
 import type { SongData } from '../types';
+import { useSetlistStore } from '../stores/useSetlistStore';
 
 const GP_EXTENSIONS = ['.gp', '.gp3', '.gp4', '.gp5', '.gpx', '.gp8'];
 
@@ -92,6 +93,7 @@ const loadPersistedGp = useCallback(async (songId: string): Promise<ArrayBuffer 
     const { addSong, setActiveSongId } = useSongStore.getState();
     await addSong(song);
     await setActiveSongId(id);
+    await useSetlistStore.getState().addSongToActiveSetlist(id);
     await useTabStore.getState().loadSheetsForSong(id);
     setGpData((prev) => ({ ...prev, [id]: arrayBuffer }));
   }, []);

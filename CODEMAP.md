@@ -226,10 +226,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 93:export function tickToElapsedMs(tick: number, tempoMap: TempoSegment[]): number
 - 129:export function useExternalMediaSync({
 
-### useGpFile.ts (106 lines)
-- 9:export function isGpFile(fileName: string): boolean
-- 14:export function useGpFile()
-- **deps**: ../services/db,../stores/useSongStore,../stores/useTabStore,../types
+### useGpFile.ts (108 lines)
+- 10:export function isGpFile(fileName: string): boolean
+- 15:export function useGpFile()
+- **deps**: ../services/db,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore,../types
 
 ### useKeyboardShortcuts.ts (75 lines)
 - 15:export function useKeyboardShortcuts({
