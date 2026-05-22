@@ -20,9 +20,11 @@ interface SidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onAddMarker?: () => void;
+  onAddSong?: () => void;
+  onCreateDummy?: () => void;
 }
 
-export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, onAddMarker }: SidebarProps) {
+export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, onAddMarker, onAddSong, onCreateDummy }: SidebarProps) {
   const [sectionsOpen, setSectionsOpen] = useState(true);
   const [setlistOpen, setSetlistOpen] = useState(true);
   const [editingPauseId, setEditingPauseId] = useState<string | null>(null);
@@ -56,6 +58,22 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   // Song rename state
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [editingSongValue, setEditingSongValue] = useState('');
+
+  // Add song menu state
+  const [showAddSongMenu, setShowAddSongMenu] = useState(false);
+  const addSongRef = useRef<HTMLDivElement>(null);
+
+  // Close add-song dropdown on outside click
+  useEffect(() => {
+    if (!showAddSongMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (addSongRef.current && !addSongRef.current.contains(e.target as Node)) {
+        setShowAddSongMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showAddSongMenu]);
 
   // Close import/export dropdown on outside click
   useEffect(() => {
@@ -372,12 +390,13 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
 
               {/* Add marker button */}
               {activeSong && onAddMarker && (
-                <div className='p-3'>
+                <div className='p-3 flex justify-center'>
                   <button
                     onClick={onAddMarker}
-                    className='w-full px-2 py-1.5 text-xs font-mono text-slate-400
-                               hover:text-slate-200 hover:bg-slate-800 rounded
-                               transition-colors'
+                    className='px-3 py-1.5 text-xs font-mono text-slate-300
+                              bg-slate-800 border border-dashed border-slate-600
+                              hover:text-slate-200 hover:border-slate-400 rounded
+                              transition-colors'
                   >
                     + add marker
                   </button>
@@ -967,16 +986,51 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
                 );
               })}
 
-              {/* Add pause at end of setlist */}
-              {canEdit && songOrder.length > 0 && (
-                <button
-                  onClick={() => addPause(songOrder.length - 1)}
-                  className='w-full px-2 py-1.5 text-xs font-mono text-slate-400
-                               hover:text-slate-200 hover:bg-slate-800 rounded
-                               transition-colors'
-                >
-                  + add pause
-                </button>
+              {/* Add song / add pause actions */}
+              {canEdit && (
+                <div className='flex justify-center gap-2 p-3'>
+                  <div className='relative' ref={addSongRef}>
+                    <button
+                      onClick={() => setShowAddSongMenu((v) => !v)}
+                      className='px-3 py-1.5 text-xs font-mono text-slate-300
+                                 bg-slate-800 border border-dashed border-slate-600
+                                 hover:text-slate-200 hover:border-slate-400 rounded
+                                 transition-colors'
+                    >
+                      + add song
+                    </button>
+                    {showAddSongMenu && (
+                      <div className='absolute left-0 bottom-full mb-1 bg-slate-800 border
+                                      border-slate-600 rounded-lg shadow-xl py-1 z-50 min-w-[180px]'>
+                        <button
+                          onClick={() => { setShowAddSongMenu(false); onAddSong?.(); }}
+                          className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                     text-slate-300 hover:bg-slate-700 transition-colors'
+                        >
+                          Load audio / GP file
+                        </button>
+                        <button
+                          onClick={() => { setShowAddSongMenu(false); onCreateDummy?.(); }}
+                          className='w-full text-left px-3 py-1.5 text-xs font-mono
+                                     text-slate-300 hover:bg-slate-700 transition-colors'
+                        >
+                          Create without audio
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {songOrder.length > 0 && (
+                    <button
+                      onClick={() => addPause(songOrder.length - 1)}
+                      className='px-3 py-1.5 text-xs font-mono text-slate-300
+                                 bg-slate-800 border border-dashed border-slate-600
+                                 hover:text-slate-200 hover:border-slate-400 rounded
+                                 transition-colors'
+                    >
+                      + add pause
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             )}

@@ -8,7 +8,6 @@ import { TempoIndicator } from '../Player/TempoIndicator';
 import { MarkerForm } from '../Markers/MarkerForm';
 import { TabEditor } from '../Tabs/TabEditor';
 import { TabViewer } from '../Tabs/TabViewer';
-import { SongTabs } from './SongTabs';
 import { Sidebar } from './Sidebar';
 import { ToastContainer } from './Toast';
 import { CreateDummySongDialog } from './CreateDummySongDialog';
@@ -626,7 +625,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     onSeek: isDummy ? handleSeekTo : undefined,
     currentTime: isDummy ? currentTime : undefined,
     duration: isDummy ? duration : undefined,
-    disabled: showMetronome,
+    disabled: showMetronome, 
   });
 
   // Is there an active song with audio (or dummy)?
@@ -650,14 +649,6 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           </div>
         )}
 
-        <div className='flex-1 overflow-x-auto'>
-          <SongTabs
-            onAddSong={() => document.getElementById('file-input')?.click()}
-            onCreateDummy={() => setShowDummyDialog(true)}
-            isViewer={isViewer}
-          />
-        </div>
-
         <input
           id='file-input'
           type='file'
@@ -674,6 +665,8 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
             e.target.value = '';
           }}
         />
+
+        <div className='flex-1' />
         
         {/* Remote mode: compact and remote transport controll + choose sections or song*/}
         {isViewer && (
@@ -701,6 +694,8 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
           onAddMarker={handleAddMarker}
+          onAddSong={() => document.getElementById('file-input')?.click()}
+          onCreateDummy={() => setShowDummyDialog(true)}
         />
 
         <main className='flex-1 flex flex-col gap-4 p-6 overflow-y-auto relative'>
