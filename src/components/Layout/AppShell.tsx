@@ -760,14 +760,12 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
             <>
               {/* Title bar */}
                 <div className='flex items-center'>
-                  {isSession && (
                   <h2 className='font-mono text-slate-300 truncate'>
                     {activeSong.title}
                     {isDummy && (
                       <span className='ml-2 text-xs text-slate-500'>(no audio)</span>
                     )}
                   </h2>
-                  )}
                 <div className='flex-1 flex justify-center'>
                   {isSession && (
                     isViewer ? (
