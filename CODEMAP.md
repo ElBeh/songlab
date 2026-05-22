@@ -231,8 +231,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 15:export function useGpFile()
 - **deps**: ../services/db,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore,../types
 
-### useKeyboardShortcuts.ts (75 lines)
-- 15:export function useKeyboardShortcuts({
+### useKeyboardShortcuts.ts (78 lines)
+- 16:export function useKeyboardShortcuts({
 - **deps**: ../stores/useLoopStore
 
 ### useMetronome.ts (192 lines)
@@ -261,9 +261,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1207 lines)
-- 55:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../../utils/gpMarkerImport,../../utils/iconSizes
+### AppShell.tsx (1205 lines)
+- 58:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../Tools/StandaloneMetronome,../../utils/gpMarkerImport,../../utils/iconSizes
 
 ### CreateDummySongDialog.tsx (265 lines)
 - 13:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
@@ -272,6 +272,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### MidiSettingsDialog.tsx (261 lines)
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
+
+### ModeMenu.tsx (65 lines)
+- 4:export function ModeMenu()
+- **deps**: ../../stores/useModeStore
 
 ### Sidebar.tsx (1116 lines)
 - 25:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
@@ -288,6 +292,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### Toast.tsx (40 lines)
 - 11:export function ToastContainer()
 - **deps**: ../../stores/useToastStore,../../utils/iconSizes
+
+### ToolsMenu.tsx (57 lines)
+- 7:export function ToolsMenu({ onOpenMetronome }: ToolsMenuProps)
 
 ### UrlImportDialog.tsx (164 lines)
 - 15:export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps)

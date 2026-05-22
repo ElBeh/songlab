@@ -10,6 +10,7 @@ interface KeyboardShortcutsOptions {
   onSeek?: (time: number) => void;
   currentTime?: number;
   duration?: number;
+  disabled?: boolean; 
 }
 
 export function useKeyboardShortcuts({
@@ -20,12 +21,14 @@ export function useKeyboardShortcuts({
   onSeek,
   currentTime = 0,
   duration = 0,
+  disabled = false,
 }: KeyboardShortcutsOptions) {
   const toggleLoop = useLoopStore((state) => state.toggleLoop);
   const loop = useLoopStore((state) => state.loop);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (disabled) return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
@@ -72,5 +75,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying, toggleLoop, loop, onSeek, currentTime, duration]);
+  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying, toggleLoop, loop, onSeek, currentTime, duration, disabled]);
 }

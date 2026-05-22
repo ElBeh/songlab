@@ -51,6 +51,9 @@ import { Music, Pause, Play, SkipBack, Repeat, Eye, Pencil, Music2, X } from 'lu
 import { ICON_SIZE } from '../../utils/iconSizes';
 import { useSetlistStore } from '../../stores/useSetlistStore';
 import { useShallow } from 'zustand/shallow';
+import { ModeMenu } from './ModeMenu';
+import { ToolsMenu } from './ToolsMenu';  
+import { StandaloneMetronome } from '../Tools/StandaloneMetronome';
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -59,6 +62,7 @@ export default function AppShell() {
   const [tabMode, setTabMode] = useState<'ascii' | 'notation'>('notation');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showRemoteControl, setShowRemoteControl] = useState(false);
+  const [showMetronome, setShowMetronome] = useState(false);
 
   const activeSong = useSongStore((state) => state.getActiveSong)();
   const addMarker = useSongStore((state) => state.addMarker);
@@ -299,6 +303,13 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     // Otherwise: normal play/pause toggle
     handlePlayPause();
   }, [countIn, _isPlaying, handlePlayPause]);
+
+  // Stop playback and open standalone metronome
+  const handleOpenMetronome = useCallback(() => {
+    if (countIn.isCountingIn) countIn.cancelCountIn();
+    if (_isPlaying) handlePlayPause();
+    setShowMetronome(true);
+  }, [_isPlaying, handlePlayPause, countIn]);
 
   // Wire loop restart ref to count-in (resolves circular dep with playback hooks)
   const { canCountIn, startCountIn } = countIn;
@@ -615,6 +626,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     onSeek: isDummy ? handleSeekTo : undefined,
     currentTime: isDummy ? currentTime : undefined,
     duration: isDummy ? duration : undefined,
+    disabled: showMetronome,
   });
 
   // Is there an active song with audio (or dummy)?
@@ -631,29 +643,11 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
         <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
 
         {/* Mode toggle – segmented control (hidden for viewers) */}
-        {!isViewer && (
-        <div className='flex bg-slate-800 rounded-lg p-0.5 font-mono text-xs'>
-          <button
-            onClick={() => useModeStore.getState().setMode('edit')}
-            className='px-3 py-1 rounded-md transition-colors'
-            style={{
-              backgroundColor: !isSession ? '#6366f1' : 'transparent',
-              color: !isSession ? '#fff' : '#64748b',
-            }}
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => useModeStore.getState().setMode('session')}
-            className='px-3 py-1 rounded-md transition-colors'
-            style={{
-              backgroundColor: isSession ? '#6366f1' : 'transparent',
-              color: isSession ? '#fff' : '#64748b',
-            }}
-          >
-            Session
-          </button>
-        </div>
+          {!isViewer && (
+          <div className='flex gap-1'>
+            <ModeMenu />
+            <ToolsMenu onOpenMetronome={handleOpenMetronome} />
+          </div>
         )}
 
         <div className='flex-1 overflow-x-auto'>
@@ -1192,6 +1186,10 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       <ToastContainer />
       {showDummyDialog && (
         <CreateDummySongDialog onClose={() => setShowDummyDialog(false)} />
+      )}
+
+      {showMetronome && (
+        <StandaloneMetronome onClose={() => setShowMetronome(false)} />
       )}
 
       {gpImportMarks && (
