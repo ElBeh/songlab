@@ -10,7 +10,7 @@ export function ModeMenu() {
         onClick={() => useModeStore.getState().setMode('edit')}
         className={`px-3 py-1 rounded-md transition-colors ${
           !isSession
-            ? 'bg-indigo-600 text-white'
+            ? 'bg-indigo-500 text-white'
             : 'text-slate-500 hover:text-slate-300'
         }`}
       >
@@ -20,7 +20,7 @@ export function ModeMenu() {
         onClick={() => useModeStore.getState().setMode('session')}
         className={`px-3 py-1 rounded-md transition-colors ${
           isSession
-            ? 'bg-indigo-600 text-white'
+            ? 'bg-indigo-500 text-white'
             : 'text-slate-500 hover:text-slate-300'
         }`}
       >

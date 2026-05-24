@@ -40,6 +40,7 @@ export function StandaloneMetronome({ onClose }: StandaloneMetronomeProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [currentBeat, setCurrentBeat] = useState(0);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [bpmInput, setBpmInput] = useState(String(DEFAULT_CONFIG.bpm));
 
   const handleRef = useRef<MetronomeHandle | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -49,6 +50,7 @@ export function StandaloneMetronome({ onClose }: StandaloneMetronomeProps) {
     getConfig<MetronomeConfig>(CONFIG_KEY).then((saved) => {
       if (saved) {
         setBpm(saved.bpm);
+        setBpmInput(String(saved.bpm));
         setBeatsPerBar(saved.beatsPerBar);
         setBeatUnit(saved.beatUnit);
         setVolume(saved.volume);
@@ -119,9 +121,18 @@ export function StandaloneMetronome({ onClose }: StandaloneMetronomeProps) {
     setBeatUnit(sig.beatUnit);
   };
 
-  const handleBpmInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value, 10);
-    if (!isNaN(val)) setBpm(Math.max(20, Math.min(300, val)));
+  const commitBpm = () => {
+    const val = parseInt(bpmInput, 10);
+    if (isNaN(val) || val < 20) {
+      setBpm(20);
+      setBpmInput('20');
+    } else if (val > 300) {
+      setBpm(300);
+      setBpmInput('300');
+    } else {
+      setBpm(val);
+      setBpmInput(String(val));
+    }
   };
 
   const currentTimeSig = TIME_SIGNATURES.find(
@@ -163,11 +174,13 @@ export function StandaloneMetronome({ onClose }: StandaloneMetronomeProps) {
             type="number"
             min={20}
             max={300}
-            value={bpm}
-            onChange={handleBpmInput}
+            value={bpmInput}
+            onChange={(e) => setBpmInput(e.target.value)}
+            onBlur={commitBpm}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitBpm(); }}
             className="bg-slate-900 border border-slate-600 rounded px-3 py-1.5
-                       text-sm font-mono text-slate-200 w-full
-                       focus:outline-none focus:border-indigo-500"
+                      text-sm font-mono text-slate-200 w-full
+                      focus:outline-none focus:border-indigo-500"
           />
         </div>
 
