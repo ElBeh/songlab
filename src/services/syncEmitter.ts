@@ -20,7 +20,10 @@ import { useSyncStore } from '../stores/useSyncStore';
 type SyncSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 let _socket: SyncSocket | null = null;
-let _isRemote = false;
+// Depth counter instead of a boolean so that nested or overlapping
+// runAsRemote calls keep the remote state active until the outermost
+// one settles (a boolean would be cleared by the first inner finally).
+let _remoteDepth = 0;
 
 // --- Socket management ---
 
@@ -31,26 +34,27 @@ export function setSyncSocket(socket: SyncSocket | null): void {
 // --- Remote flag (prevents echo) ---
 
 export function isRemoteUpdate(): boolean {
-  return _isRemote;
+  return _remoteDepth > 0;
 }
 
 /**
  * Run a callback with the remote flag set.
  * Store mutations inside `fn` will not trigger re-broadcasts.
+ * Reentrant: nested and overlapping calls are tracked via a depth counter.
  */
 export async function runAsRemote(fn: () => void | Promise<void>): Promise<void> {
-  _isRemote = true;
+  _remoteDepth += 1;
   try {
     await fn();
   } finally {
-    _isRemote = false;
+    _remoteDepth -= 1;
   }
 }
 
 // --- Guard: only emit when connected ---
 
 function canEmit(): boolean {
-  if (_isRemote) return false;
+  if (_remoteDepth > 0) return false;
   if (!_socket?.connected) return false;
   return useSyncStore.getState().status === 'connected';
 }

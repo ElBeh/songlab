@@ -4,7 +4,7 @@
 // Supports tempo maps from GP files for real-time BPM/time signature changes.
 
 import { getAudioContext, scheduleClick } from './clickSoundGenerator';
-import type { TempoMapEntry } from '../components/Tabs/NotationPanel';
+import type { TempoMapEntry } from '../types';
 
 const LOOKAHEAD_MS = 25;    // polling interval (ms)
 const SCHEDULE_AHEAD = 0.1; // schedule clicks this far ahead (seconds)

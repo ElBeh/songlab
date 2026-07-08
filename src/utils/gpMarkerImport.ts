@@ -1,8 +1,7 @@
 import type * as alphaTab from '@coderline/alphatab';
 import type { SectionMarker, SectionType } from '../types';
 import { SECTION_COLORS } from './sectionColors';
-
-const TICKS_PER_BEAT = 960;
+import { buildTempoSegments, tickToSeconds } from '../services/tempoMap';
 
 /** Map common GP rehearsal mark names to SongLab section types. */
 const SECTION_NAME_MAP: Record<string, SectionType> = {
@@ -41,63 +40,6 @@ function mapSectionType(name: string): SectionType {
   return 'custom';
 }
 
-/** Tempo segment from alphaTab's masterBars. */
-interface TempoSegment {
-  startTick: number;
-  bpm: number;
-}
-
-/** Build tempo map from score (same logic as useExternalMediaSync). */
-function buildTempoMap(score: alphaTab.model.Score): TempoSegment[] {
-  const segments: TempoSegment[] = [];
-
-  for (const mb of score.masterBars) {
-    if (mb.tempoAutomation) {
-      segments.push({ startTick: mb.start, bpm: mb.tempoAutomation.value });
-    }
-  }
-
-  if (segments.length === 0) {
-    segments.push({ startTick: 0, bpm: score.tempo });
-  }
-
-  return segments;
-}
-
-/**
- * Convert alphaTab tick to time in seconds using the tempo map.
- * Inverse of elapsedMsToTick in useExternalMediaSync.
- */
-function tickToSeconds(tick: number, tempoMap: TempoSegment[]): number {
-  if (tempoMap.length === 0 || tick <= 0) return 0;
-
-  let elapsedMs = 0;
-
-  for (let i = 0; i < tempoMap.length; i++) {
-    const seg = tempoMap[i];
-    const msPerTick = 60000 / (seg.bpm * TICKS_PER_BEAT);
-
-    if (i < tempoMap.length - 1) {
-      const nextSeg = tempoMap[i + 1];
-      const segmentTicks = nextSeg.startTick - seg.startTick;
-
-      if (tick <= nextSeg.startTick) {
-        // Target tick is within this segment
-        elapsedMs += (tick - seg.startTick) * msPerTick;
-        return elapsedMs / 1000;
-      }
-
-      elapsedMs += segmentTicks * msPerTick;
-    } else {
-      // Last segment: extrapolate
-      elapsedMs += (tick - seg.startTick) * msPerTick;
-      return elapsedMs / 1000;
-    }
-  }
-
-  return 0;
-}
-
 /** A rehearsal mark extracted from the GP file, before conversion to SectionMarker. */
 export interface GpRehearsalMark {
   name: string;
@@ -119,7 +61,7 @@ export function extractGpMarkers(
   syncOffset: number = 0,
   bpmAdjust: number = 0,
 ): GpRehearsalMark[] {
-  const baseTempoMap = buildTempoMap(score);
+  const baseTempoMap = buildTempoSegments(score);
   const tempoMap = bpmAdjust !== 0
     ? baseTempoMap.map((seg) => ({ ...seg, bpm: seg.bpm + bpmAdjust }))
     : baseTempoMap;

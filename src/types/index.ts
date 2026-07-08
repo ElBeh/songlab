@@ -91,3 +91,16 @@ export interface SyncPoint {
   tick: number;       // alphaTab tick position in the notation
   bar: number;        // 1-based bar number (for display in SyncPointEditor)
 }
+
+/** A tempo segment derived from a GP file's masterBars (tick + bpm only). */
+export interface TempoSegment {
+  startTick: number;
+  bpm: number;
+}
+
+/** Tempo and time signature at a specific tick position in the score. */
+export interface TempoMapEntry {
+  tick: number;
+  bpm: number;
+  beatsPerBar: number;
+}

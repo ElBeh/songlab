@@ -5,6 +5,7 @@ import { useToastStore } from '../../stores/useToastStore';
 import { ChevronLeft, ChevronRight, X, Music, FilePlus } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
 import { useSetlistStore } from '../../stores/useSetlistStore';
+import { useOrderedSetlist } from '../../hooks/useOrderedSetlist';
 
 interface SongTabsProps {
   onAddSong: () => void;
@@ -13,18 +14,14 @@ interface SongTabsProps {
 }
 
 export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps) {
-  const getOrderedSongs = useSetlistStore((state) => state.getOrderedSongs);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const removeSong = useSongStore((state) => state.removeSong);
 
-  // Subscribe to songOrder so tabs re-render on reorder
-  useSetlistStore((state) => state.setlists);
-  useSetlistStore((state) => state.activeSetlistId);
-
   const updateSong = useSongStore((state) => state.updateSong);
 
-  const orderedSongs = getOrderedSongs();
+  // Reactive join of setlist order + song library (re-renders on either change)
+  const { orderedSongs } = useOrderedSetlist();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);

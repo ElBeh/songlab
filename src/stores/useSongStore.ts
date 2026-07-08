@@ -8,6 +8,7 @@ import {
   getMarkersForSong,
   deleteMarker,
   deleteAudioFile,
+  saveGpFile,
   deleteGpFile,
 } from '../services/db';
 import { emitMarkerSave, emitMarkerDelete } from '../services/syncEmitter';
@@ -34,6 +35,16 @@ interface SongStore {
   addMarker: (marker: SectionMarker) => Promise<void>;
   updateMarker: (marker: SectionMarker) => Promise<void>;
   removeMarker: (id: string) => Promise<void>;
+
+  // --- Remote sync application (no re-broadcast; caller wraps in runAsRemote) ---
+  applyRemoteSongs: (songs: SongData[]) => void;
+  applyRemoteSongData: (
+    song: SongData,
+    markers: SectionMarker[],
+    gp: { data: ArrayBuffer; fileName: string } | null,
+  ) => Promise<string | null>;
+  applyRemoteMarker: (marker: SectionMarker) => Promise<void>;
+  applyRemoteMarkerDelete: (markerId: string, songId: string) => Promise<void>;
 }
 
 export const useSongStore = create<SongStore>((set, get) => ({
@@ -212,6 +223,77 @@ export const useSongStore = create<SongStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to delete marker:', error);
       useToastStore.getState().addToast('Could not delete marker', 'error');
+    }
+  },
+
+  // --- Remote sync application ---
+
+  applyRemoteSongs: (songs) => {
+    set({ songs });
+  },
+
+  applyRemoteSongData: async (song, markers, gp) => {
+    try {
+      await saveSong(song);
+      for (const m of markers) await saveMarker(m);
+      if (gp) {
+        await saveGpFile(song.id, gp.data, gp.fileName);
+      } else {
+        await deleteGpFile(song.id);
+      }
+
+      const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
+      set((state) => {
+        const exists = state.songs.some((s) => s.id === song.id);
+        return {
+          songs: exists
+            ? state.songs.map((s) => (s.id === song.id ? song : s))
+            : [...state.songs, song],
+          activeSongId: song.id,
+          markersBySong: { ...state.markersBySong, [song.id]: sortedMarkers },
+        };
+      });
+      return sortedMarkers[0]?.id ?? null;
+    } catch (error) {
+      console.error('Failed to apply remote song data:', error);
+      useToastStore.getState().addToast('Could not apply synced song', 'error');
+      return null;
+    }
+  },
+
+  applyRemoteMarker: async (marker) => {
+    try {
+      await saveMarker(marker);
+      set((state) => {
+        const existing = state.markersBySong[marker.songId] ?? [];
+        const updated = existing.some((m) => m.id === marker.id)
+          ? existing.map((m) => (m.id === marker.id ? marker : m))
+          : [...existing, marker];
+        return {
+          markersBySong: {
+            ...state.markersBySong,
+            [marker.songId]: updated.sort((a, b) => a.startTime - b.startTime),
+          },
+        };
+      });
+    } catch (error) {
+      console.error('Failed to apply remote marker:', error);
+      useToastStore.getState().addToast('Could not apply synced marker', 'error');
+    }
+  },
+
+  applyRemoteMarkerDelete: async (markerId, songId) => {
+    try {
+      await deleteMarker(markerId);
+      set((state) => ({
+        markersBySong: {
+          ...state.markersBySong,
+          [songId]: (state.markersBySong[songId] ?? []).filter((m) => m.id !== markerId),
+        },
+      }));
+    } catch (error) {
+      console.error('Failed to apply remote marker delete:', error);
+      useToastStore.getState().addToast('Could not apply synced marker', 'error');
     }
   },
 }));

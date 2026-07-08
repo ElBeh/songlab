@@ -1,11 +1,11 @@
 import { useEffect, useRef, useMemo } from 'react';
 import type * as alphaTab from '@coderline/alphatab';
+import type { TempoSegment } from '../types';
+import { buildTempoSegments, elapsedMsToTick, tickToElapsedMs } from '../services/tempoMap';
 
-/** Tempo segment derived from alphaTab's masterBars. */
-export interface TempoSegment {
-  startTick: number;
-  bpm: number;
-}
+// Re-exported so existing importers (NotationPanel) keep working.
+export { tickToElapsedMs };
+export type { TempoSegment };
 
 interface UseExternalMediaSyncOptions {
   /** alphaTab API instance (null when not in Audio+GP mode) */
@@ -22,97 +22,12 @@ interface UseExternalMediaSyncOptions {
   onTickUpdate?: (tick: number) => void;
 }
 
-const TICKS_PER_BEAT = 960;
-
 /**
- * Extract tempo map from alphaTab score.
- * Returns sorted segments with startTick and bpm.
- * Only bars with explicit tempoAutomation create new segments;
- * all other bars inherit the previous tempo.
+ * Adapter kept for NotationPanel: build the tempo map from the API's score.
+ * The actual building and conversion logic lives in services/tempoMap.
  */
 export function buildTempoMap(api: alphaTab.AlphaTabApi | null): TempoSegment[] {
-  if (!api?.score) return [];
-
-  const segments: TempoSegment[] = [];
-
-  for (const mb of api.score.masterBars) {
-    if (mb.tempoAutomation) {
-      segments.push({ startTick: mb.start, bpm: mb.tempoAutomation.value });
-    }
-  }
-
-  // Fallback: if no tempo automation found, use score tempo
-  if (segments.length === 0) {
-    segments.push({ startTick: 0, bpm: api.score.tempo });
-  }
-
-  return segments;
-}
-
-/**
- * Convert elapsed audio time (ms since bar 1 beat 1) to alphaTab tick
- * using the tempo map from the GP file.
- *
- * Walks through tempo segments, accumulating time consumed by each,
- * until the elapsed time is located within a segment.
- */
-function elapsedMsToTick(elapsedMs: number, tempoMap: TempoSegment[]): number {
-  if (tempoMap.length === 0 || elapsedMs <= 0) return 0;
-
-  let remaining = elapsedMs;
-
-  for (let i = 0; i < tempoMap.length; i++) {
-    const seg = tempoMap[i];
-    const msPerTick = 60000 / (seg.bpm * TICKS_PER_BEAT);
-
-    // Calculate how many ms this segment covers (until next segment)
-    if (i < tempoMap.length - 1) {
-      const nextSeg = tempoMap[i + 1];
-      const segmentTicks = nextSeg.startTick - seg.startTick;
-      const segmentMs = segmentTicks * msPerTick;
-
-      if (remaining <= segmentMs) {
-        return Math.round(seg.startTick + remaining / msPerTick);
-      }
-
-      remaining -= segmentMs;
-    } else {
-      // Last segment: extrapolate
-      return Math.round(seg.startTick + remaining / msPerTick);
-    }
-  }
-
-  return 0;
-}
-
-/**
- * Convert an alphaTab tick to elapsed audio time in ms (inverse of elapsedMsToTick).
- * Walks through tempo segments, accumulating ms consumed by each,
- * until the tick is located within a segment.
- */
-export function tickToElapsedMs(tick: number, tempoMap: TempoSegment[]): number {
-  if (tempoMap.length === 0 || tick <= 0) return 0;
-
-  let elapsedMs = 0;
-
-  for (let i = 0; i < tempoMap.length; i++) {
-    const seg = tempoMap[i];
-    const msPerTick = 60000 / (seg.bpm * TICKS_PER_BEAT);
-
-    if (i < tempoMap.length - 1) {
-      const nextSeg = tempoMap[i + 1];
-      if (tick < nextSeg.startTick) {
-        elapsedMs += (tick - seg.startTick) * msPerTick;
-        return elapsedMs;
-      }
-      elapsedMs += (nextSeg.startTick - seg.startTick) * msPerTick;
-    } else {
-      elapsedMs += (tick - seg.startTick) * msPerTick;
-      return elapsedMs;
-    }
-  }
-
-  return elapsedMs;
+  return buildTempoSegments(api?.score);
 }
 
 /**

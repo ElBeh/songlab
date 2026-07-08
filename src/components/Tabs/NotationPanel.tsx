@@ -3,6 +3,7 @@ import * as alphaTab from '@coderline/alphatab';
 import { SyncOffsetEditor } from './SyncOffsetEditor';
 import { useExternalMediaSync, buildTempoMap, tickToElapsedMs } from '../../hooks/useExternalMediaSync';
 import { analyzeTuning, formatTuning } from '../../utils/tuningPresets';
+import type { TempoMapEntry } from '../../types';
 import { ArrowLeftRight, ArrowUpDown, Minus, Plus, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
 
@@ -45,13 +46,6 @@ interface NotationPanelProps {
   }) => void;
     /** Fires when user clicks on a beat in notation (Audio + GP mode) */
   onSeek?: (time: number) => void;
-}
-
-/** Tempo and time signature at a specific tick position in the score */
-export interface TempoMapEntry {
-  tick: number;
-  bpm: number;
-  beatsPerBar: number;
 }
 
 export function NotationPanel({

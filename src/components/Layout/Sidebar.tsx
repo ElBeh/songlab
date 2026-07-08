@@ -1,6 +1,8 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useSetlistStore } from '../../stores/useSetlistStore';
+import { useOrderedSetlist } from '../../hooks/useOrderedSetlist';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { useModeStore } from '../../stores/useModeStore';
 import { MarkerList } from '../Markers/MarkerList';
 import { exportSong, exportSetlist, exportGig, importFile } from '../../services/exportService';
@@ -63,55 +65,25 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const [showAddSongMenu, setShowAddSongMenu] = useState(false);
   const addSongRef = useRef<HTMLDivElement>(null);
 
-  // Close add-song dropdown on outside click
-  useEffect(() => {
-    if (!showAddSongMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (addSongRef.current && !addSongRef.current.contains(e.target as Node)) {
-        setShowAddSongMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showAddSongMenu]);
-
-  // Close import/export dropdown on outside click
-  useEffect(() => {
-    if (!showImportExport) return;
-    const handleClick = (e: MouseEvent) => {
-      if (importExportRef.current && !importExportRef.current.contains(e.target as Node)) {
-        setShowImportExport(false);
-        setShowExportOptions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showImportExport]);
-
-  // Close setlist dropdown on outside click
-  useEffect(() => {
-    if (!showSetlistMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (setlistMenuRef.current && !setlistMenuRef.current.contains(e.target as Node)) {
-        setShowSetlistMenu(false);
-        setConfirmDeleteSetlist(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showSetlistMenu]);
-
-  // Close song context menu on outside click
-  useEffect(() => {
-    if (!songMenuId) return;
-    const handleClick = (e: MouseEvent) => {
-      if (songMenuRef.current && !songMenuRef.current.contains(e.target as Node)) {
-        setSongMenuId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [songMenuId]);
+  // Close dropdowns / menus on outside click
+  useClickOutside(addSongRef, () => setShowAddSongMenu(false), showAddSongMenu);
+  useClickOutside(
+    importExportRef,
+    () => {
+      setShowImportExport(false);
+      setShowExportOptions(false);
+    },
+    showImportExport,
+  );
+  useClickOutside(
+    setlistMenuRef,
+    () => {
+      setShowSetlistMenu(false);
+      setConfirmDeleteSetlist(false);
+    },
+    showSetlistMenu,
+  );
+  useClickOutside(songMenuRef, () => setSongMenuId(null), !!songMenuId);
 
   // --- Song store ---
   const songs = useSongStore((state) => state.songs);
@@ -131,7 +103,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
     const active = state.setlists.find((s) => s.id === state.activeSetlistId);
     return active?.items ?? [];
   }));
-  const getOrderedSongs = useSetlistStore((state) => state.getOrderedSongs);
   const moveItem = useSetlistStore((state) => state.moveItem);
   const reorderItem = useSetlistStore((state) => state.reorderItem);
   const addPause = useSetlistStore((state) => state.addPause);
@@ -142,11 +113,11 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const renameSetlist = useSetlistStore((state) => state.renameSetlist);
   const duplicateSetlist = useSetlistStore((state) => state.duplicateSetlist);
   const deleteSetlist = useSetlistStore((state) => state.deleteSetlist);
-  const totalDuration = useSetlistStore.getState().getTotalDuration();
   const moveSetlist = useSetlistStore((state) => state.moveSetlist);
 
   const activeSong = getActiveSong();
-  const orderedSongs = getOrderedSongs();
+  // Reactive join of setlist order + song library (replaces non-reactive getters)
+  const { orderedSongs, totalDuration } = useOrderedSetlist();
   const addToast = useToastStore((state) => state.addToast);
   const isSession = useModeStore((state) => state.mode) === 'session';
   const canEdit = !isViewer && !isSession;

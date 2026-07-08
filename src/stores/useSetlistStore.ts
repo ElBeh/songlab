@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Setlist, SetlistItem, SongData } from '../types';
+import type { Setlist, SetlistItem } from '../types';
 import {
   getAllSetlists,
   saveSetlist,
@@ -33,8 +33,6 @@ interface SetlistStore {
   // --- Derived ---
   getActiveSetlist: () => Setlist | null;
   getActiveItems: () => SetlistItem[];
-  getOrderedSongs: () => SongData[];
-  getTotalDuration: () => number;
 
   // --- Lifecycle ---
   loadSetlists: () => Promise<void>;
@@ -76,7 +74,30 @@ async function persistSetlist(setlist: Setlist): Promise<void> {
   }
 }
 
-export const useSetlistStore = create<SetlistStore>((set, get) => ({
+export const useSetlistStore = create<SetlistStore>((set, get) => {
+  /** Apply an updater to a setlist by id, then persist. Return null to skip. */
+  const updateSetlistById = async (
+    id: string,
+    updater: (setlist: Setlist) => Setlist | null,
+  ): Promise<void> => {
+    const target = get().setlists.find((s) => s.id === id);
+    if (!target) return;
+    const updated = updater(target);
+    if (!updated) return;
+    set((state) => ({ setlists: state.setlists.map((s) => (s.id === id ? updated : s)) }));
+    await persistSetlist(updated);
+  };
+
+  /** Apply an updater to the active setlist, then persist. No-op if none active. */
+  const mutateActiveSetlist = (
+    updater: (setlist: Setlist) => Setlist | null,
+  ): Promise<void> => {
+    const id = get().activeSetlistId;
+    if (!id) return Promise.resolve();
+    return updateSetlistById(id, updater);
+  };
+
+  return {
   setlists: [],
   activeSetlistId: null,
 
@@ -89,38 +110,6 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
 
   getActiveItems: () => {
     return get().getActiveSetlist()?.items ?? [];
-  },
-
-  getOrderedSongs: () => {
-    const items = get().getActiveItems();
-    const songs = useSongStore.getState().songs;
-    const songMap = new Map(songs.map((s) => [s.id, s]));
-    const ordered: SongData[] = [];
-    for (const item of items) {
-      if (item.type === 'song') {
-        const song = songMap.get(item.songId);
-        if (song) {
-          ordered.push(song);
-          songMap.delete(item.songId);
-        }
-      }
-    }
-    return ordered;
-  },
-
-  getTotalDuration: () => {
-    const items = get().getActiveItems();
-    const songs = useSongStore.getState().songs;
-    const songMap = new Map(songs.map((s) => [s.id, s]));
-    let total = 0;
-    for (const item of items) {
-      if (item.type === 'song') {
-        total += songMap.get(item.songId)?.duration ?? 0;
-      } else if (item.type === 'pause') {
-        total += item.duration;
-      }
-    }
-    return total;
   },
 
   // --- Lifecycle ---
@@ -189,13 +178,7 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
   },
 
   renameSetlist: async (id, name) => {
-    set((state) => ({
-      setlists: state.setlists.map((s) =>
-        s.id === id ? { ...s, name } : s,
-      ),
-    }));
-    const updated = get().setlists.find((s) => s.id === id);
-    if (updated) await persistSetlist(updated);
+    await updateSetlistById(id, (s) => ({ ...s, name }));
   },
 
   duplicateSetlist: async (id) => {
@@ -249,43 +232,26 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
   // --- Item actions ---
 
   addSongToActiveSetlist: async (songId) => {
-    let active = get().getActiveSetlist();
-
     // Lazy-create a default setlist if none exists
-    if (!active) {
-      const id = await get().createSetlist('Default');
-      active = get().setlists.find((s) => s.id === id) ?? null;
-      if (!active) return;
+    if (!get().getActiveSetlist()) {
+      await get().createSetlist('Default');
     }
-
-    // Don't add if already in this setlist
-    if (active.items.some((i) => i.type === 'song' && i.songId === songId)) return;
-
-    const updated: Setlist = {
-      ...active,
-      items: [...active.items, { type: 'song', songId }],
-    };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
-    }));
-    await persistSetlist(updated);
+    await mutateActiveSetlist((active) =>
+      active.items.some((i) => i.type === 'song' && i.songId === songId)
+        ? null
+        : { ...active, items: [...active.items, { type: 'song', songId }] },
+    );
   },
 
   removeSongFromSetlist: async (songId, setlistId) => {
     const id = setlistId ?? get().activeSetlistId;
-    const target = get().setlists.find((s) => s.id === id);
-    if (!target) return;
-
-    const updated: Setlist = {
+    if (!id) return;
+    await updateSetlistById(id, (target) => ({
       ...target,
       items: target.items.filter(
         (item) => !(item.type === 'song' && item.songId === songId),
       ),
-    };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
     }));
-    await persistSetlist(updated);
   },
 
   removeSongFromAllSetlists: async (songId) => {
@@ -309,105 +275,67 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
   },
 
   moveItem: async (index, direction) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
-
-    const targetIdx = direction === 'up' ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= active.items.length) return;
-
-    const newItems = [...active.items];
-    [newItems[index], newItems[targetIdx]] = [newItems[targetIdx], newItems[index]];
-    const updated = { ...active, items: newItems };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
-    }));
-    await persistSetlist(updated);
+    await mutateActiveSetlist((active) => {
+      const targetIdx = direction === 'up' ? index - 1 : index + 1;
+      if (targetIdx < 0 || targetIdx >= active.items.length) return null;
+      const newItems = [...active.items];
+      [newItems[index], newItems[targetIdx]] = [newItems[targetIdx], newItems[index]];
+      return { ...active, items: newItems };
+    });
   },
 
   reorderItem: async (fromIndex, toIndex) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
-
-    if (
-      fromIndex === toIndex ||
-      fromIndex < 0 || fromIndex >= active.items.length ||
-      toIndex < 0 || toIndex >= active.items.length
-    ) return;
-
-    const newItems = [...active.items];
-    const [moved] = newItems.splice(fromIndex, 1);
-    newItems.splice(toIndex, 0, moved);
-    const updated = { ...active, items: newItems };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
-    }));
-    await persistSetlist(updated);
+    await mutateActiveSetlist((active) => {
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 || fromIndex >= active.items.length ||
+        toIndex < 0 || toIndex >= active.items.length
+      ) return null;
+      const newItems = [...active.items];
+      const [moved] = newItems.splice(fromIndex, 1);
+      newItems.splice(toIndex, 0, moved);
+      return { ...active, items: newItems };
+    });
   },
 
   addPause: async (afterIndex, duration = 5) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
-
-    const id = `pause-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const pause: SetlistItem = { type: 'pause', id, duration };
-    const newItems = [...active.items];
-    newItems.splice(afterIndex + 1, 0, pause);
-    const updated = { ...active, items: newItems };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
-    }));
-    await persistSetlist(updated);
+    await mutateActiveSetlist((active) => {
+      const id = `pause-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const pause: SetlistItem = { type: 'pause', id, duration };
+      const newItems = [...active.items];
+      newItems.splice(afterIndex + 1, 0, pause);
+      return { ...active, items: newItems };
+    });
   },
 
   updatePause: async (id, duration, label) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
-
-    const updated: Setlist = {
+    await mutateActiveSetlist((active) => ({
       ...active,
       items: active.items.map((item) =>
         item.type === 'pause' && item.id === id
           ? { ...item, duration, ...(label !== undefined && { label }) }
           : item,
       ),
-    };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
     }));
-    await persistSetlist(updated);
   },
 
   removePause: async (id) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
-
-    const updated: Setlist = {
+    await mutateActiveSetlist((active) => ({
       ...active,
       items: active.items.filter(
         (item) => !(item.type === 'pause' && item.id === id),
       ),
-    };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
     }));
-    await persistSetlist(updated);
   },
 
   // --- Cross-setlist actions ---
 
   copySongToSetlist: async (songId, targetSetlistId) => {
-    const target = get().setlists.find((s) => s.id === targetSetlistId);
-    if (!target) return;
-    if (target.items.some((i) => i.type === 'song' && i.songId === songId)) return;
-
-    const updated = {
-      ...target,
-      items: [...target.items, { type: 'song' as const, songId }],
-    };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
-    }));
-    await persistSetlist(updated);
+    await updateSetlistById(targetSetlistId, (target) =>
+      target.items.some((i) => i.type === 'song' && i.songId === songId)
+        ? null
+        : { ...target, items: [...target.items, { type: 'song' as const, songId }] },
+    );
   },
 
   moveSongToSetlist: async (songId, targetSetlistId) => {
@@ -423,13 +351,7 @@ export const useSetlistStore = create<SetlistStore>((set, get) => ({
   // --- Bulk update (for sync) ---
 
   setActiveItems: async (items) => {
-    const active = get().getActiveSetlist();
-    if (!active) return;
-
-    const updated = { ...active, items };
-    set((state) => ({
-      setlists: state.setlists.map((s) => (s.id === updated.id ? updated : s)),
-    }));
-    await persistSetlist(updated);
+    await mutateActiveSetlist((active) => ({ ...active, items }));
   },
-}));
+  };
+});

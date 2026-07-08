@@ -11,18 +11,7 @@ import { useSongStore } from '../stores/useSongStore';
 import { useTabStore } from '../stores/useTabStore';
 import { useTempoStore } from '../stores/useTempoStore';
 import { setSyncSocket, runAsRemote } from '../services/syncEmitter';
-import {
-  saveSong as dbSaveSong,
-  saveMarker as dbSaveMarker,
-  deleteMarker as dbDeleteMarker,
-  saveTab as dbSaveTab,
-  deleteTab as dbDeleteTab,
-  saveTabSheet as dbSaveTabSheet,
-  deleteTabSheet as dbDeleteTabSheet,
-  saveGpFile as dbSaveGpFile,
-  deleteGpFile as dbDeleteGpFile,
-} from '../services/db';
-import type { SongData, SectionMarker, SectionTab, TabSheet } from '../types';
+import type { SongData, SectionMarker, SectionTab, TabSheet, SetlistItem } from '../types';
 import { useSetlistStore } from '../stores/useSetlistStore';
 
 type SyncSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -125,59 +114,26 @@ export function useSyncSession({
     async function applySongData(payload: import('../../shared/syncProtocol').SongDataPayload) {
       await runAsRemote(async () => {
         const song = payload.song as SongData;
-        // Persist song + markers + sheets + tabs to local IndexedDB
-        await dbSaveSong(song);
-        for (const m of payload.markers) await dbSaveMarker(m as SectionMarker);
-        for (const s of payload.sheets) await dbSaveTabSheet(s as TabSheet);
-        for (const t of payload.tabs) await dbSaveTab(t as SectionTab);
+        const markers = payload.markers as SectionMarker[];
+        const gp = payload.gpData && payload.gpFileName
+          ? { data: payload.gpData, fileName: payload.gpFileName }
+          : null;
 
-        // Persist GP file (or remove if host has none)
-        if (payload.gpData && payload.gpFileName) {
-          await dbSaveGpFile(song.id, payload.gpData, payload.gpFileName);
-        } else {
-          await dbDeleteGpFile(song.id);
-        }
-
-        // Update song store (add or update the song, set active)
-        const { songs } = useSongStore.getState();
-        const exists = songs.some((s) => s.id === song.id);
-        const sortedMarkers = (payload.markers as SectionMarker[])
-          .sort((a, b) => a.startTime - b.startTime);
-        useSongStore.setState({
-          songs: exists
-            ? songs.map((s) => (s.id === song.id ? song : s))
-            : [...songs, song],
-          activeSongId: song.id,
-          markersBySong: {
-            ...useSongStore.getState().markersBySong,
-            [song.id]: sortedMarkers,
-          },
-        });
-
-        // Update tab store
-        const tabMap: Record<string, SectionTab> = {};
-        for (const t of payload.tabs) {
-          tabMap[`${t.markerId}-${t.sheetId}`] = t as SectionTab;
-        }
-        const sheets = (payload.sheets as TabSheet[]).sort((a, b) => a.order - b.order);
-        useTabStore.setState({
-          tabs: tabMap,
-          sheets,
-          activeSheetId: sheets[0]?.id ?? null,
-          // Set first marker as active so tabs render immediately
-          activeMarkerId: sortedMarkers[0]?.id ?? null,
-        });
+        const firstMarkerId = await useSongStore.getState().applyRemoteSongData(song, markers, gp);
+        await useTabStore.getState().applyRemoteTabsAndSheets(
+          payload.tabs as SectionTab[],
+          payload.sheets as TabSheet[],
+          firstMarkerId,
+        );
       });
     }
 
     // --- Helper: apply setlist from host ---
 
     function applySetlist(payload: import('../../shared/syncProtocol').SetlistSyncPayload) {
-      runAsRemote(() => {
-        const songs = payload.songs as SongData[];
-        const songOrder = payload.songOrder as import('../types').SetlistItem[];
-        useSongStore.setState({ songs });
-        useSetlistStore.getState().setActiveItems(songOrder);
+      runAsRemote(async () => {
+        useSongStore.getState().applyRemoteSongs(payload.songs as SongData[]);
+        await useSetlistStore.getState().setActiveItems(payload.songOrder as SetlistItem[]);
       });
     }
 
@@ -269,87 +225,31 @@ export function useSyncSession({
     // --- Marker sync ---
 
     socket.on('marker:save', ({ marker }) => {
-      runAsRemote(async () => {
-        // Persist to local IndexedDB
-        await dbSaveMarker(marker as SectionMarker);
-        // Update store directly (avoid re-emit via store method)
-        const { markersBySong } = useSongStore.getState();
-        const existing = markersBySong[marker.songId] ?? [];
-        const updated = existing.some((m) => m.id === marker.id)
-          ? existing.map((m) => (m.id === marker.id ? marker as SectionMarker : m))
-          : [...existing, marker as SectionMarker];
-        useSongStore.setState({
-          markersBySong: {
-            ...markersBySong,
-            [marker.songId]: updated.sort((a, b) => a.startTime - b.startTime),
-          },
-        });
-      });
+      runAsRemote(() => useSongStore.getState().applyRemoteMarker(marker as SectionMarker));
     });
 
     socket.on('marker:delete', ({ markerId, songId }) => {
-      runAsRemote(async () => {
-        await dbDeleteMarker(markerId);
-        const { markersBySong } = useSongStore.getState();
-        useSongStore.setState({
-          markersBySong: {
-            ...markersBySong,
-            [songId]: (markersBySong[songId] ?? []).filter((m) => m.id !== markerId),
-          },
-        });
-      });
+      runAsRemote(() => useSongStore.getState().applyRemoteMarkerDelete(markerId, songId));
     });
 
     // --- Tab sync ---
 
     socket.on('tab:save', ({ tab }) => {
-      runAsRemote(async () => {
-        await dbSaveTab(tab as SectionTab);
-        const { tabs } = useTabStore.getState();
-        useTabStore.setState({
-          tabs: { ...tabs, [`${tab.markerId}-${tab.sheetId}`]: tab as SectionTab },
-        });
-      });
+      runAsRemote(() => useTabStore.getState().applyRemoteTab(tab as SectionTab));
     });
 
     socket.on('tab:delete', ({ tabId }) => {
-      runAsRemote(async () => {
-        await dbDeleteTab(tabId);
-        const { tabs } = useTabStore.getState();
-        const updated = { ...tabs };
-        for (const key in updated) {
-          if (updated[key].id === tabId) delete updated[key];
-        }
-        useTabStore.setState({ tabs: updated });
-      });
+      runAsRemote(() => useTabStore.getState().applyRemoteTabDelete(tabId));
     });
 
     // --- Sheet sync ---
 
     socket.on('sheet:save', ({ sheet }) => {
-      runAsRemote(async () => {
-        await dbSaveTabSheet(sheet as TabSheet);
-        const { sheets } = useTabStore.getState();
-        const existing = sheets.some((s) => s.id === sheet.id);
-        const updated = existing
-          ? sheets.map((s) => (s.id === sheet.id ? sheet as TabSheet : s))
-          : [...sheets, sheet as TabSheet];
-        useTabStore.setState({
-          sheets: updated.sort((a, b) => a.order - b.order),
-        });
-      });
+      runAsRemote(() => useTabStore.getState().applyRemoteSheet(sheet as TabSheet));
     });
 
     socket.on('sheet:delete', ({ sheetId }) => {
-      runAsRemote(async () => {
-        await dbDeleteTabSheet(sheetId);
-        const { sheets, activeSheetId } = useTabStore.getState();
-        const updated = sheets.filter((s) => s.id !== sheetId);
-        useTabStore.setState({
-          sheets: updated,
-          activeSheetId: activeSheetId === sheetId ? (updated[0]?.id ?? null) : activeSheetId,
-        });
-      });
+      runAsRemote(() => useTabStore.getState().applyRemoteSheetDelete(sheetId));
     });
 
   }, [setStatus, setServerUrl, setSession, addPeer, removePeer, setError, setController, clearController, setSyncedPlayback]);

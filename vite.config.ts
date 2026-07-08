@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -55,5 +55,12 @@ export default defineConfig({
         ws: true,
       },
     },
+  },
+  test: {
+    // Use describe/it/expect without imports and enable RTL auto-cleanup
+    globals: true,
+    // jsdom provides a browser-like DOM for component tests
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
   },
 });

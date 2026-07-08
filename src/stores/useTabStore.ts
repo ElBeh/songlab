@@ -39,6 +39,17 @@ interface TabStore {
   setActiveMarker: (id: string) => void;
   setActiveSheet: (id: string) => void;
   getTabForMarkerAndSheet: (markerId: string, sheetId: string) => SectionTab | null;
+
+  // --- Remote sync application (no re-broadcast; caller wraps in runAsRemote) ---
+  applyRemoteTabsAndSheets: (
+    tabs: SectionTab[],
+    sheets: TabSheet[],
+    activeMarkerId: string | null,
+  ) => Promise<void>;
+  applyRemoteTab: (tab: SectionTab) => Promise<void>;
+  applyRemoteTabDelete: (tabId: string) => Promise<void>;
+  applyRemoteSheet: (sheet: TabSheet) => Promise<void>;
+  applyRemoteSheetDelete: (sheetId: string) => Promise<void>;
 }
 
 export const useTabStore = create<TabStore>((set, get) => ({
@@ -170,5 +181,90 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
   getTabForMarkerAndSheet: (markerId, sheetId) => {
     return get().tabs[`${markerId}-${sheetId}`] ?? null;
+  },
+
+  // --- Remote sync application ---
+
+  applyRemoteTabsAndSheets: async (tabs, sheets, activeMarkerId) => {
+    try {
+      const sortedSheets = [...sheets].sort((a, b) => a.order - b.order);
+      for (const s of sortedSheets) await saveTabSheet(s);
+      for (const t of tabs) await saveTab(t);
+
+      const tabMap: Record<string, SectionTab> = {};
+      for (const t of tabs) {
+        tabMap[`${t.markerId}-${t.sheetId}`] = t;
+      }
+      set({
+        tabs: tabMap,
+        sheets: sortedSheets,
+        activeSheetId: sortedSheets[0]?.id ?? null,
+        activeMarkerId,
+      });
+    } catch (error) {
+      console.error('Failed to apply remote tabs and sheets:', error);
+      useToastStore.getState().addToast('Could not apply synced tabs', 'error');
+    }
+  },
+
+  applyRemoteTab: async (tab) => {
+    try {
+      await saveTab(tab);
+      set((state) => ({
+        tabs: { ...state.tabs, [`${tab.markerId}-${tab.sheetId}`]: tab },
+      }));
+    } catch (error) {
+      console.error('Failed to apply remote tab:', error);
+      useToastStore.getState().addToast('Could not apply synced tab', 'error');
+    }
+  },
+
+  applyRemoteTabDelete: async (tabId) => {
+    try {
+      await deleteTab(tabId);
+      set((state) => {
+        const updated = { ...state.tabs };
+        for (const key in updated) {
+          if (updated[key].id === tabId) delete updated[key];
+        }
+        return { tabs: updated };
+      });
+    } catch (error) {
+      console.error('Failed to apply remote tab delete:', error);
+      useToastStore.getState().addToast('Could not apply synced tab', 'error');
+    }
+  },
+
+  applyRemoteSheet: async (sheet) => {
+    try {
+      await saveTabSheet(sheet);
+      set((state) => {
+        const exists = state.sheets.some((s) => s.id === sheet.id);
+        const updated = exists
+          ? state.sheets.map((s) => (s.id === sheet.id ? sheet : s))
+          : [...state.sheets, sheet];
+        return { sheets: updated.sort((a, b) => a.order - b.order) };
+      });
+    } catch (error) {
+      console.error('Failed to apply remote sheet:', error);
+      useToastStore.getState().addToast('Could not apply synced sheet', 'error');
+    }
+  },
+
+  applyRemoteSheetDelete: async (sheetId) => {
+    try {
+      await deleteTabSheet(sheetId);
+      set((state) => {
+        const updated = state.sheets.filter((s) => s.id !== sheetId);
+        return {
+          sheets: updated,
+          activeSheetId:
+            state.activeSheetId === sheetId ? (updated[0]?.id ?? null) : state.activeSheetId,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to apply remote sheet delete:', error);
+      useToastStore.getState().addToast('Could not apply synced sheet', 'error');
+    }
   },
 }));

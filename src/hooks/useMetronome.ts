@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useMetronomeStore } from '../stores/useMetronomeStore';
 import { useCountInStore } from '../stores/useCountInStore';
 import { startMetronome, type MetronomeHandle } from '../services/metronomeScheduler';
-import type { TempoMapEntry } from '../components/Tabs/NotationPanel';
+import type { TempoMapEntry } from '../types';
 
 const TICKS_PER_QUARTER = 960;
 
