@@ -11,7 +11,10 @@ interface CountInToggleProps {
 export function CountInToggle({ compact = false }: CountInToggleProps = {}) {
   const enabled = useCountInStore((s) => s.enabled);
   const toggle = useCountInStore((s) => s.toggle);
-  const activeSong = useSongStore((s) => s.getActiveSong)();
+  // State selector (not the stable getter) so changes to the song re-render
+  const activeSong = useSongStore(
+    (s) => s.songs.find((song) => song.id === s.activeSongId) ?? null,
+  );
   const updateSong = useSongStore((s) => s.updateSong);
 
   const metronomeRunning = useMetronomeStore((s) => s.isRunning);

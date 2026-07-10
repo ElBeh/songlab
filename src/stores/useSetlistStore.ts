@@ -61,7 +61,10 @@ interface SetlistStore {
   moveSongToSetlist: (songId: string, targetSetlistId: string) => Promise<void>;
 
   // --- Bulk update (for sync) ---
-  setActiveItems: (items: SetlistItem[]) => Promise<void>;
+  /** Replace the active setlist's items. Creates a setlist (using `name`,
+   *  falling back to 'Default') when none exists — e.g. a Band Sync viewer
+   *  receiving a payload on a fresh profile. */
+  setActiveItems: (items: SetlistItem[], name?: string) => Promise<void>;
 }
 
 /** Persist a single setlist to IndexedDB */
@@ -350,7 +353,13 @@ export const useSetlistStore = create<SetlistStore>((set, get) => {
 
   // --- Bulk update (for sync) ---
 
-  setActiveItems: async (items) => {
+  setActiveItems: async (items, name) => {
+    // Lazy-create a setlist when none exists (mirrors addSongToActiveSetlist).
+    // Without this, a viewer with an empty local library silently drops the
+    // synced song order because mutateActiveSetlist is a no-op.
+    if (!get().getActiveSetlist()) {
+      await get().createSetlist(name ?? 'Default');
+    }
     await mutateActiveSetlist((active) => ({ ...active, items }));
   },
   };

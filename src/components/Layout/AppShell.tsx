@@ -64,7 +64,10 @@ export default function AppShell() {
   const [showRemoteControl, setShowRemoteControl] = useState(false);
   const [showMetronome, setShowMetronome] = useState(false);
 
-  const activeSong = useSongStore((state) => state.getActiveSong)();
+  // State selector (not the stable getter) so song changes reliably re-render
+  const activeSong = useSongStore(
+    (state) => state.songs.find((s) => s.id === state.activeSongId) ?? null,
+  );
   const addMarker = useSongStore((state) => state.addMarker);
   const setActiveMarker = useTabStore((state) => state.setActiveMarker);
   const addToast = useToastStore((state) => state.addToast);
@@ -572,23 +575,28 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
 // Host: push setlist to viewers on connect + when songs/order change
   const songs = useSongStore((s) => s.songs);
+  const allSetlists = useSetlistStore((s) => s.setlists);
   const songOrder = useSetlistStore(useShallow((state) => {
     const active = state.setlists.find((s) => s.id === state.activeSetlistId);
     return active?.items ?? [];
   }));
-  
+
   useEffect(() => {
     if (syncStatus !== 'connected' || syncRole !== 'host') return;
     if (songs.length === 0) return;
 
+    const { activeSetlistId: currentSetlistId } = useSetlistStore.getState();
     const items = useSetlistStore.getState().getActiveItems();
     const activeSetlist = useSetlistStore.getState().getActiveSetlist();
     emitSetlistSync({
       songs,
       songOrder: items,
       activeSetlistName: activeSetlist?.name ?? null,
+      // Full setlist collection so controllers can browse and switch
+      setlists: allSetlists.map((sl) => ({ id: sl.id, name: sl.name, items: sl.items })),
+      activeSetlistId: currentSetlistId,
     });
-  }, [songs, songOrder, syncStatus, syncRole]);
+  }, [songs, songOrder, allSetlists, syncStatus, syncRole]);
 
   // --- Add marker handler ---
   const handleAddMarker = useCallback(() => {

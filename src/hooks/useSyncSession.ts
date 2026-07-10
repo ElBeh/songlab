@@ -131,9 +131,18 @@ export function useSyncSession({
     // --- Helper: apply setlist from host ---
 
     function applySetlist(payload: import('../../shared/syncProtocol').SetlistSyncPayload) {
+      // Keep the host's full setlist collection in the sync store (ephemeral,
+      // not persisted) so controllers can browse and switch setlists.
+      useSyncStore.getState().setSyncedSetlists(
+        payload.setlists ?? [],
+        payload.activeSetlistId ?? null,
+      );
       runAsRemote(async () => {
         useSongStore.getState().applyRemoteSongs(payload.songs as SongData[]);
-        await useSetlistStore.getState().setActiveItems(payload.songOrder as SetlistItem[]);
+        await useSetlistStore.getState().setActiveItems(
+          payload.songOrder as SetlistItem[],
+          payload.activeSetlistName ?? undefined,
+        );
       });
     }
 

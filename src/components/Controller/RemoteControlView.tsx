@@ -12,6 +12,7 @@ import {
 } from '../../services/syncEmitter';
 import { formatTime } from '../../utils/formatTime';
 import { useSetlistStore } from '../../stores/useSetlistStore';
+import type { SetlistItem } from '../../types';
 
 type Tab = 'setlists' | 'songs' | 'sections';
 
@@ -21,18 +22,32 @@ export function RemoteControlView() {
   const [seekValue, setSeekValue] = useState(0);
 
   // --- Store data ---
-  const activeSong = useSongStore((s) => s.getActiveSong)();
-  const markers = useSongStore((s) => s.getActiveMarkers)();
-  const songOrder = useSetlistStore((s) => s.getActiveItems)();
+  // Subscribe to state (not stable getter functions) so the view re-renders
+  // when songs, markers, or the setlist change.
+  const songs = useSongStore((s) => s.songs);
+  const activeSongId = useSongStore((s) => s.activeSongId);
+  const markersBySong = useSongStore((s) => s.markersBySong);
   const allSetlists = useSetlistStore((s) => s.setlists);
   const activeSetlistId = useSetlistStore((s) => s.activeSetlistId);
   const switchSetlist = useSetlistStore((s) => s.switchSetlist);
-  const songs = useSongStore((s) => s.songs);
-  const activeSongId = useSongStore((s) => s.activeSongId);
+
+  const activeSong = songs.find((s) => s.id === activeSongId) ?? null;
+  const markers = activeSongId ? (markersBySong[activeSongId] ?? []) : [];
+  const songOrder = allSetlists.find((sl) => sl.id === activeSetlistId)?.items ?? [];
 
   const syncedTime = useSyncStore((s) => s.syncedTime);
   const syncedIsPlaying = useSyncStore((s) => s.syncedIsPlaying);
   const isController = useSyncStore((s) => s.isController);
+  const syncedSetlists = useSyncStore((s) => s.syncedSetlists);
+  const syncedActiveSetlistId = useSyncStore((s) => s.syncedActiveSetlistId);
+
+  // Prefer the host's synced setlist collection (Band Sync); fall back to
+  // the local store when no synced data is available.
+  const usingSyncedSetlists = syncedSetlists.length > 0;
+  const setlistEntries = usingSyncedSetlists
+    ? syncedSetlists.map((sl) => ({ id: sl.id, name: sl.name, items: sl.items as SetlistItem[] }))
+    : allSetlists.map((sl) => ({ id: sl.id, name: sl.name, items: sl.items }));
+  const displayActiveSetlistId = usingSyncedSetlists ? syncedActiveSetlistId : activeSetlistId;
 
   const playbackRate = useTempoStore((s) => s.playbackRate);
 
@@ -103,6 +118,10 @@ export function RemoteControlView() {
 
   const handleSongJump = (songId: string) => {
     emitControlCommand({ type: 'songSelect', songId });
+  };
+
+  const handleSetlistJump = (setlistId: string) => {
+    emitControlCommand({ type: 'setlistSelect', setlistId });
   };
 
   return (
@@ -264,18 +283,26 @@ export function RemoteControlView() {
       <div className='flex-1 overflow-y-auto'>
         {activeTab === 'setlists' ? (
           <div className='flex flex-col'>
-            {allSetlists.map((sl) => {
-              const isActive = sl.id === activeSetlistId;
+            {setlistEntries.map((sl) => {
+              const isActive = sl.id === displayActiveSetlistId;
               const slSongCount = sl.items.filter((i) => i.type === 'song').length;
               return (
                 <button
                   key={sl.id}
                   onClick={() => {
-                    switchSetlist(sl.id);
+                    if (usingSyncedSetlists) {
+                      // Synced mode: ask the host to switch (controller only)
+                      if (!isController) return;
+                      handleSetlistJump(sl.id);
+                    } else {
+                      switchSetlist(sl.id);
+                    }
                     setActiveTab('songs');
                   }}
+                  disabled={usingSyncedSetlists && !isController}
                   className='flex items-center gap-2 px-4 py-3 text-left
-                             border-b border-slate-800 transition-colors'
+                             border-b border-slate-800 transition-colors
+                             disabled:cursor-not-allowed'
                   style={{
                     backgroundColor: isActive ? '#1e293b' : 'transparent',
                   }}
@@ -295,7 +322,7 @@ export function RemoteControlView() {
                 </button>
               );
             })}
-            {allSetlists.length === 0 && (
+            {setlistEntries.length === 0 && (
               <div className='px-4 py-6 text-center font-mono text-xs text-slate-600'>
                 No setlists
               </div>

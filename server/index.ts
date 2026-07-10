@@ -137,12 +137,22 @@ app.get('/api/fetch-setlist', async (req, res) => {
       return;
     }
 
-    // Basic setlist format validation: must be an object with an entries array
-    if (
-      typeof data !== 'object' || data === null ||
-      !Array.isArray((data as Record<string, unknown>).entries)
-    ) {
-      res.status(422).json({ error: 'Invalid setlist format: expected { entries: [...] }' });
+    // Basic setlist format validation: accept the legacy single-setlist format
+    // ({ entries: [...] }) and the v2 multi-setlist format
+    // ({ version: 2, setlists: [...], songs: [...] }).
+    const record =
+      typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
+    const isLegacyFormat = record !== null && Array.isArray(record.entries);
+    const isV2Format =
+      record !== null &&
+      record.version === 2 &&
+      Array.isArray(record.setlists) &&
+      Array.isArray(record.songs);
+
+    if (!isLegacyFormat && !isV2Format) {
+      res.status(422).json({
+        error: 'Invalid setlist format: expected { entries: [...] } or { version: 2, setlists: [...] }',
+      });
       return;
     }
 

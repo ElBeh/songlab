@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SyncRole, PeerInfo } from '../../shared/syncProtocol';
+import type { SyncRole, PeerInfo, SetlistInfoPayload } from '../../shared/syncProtocol';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -24,6 +24,10 @@ interface SyncStore {
   syncedTickPosition: number | null;
   syncedCountInBeat: number | null;
 
+  // Synced setlists (viewer receives all host setlists for browsing/switching)
+  syncedSetlists: SetlistInfoPayload[];
+  syncedActiveSetlistId: string | null;
+
   // Actions
   setStatus: (status: ConnectionStatus) => void;
   setSession: (peerId: string, role: SyncRole, peers: PeerInfo[]) => void;
@@ -34,6 +38,7 @@ interface SyncStore {
   setController: (peerId: string) => void;
   clearController: () => void;
   setSyncedPlayback: (time: number, isPlaying: boolean, countdown?: number | null, autoAdvance?: boolean, tickPosition?: number | null, countInBeat?: number | null) => void;
+  setSyncedSetlists: (setlists: SetlistInfoPayload[], activeSetlistId: string | null) => void;
   reset: () => void;
 }
 
@@ -52,6 +57,8 @@ const initialState = {
   syncedAutoAdvance: false,
   syncedTickPosition: null,
   syncedCountInBeat: null,
+  syncedSetlists: [] as SetlistInfoPayload[],
+  syncedActiveSetlistId: null as string | null,
 };
 
 export const useSyncStore = create<SyncStore>((set) => ({
@@ -79,6 +86,10 @@ export const useSyncStore = create<SyncStore>((set) => ({
     syncedAutoAdvance: autoAdvance ?? false,
     syncedTickPosition: tickPosition ?? null,
     syncedCountInBeat: countInBeat ?? null,
+  }),
+  setSyncedSetlists: (setlists, activeSetlistId) => set({
+    syncedSetlists: setlists,
+    syncedActiveSetlistId: activeSetlistId,
   }),
   reset: () => set(initialState),
 }));

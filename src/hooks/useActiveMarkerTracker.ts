@@ -15,10 +15,13 @@ export function useActiveMarkerTracker(
   currentTime: number,
   duration: number,
 ): MarkerTrackerResult {
-  const getActiveMarkers = useSongStore((state) => state.getActiveMarkers);
+  // Subscribe to the underlying state (not the stable getter function),
+  // so the hook re-renders when markers or the active song change.
+  const markersBySong = useSongStore((state) => state.markersBySong);
+  const activeSongId = useSongStore((state) => state.activeSongId);
   const activeMarkerId = useTabStore((state) => state.activeMarkerId);
 
-  const markers = getActiveMarkers();
+  const markers = activeSongId ? (markersBySong[activeSongId] ?? []) : [];
   const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
 
   // Marker whose startTime is closest to (but not after) the current playhead

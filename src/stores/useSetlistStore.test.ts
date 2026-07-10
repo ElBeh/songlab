@@ -75,4 +75,12 @@ describe('useSetlistStore item operations', () => {
     await store().setActiveItems(items);
     expect(store().getActiveItems()).toEqual(items);
   });
+
+  it('creates a setlist when none exists (Band Sync viewer, fresh profile)', async () => {
+    useSetlistStore.setState({ setlists: [], activeSetlistId: null });
+    const items: SetlistItem[] = [{ type: 'song', songId: 's1' }];
+    await store().setActiveItems(items, 'Gig A');
+    expect(store().getActiveItems()).toEqual(items);
+    expect(store().getActiveSetlist()?.name).toBe('Gig A');
+  });
 });

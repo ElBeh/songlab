@@ -15,12 +15,14 @@ export type ControlCommandType =
   | 'nextSong'
   | 'prevSong'
   | 'tempoChange'
-  | 'songSelect';
+  | 'songSelect'
+  | 'setlistSelect';
 
 export interface ControlCommand {
   type: ControlCommandType;
   value?: number;  // seek: seconds, tempoChange: new rate (0.5–1.5)
   songId?: string; // songSelect: target song ID
+  setlistId?: string; // setlistSelect: target setlist ID
 }
 
 // --- Playback state (broadcast by host) ---
@@ -178,10 +180,22 @@ export interface SongDataPayload {
 
 // --- Setlist sync payload ---
 
+/** Lightweight setlist info for viewers/controllers (browse + switch) */
+export interface SetlistInfoPayload {
+  id: string;
+  name: string;
+  items: unknown[];  // SetlistItem[] – kept generic for server passthrough
+}
+
 export interface SetlistSyncPayload {
   songs: SongSyncPayload[];
   songOrder: unknown[];  // SetlistItem[] – kept generic for server passthrough
   activeSetlistName: string | null;
+  /** All host setlists so controllers can browse and switch (optional for
+   *  backward compatibility with older hosts) */
+  setlists?: SetlistInfoPayload[];
+  /** Host's active setlist id (matches an entry in `setlists`) */
+  activeSetlistId?: string | null;
 }
 
 // --- Session snapshot (sent to late joiners) ---

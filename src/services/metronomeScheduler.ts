@@ -13,7 +13,8 @@ const TICKS_PER_QUARTER = 960; // alphaTab standard
 export interface MetronomeHandle {
   /** Stop the metronome and clean up all scheduled nodes */
   stop: () => void;
-  /** Update tempo on the fly (only used when no tempoMap is provided) */
+  /** Update tempo on the fly with the effective BPM, i.e. playback rate
+   *  already applied (only used when no tempoMap is provided) */
   setTempo: (bpm: number, beatsPerBar: number) => void;
   /** Update metronome volume (0–1) */
   setVolume: (volume: number) => void;
@@ -168,9 +169,11 @@ export function startMetronome(opts: MetronomeOptions): MetronomeHandle {
     },
 
     setTempo: (newBpm, newBeatsPerBar) => {
+      // Callers pass the effective BPM (playback rate already applied),
+      // so reset the internal rate multiplier to avoid double scaling.
       fixedBpm = newBpm;
       fixedBeatsPerBar = newBeatsPerBar;
-      currentRate = playbackRate;
+      currentRate = 1;
     },
 
     setVolume: (v) => {

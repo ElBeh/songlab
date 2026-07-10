@@ -89,7 +89,6 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const songs = useSongStore((state) => state.songs);
   const activeSongId = useSongStore((state) => state.activeSongId);
   const markersBySong = useSongStore((state) => state.markersBySong);
-  const getActiveSong = useSongStore((state) => state.getActiveSong);
   const setActiveSongId = useSongStore((state) => state.setActiveSongId);
   const addSong = useSongStore((state) => state.addSong);
   const removeSong = useSongStore((state) => state.removeSong);
@@ -115,7 +114,8 @@ export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, col
   const deleteSetlist = useSetlistStore((state) => state.deleteSetlist);
   const moveSetlist = useSetlistStore((state) => state.moveSetlist);
 
-  const activeSong = getActiveSong();
+  // Derived from the subscribed songs/activeSongId state (reactive)
+  const activeSong = songs.find((s) => s.id === activeSongId) ?? null;
   // Reactive join of setlist order + song library (replaces non-reactive getters)
   const { orderedSongs, totalDuration } = useOrderedSetlist();
   const addToast = useToastStore((state) => state.addToast);

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { ControlCommand } from '../../shared/syncProtocol';
 import { useTempoStore } from '../stores/useTempoStore';
+import { useSetlistStore } from '../stores/useSetlistStore';
 import { navigateSong, navigateToSong } from '../utils/songNavigation';
 
 interface UseControlCommandHandlerOptions {
@@ -50,6 +51,12 @@ export function useControlCommandHandler({
       case 'songSelect':
         if (command.songId) {
           navigateToSong(command.songId);
+        }
+        break;
+
+      case 'setlistSelect':
+        if (command.setlistId) {
+          useSetlistStore.getState().switchSetlist(command.setlistId);
         }
         break;
     }

@@ -35,7 +35,10 @@ export function MetronomeSplitButton({
   const effectiveBpm = useMetronomeStore((s) => s.effectiveBpm);
   const effectiveBeatsPerBar = useMetronomeStore((s) => s.effectiveBeatsPerBar);
 
-  const activeSong = useSongStore((s) => s.getActiveSong)();
+  // State selector (not the stable getter) so changes to the song re-render
+  const activeSong = useSongStore(
+    (s) => s.songs.find((song) => song.id === s.activeSongId) ?? null,
+  );
   const updateSong = useSongStore((s) => s.updateSong);
 
   const showEffective = isRunning && effectiveBpm !== null;
