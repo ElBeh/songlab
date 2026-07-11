@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useLoopStore } from '../stores/useLoopStore';
 
@@ -6,18 +6,16 @@ interface KeyboardShortcutsOptions {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
   onPlayPause: () => void;
   onAddMarker: () => void;
-  isPlaying: boolean;
   onSeek?: (time: number) => void;
   currentTime?: number;
   duration?: number;
-  disabled?: boolean; 
+  disabled?: boolean;
 }
 
 export function useKeyboardShortcuts({
   wavesurferRef,
   onPlayPause,
   onAddMarker,
-  isPlaying,
   onSeek,
   currentTime = 0,
   duration = 0,
@@ -26,8 +24,18 @@ export function useKeyboardShortcuts({
   const toggleLoop = useLoopStore((state) => state.toggleLoop);
   const loop = useLoopStore((state) => state.loop);
 
+  // Keep fast-changing values and callbacks in a ref so the keydown listener
+  // is registered exactly once instead of being detached and re-attached on
+  // every playback tick (currentTime updates several times per second).
+  const latest = useRef({ onPlayPause, onAddMarker, onSeek, currentTime, duration, disabled, loop, toggleLoop });
+  useEffect(() => {
+    latest.current = { onPlayPause, onAddMarker, onSeek, currentTime, duration, disabled, loop, toggleLoop };
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const { onPlayPause, onAddMarker, onSeek, currentTime, duration, disabled, loop, toggleLoop } =
+        latest.current;
       if (disabled) return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
@@ -47,7 +55,7 @@ export function useKeyboardShortcuts({
           e.preventDefault();
           if (loop) toggleLoop();
           break;
-          case 'ArrowLeft':
+        case 'ArrowLeft':
           e.preventDefault();
           if (wavesurferRef.current) {
             wavesurferRef.current.setTime(
@@ -75,5 +83,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onPlayPause, onAddMarker, wavesurferRef, isPlaying, toggleLoop, loop, onSeek, currentTime, duration, disabled]);
+  }, [wavesurferRef]);
 }

@@ -140,10 +140,10 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
   // --- Marker auto-tracking callback ---
   const onMarkerTimeUpdate = useCallback((t: number) => {
-    const sorted = [...useSongStore.getState().getActiveMarkers()].sort(
-      (a, b) => a.startTime - b.startTime,
-    );
-    const active = [...sorted].reverse().find((m) => m.startTime <= t + 0.1);
+    // Markers are kept sorted by startTime in the store (see useSongStore),
+    // so the last matching entry is the active section — no re-sort needed.
+    const markers = useSongStore.getState().getActiveMarkers();
+    const active = markers.findLast((m) => m.startTime <= t + 0.1);
     if (active) setActiveMarker(active.id);
   }, [setActiveMarker]);
 
@@ -184,7 +184,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     // Viewer Audio+GP: wire synth so we can track isReady + drive cursor
     if (isAlphaSynth || (isAudioGp && isViewer)) alphaSynthPlayback.setApi(api);
     viewerApiRef.current = api;
-  }, [isAlphaSynth, isAudioGp, isViewer, alphaSynthPlayback]);
+  }, [isAlphaSynth, isAudioGp, isViewer, alphaSynthPlayback.setApi]);
 
   // Tick reported by External Media sync (Audio+GP host) – used for broadcast
   const [externalMediaTick, setExternalMediaTick] = useState(0);
@@ -515,7 +515,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
         playback.setIsPlaying(true);
       }, 100);
     }
-  }, [baseHandleReady, addToast, playback]);
+  }, [baseHandleReady, addToast, playback.wavesurferRef, playback.setIsPlaying]);
 
   // Auto-play pure dummy songs after setlist advance (band mode)
   const activeSongId = useSongStore((state) => state.activeSongId);
@@ -524,7 +524,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       pendingAutoPlayRef.current = false;
       dummyPlayback.handlePlayPause();
     }
-  }, [activeSongId, isPureDummy, dummyPlayback]);
+  }, [activeSongId, isPureDummy, dummyPlayback.handlePlayPause]);
 
   // Auto-play alphaSynth songs after setlist advance (band mode)
   const alphaSynthReady = alphaSynthPlayback.isReady;
@@ -533,7 +533,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       pendingAutoPlayRef.current = false;
       alphaSynthPlayback.handlePlayPause();
     }
-  }, [isAlphaSynth, alphaSynthReady, alphaSynthPlayback]);
+  }, [isAlphaSynth, alphaSynthReady, alphaSynthPlayback.handlePlayPause]);
 
   // Load persisted audio from IndexedDB when switching songs
   useEffect(() => {
@@ -544,7 +544,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       }
     }
     gpFile.loadPersistedGp(activeSongId);
-  }, [activeSongId, isDummy, audioFile, gpFile]);
+  }, [activeSongId, isDummy, audioFile.audioUrl, audioFile.loadPersistedAudio, gpFile.loadPersistedGp]);
 
   // Host: push full song data to viewers on song switch
   // Use a small delay to ensure tabs/sheets are loaded first
@@ -615,7 +615,16 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       }
     }
     setShowMarkerForm(true);
-  }, [audioFile.audioUrl, isDummy, isAlphaSynth, dummyPlayback, playback, alphaSynthPlayback]);
+  }, [
+    audioFile.audioUrl,
+    isDummy,
+    isAlphaSynth,
+    dummyPlayback.setIsPlaying,
+    playback.wavesurferRef,
+    playback.setIsPlaying,
+    alphaSynthPlayback.isPlaying,
+    alphaSynthPlayback.handlePlayPause,
+  ]);
 
   // --- Upgrade dummy → real audio ---
   const handleUpgradeFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -623,18 +632,17 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     if (file && activeSong) {
       audioFile.upgradeDummySong(file, activeSong.id);
     }
-  }, [activeSong, audioFile]);
+  }, [activeSong, audioFile.upgradeDummySong]);
 
   // --- Keyboard shortcuts ---
   useKeyboardShortcuts({
     wavesurferRef: playback.wavesurferRef,
     onPlayPause: handlePlayPauseWithCountIn,
     onAddMarker: handleAddMarker,
-    isPlaying,
     onSeek: isDummy ? handleSeekTo : undefined,
     currentTime: isDummy ? currentTime : undefined,
     duration: isDummy ? duration : undefined,
-    disabled: showMetronome, 
+    disabled: showMetronome,
   });
 
   // Is there an active song with audio (or dummy)?

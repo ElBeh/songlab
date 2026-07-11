@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useSongStore } from '../stores/useSongStore';
-import { useTabStore } from '../stores/useTabStore';
 import { saveGpFile, getGpFile, deleteGpFile } from '../services/db';
 import type { SongData } from '../types';
 import { useSetlistStore } from '../stores/useSetlistStore';
+import { navigateToSong } from '../utils/songNavigation';
 
 const GP_EXTENSIONS = ['.gp', '.gp3', '.gp4', '.gp5', '.gpx', '.gp8'];
 
@@ -90,11 +90,11 @@ const loadPersistedGp = useCallback(async (songId: string): Promise<ArrayBuffer 
     const arrayBuffer = await file.arrayBuffer();
     await saveGpFile(id, arrayBuffer, file.name);
 
-    const { addSong, setActiveSongId } = useSongStore.getState();
+    const { addSong } = useSongStore.getState();
     await addSong(song);
-    await setActiveSongId(id);
     await useSetlistStore.getState().addSongToActiveSetlist(id);
-    await useTabStore.getState().loadSheetsForSong(id);
+    // Unified activation sequence (sets active song, loads tabs + sheets)
+    await navigateToSong(id);
     setGpData((prev) => ({ ...prev, [id]: arrayBuffer }));
   }, []);
 

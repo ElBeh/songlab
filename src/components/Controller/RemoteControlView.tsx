@@ -55,13 +55,13 @@ export function RemoteControlView() {
 
   // --- Derived ---
   const duration = activeSong?.duration ?? 0;
-  const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
-  const activeMarker = sortedMarkers.find((m) => m.id === activeMarkerId);
+  // Markers are kept sorted by startTime in the store — no re-sort needed.
+  const activeMarker = markers.find((m) => m.id === activeMarkerId);
   const activeMarkerIdx = activeMarker
-    ? sortedMarkers.indexOf(activeMarker)
+    ? markers.indexOf(activeMarker)
     : -1;
   const nextMarker = activeMarkerIdx >= 0
-    ? sortedMarkers[activeMarkerIdx + 1] ?? null
+    ? markers[activeMarkerIdx + 1] ?? null
     : null;
 
   const songMap = new Map(songs.map((s) => [s.id, s]));
@@ -370,7 +370,7 @@ export function RemoteControlView() {
           </div>
         ) : (
           <div className='flex flex-col'>
-            {sortedMarkers.map((marker) => {
+            {markers.map((marker) => {
               const isActive = marker.id === activeMarkerId;
               return (
                 <button
@@ -400,7 +400,7 @@ export function RemoteControlView() {
                 </button>
               );
             })}
-            {sortedMarkers.length === 0 && (
+            {markers.length === 0 && (
               <div className='px-4 py-6 text-center font-mono text-xs text-slate-600'>
                 No sections marked
               </div>

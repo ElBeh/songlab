@@ -21,12 +21,11 @@ export function useActiveMarkerTracker(
   const activeSongId = useSongStore((state) => state.activeSongId);
   const activeMarkerId = useTabStore((state) => state.activeMarkerId);
 
+  // Markers are kept sorted by startTime in the store — no re-sort needed.
   const markers = activeSongId ? (markersBySong[activeSongId] ?? []) : [];
-  const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
 
   // Marker whose startTime is closest to (but not after) the current playhead
-  const timeBasedMarker =
-    [...sortedMarkers].reverse().find((m) => m.startTime <= currentTime + 0.1) ?? null;
+  const timeBasedMarker = markers.findLast((m) => m.startTime <= currentTime + 0.1) ?? null;
 
   // Manual selection takes precedence, falls back to time-based
   const selectedMarker = activeMarkerId
@@ -34,7 +33,7 @@ export function useActiveMarkerTracker(
     : timeBasedMarker;
 
   const selectedMarkerEnd = selectedMarker
-    ? (sortedMarkers.find((m) => m.startTime > selectedMarker.startTime)?.startTime ?? duration)
+    ? (markers.find((m) => m.startTime > selectedMarker.startTime)?.startTime ?? duration)
     : duration;
 
   return { selectedMarker, selectedMarkerEnd };

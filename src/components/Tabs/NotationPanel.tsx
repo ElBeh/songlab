@@ -226,41 +226,43 @@ export function NotationPanel({
   // Manual cursor-follow scroll for both page and horizontal mode.
   // alphaTab's built-in scrollElement only works when its own player drives
   // playback. In External Media mode (and after layout switches) it doesn't
-  // fire, so we handle scrolling ourselves via requestAnimationFrame.
+  // fire, so we poll the cursor position ourselves. A low-rate interval is
+  // used instead of requestAnimationFrame: the check performs layout reads
+  // (getBoundingClientRect) which would force a reflow on every frame, and
+  // ~7 Hz is more than enough to trigger the follow scroll.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !isPlaying) return;
 
-    const beat = () => container.querySelector('.at-cursor-beat') as HTMLElement | null;
+    const SCROLL_CHECK_INTERVAL_MS = 150;
 
-    let rafId = 0;
-    const tick = () => {
-      const el = beat();
-      if (el) {
-        const beatRect = el.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
+    const check = () => {
+      const el = container.querySelector('.at-cursor-beat') as HTMLElement | null;
+      if (!el) return;
 
-        if (layout === 'page') {
-          const offset = beatRect.top - containerRect.top;
-          const target = container.scrollTop + offset - containerRect.height * 0.3;
+      const beatRect = el.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
 
-          if (Math.abs(offset - containerRect.height * 0.3) > 50) {
-            container.scrollTo({ top: target, behavior: 'smooth' });
-          }
-        } else {
-          const offset = beatRect.left - containerRect.left;
+      if (layout === 'page') {
+        const offset = beatRect.top - containerRect.top;
+        const target = container.scrollTop + offset - containerRect.height * 0.3;
 
-          if (offset < 0 || offset > containerRect.width * 0.85) {
-            const target = container.scrollLeft + offset - containerRect.width * 0.1;
-            container.scrollTo({ left: target, behavior: 'instant' });
-          }
+        if (Math.abs(offset - containerRect.height * 0.3) > 50) {
+          container.scrollTo({ top: target, behavior: 'smooth' });
+        }
+      } else {
+        const offset = beatRect.left - containerRect.left;
+
+        if (offset < 0 || offset > containerRect.width * 0.85) {
+          const target = container.scrollLeft + offset - containerRect.width * 0.1;
+          container.scrollTo({ left: target, behavior: 'instant' });
         }
       }
-      rafId = requestAnimationFrame(tick);
     };
 
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    const intervalId = window.setInterval(check, SCROLL_CHECK_INTERVAL_MS);
+    check();
+    return () => window.clearInterval(intervalId);
   }, [layout, isPlaying]);
 
   // Switch track

@@ -25,11 +25,8 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
   const [editingColorId, setEditingColorId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
 
-  const sortedMarkers = [...markers].sort((a, b) => a.startTime - b.startTime);
-
-  const activeMarkerId = [...sortedMarkers]
-    .reverse()
-    .find((m) => m.startTime <= currentTime + 0.1)?.id ?? null;
+  // Markers are kept sorted by startTime in the store — no re-sort needed.
+  const activeMarkerId = markers.findLast((m) => m.startTime <= currentTime + 0.1)?.id ?? null;
 
   const handleColorChange = async (markerId: string, newColor: string) => {
     const marker = markers.find((m) => m.id === markerId);
@@ -52,8 +49,8 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
 
   return (
     <ul className='flex flex-col gap-1'>
-      {sortedMarkers.map((marker) => {
-        const endTime = sortedMarkers.find(
+      {markers.map((marker) => {
+        const endTime = markers.find(
           (m) => m.startTime > marker.startTime
         )?.startTime ?? duration;
         const isActive = marker.id === activeMarkerId;

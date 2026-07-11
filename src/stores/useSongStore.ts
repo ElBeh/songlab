@@ -18,6 +18,8 @@ interface SongStore {
   // --- State ---
   songs: SongData[];
   activeSongId: string | null;
+  /** Invariant: each marker array is kept sorted by startTime (ascending).
+   *  All mutation paths in this store re-sort; consumers rely on the order. */
   markersBySong: Record<string, SectionMarker[]>;
 
   // --- Derived ---

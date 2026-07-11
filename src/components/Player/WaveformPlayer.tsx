@@ -4,6 +4,7 @@ import { useSongStore } from '../../stores/useSongStore';
 import { useLoopStore } from '../../stores/useLoopStore';
 import { WaveformTimeline } from './WaveformTimeline';
 import { useTempoStore } from '../../stores/useTempoStore';
+import { resolveSongLoopFinish } from '../../utils/songLoop';
 
 interface WaveformPlayerProps {
   audioUrl: string;
@@ -129,14 +130,11 @@ export function WaveformPlayer({
       setCurrentTime(t);
       onTimeUpdateRef.current(t);
 
-      // Loop logic
-      const { loop: l, loopEnabled: le, loopTarget: lt } = useLoopStore.getState();
+      // Section loop: counter/target decision shared with the song-loop
+      // paths (also resets the counter once the target is reached).
+      const { loop: l, loopEnabled: le } = useLoopStore.getState();
       if (le && l && t >= l.end) {
-        useLoopStore.getState().incrementLoopCount();
-        // Read actual count after increment
-        const newCount = useLoopStore.getState().loopCount;
-        // Stop if target reached
-        if (lt !== null && newCount >= lt) {
+        if (resolveSongLoopFinish() === 'stop') {
           useLoopStore.getState().toggleLoop();
           return;
         }
