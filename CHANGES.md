@@ -1,4 +1,78 @@
-# SongLab refactor — changes
+# SongLab — Changes
+
+## v0.14.0 — 2026-07-16
+
+All changes verified with: `tsc -b` (clean), `vitest run` (30 tests, 7 files, all
+passing), `eslint` (no errors), and `npm run build` (production build succeeds).
+
+### Upgrade notes
+- Sync protocol extended (backward-compatible optional fields). Host and viewers
+  should run the same version.
+- Rebuild (`npm run build`), restart the sync server, hard-reload all devices
+  (PWA may serve the cached bundle until the service worker updates).
+
+### Features
+- Remote Controller: browse all host setlists and switch the active setlist.
+  The host now transmits its full setlist collection (`SetlistSyncPayload.setlists`
+  + `activeSetlistId`); controllers switch via the new `setlistSelect` control
+  command. Synced setlists are kept ephemeral in `useSyncStore` and never touch
+  the viewer's local library.
+
+### Fixes
+- Viewers with an empty local library silently dropped synced setlists —
+  `setActiveItems` now lazy-creates a setlist (named after the host's).
+- Metronome applied the playback rate twice after live tempo updates
+  (`metronomeScheduler.setTempo`).
+- v2 setlist exports were rejected by the URL import proxy (server now accepts
+  both legacy and v2 formats).
+- Section loop now resets the loop counter when the target is reached
+  (consistent with the song-loop paths).
+- Stale non-reactive getter subscriptions replaced with state selectors
+  (marker tracker, remote control view, metronome/count-in toggles, app shell).
+- Ref mutation during render moved into an effect (concurrent-rendering safe).
+
+### Security
+- SSRF hardening on the URL import proxy: redirects are followed manually and
+  every hop is re-validated (HTTPS + private-range checks); private-URL
+  detection extended (127/8, 0.0.0.0, 169.254.x, `.internal`, IPv6 loopback,
+  link-local, unique-local, IPv4-mapped).
+- Server clears the session snapshot (playback, song, setlist) when the host
+  disconnects, so late joiners no longer receive orphaned state.
+
+### Performance
+- Chunked Base64 conversion (~5x faster on multi-MB GP/audio files in
+  export and Band Sync).
+- Sequential per-item persistence replaced with `Promise.all` (remote sync
+  application, import/restore, GP marker import, marker color sync).
+- Full song-data push (incl. GP binary) now only on song switch, GP change,
+  or host connect — no longer on every tab/sheet/metadata edit.
+- Keydown listener registered once (latest-values ref) instead of being
+  re-attached on every playback tick.
+- Notation cursor-follow scroll polls at ~7 Hz instead of forcing layout
+  reads on every animation frame.
+- Redundant per-render marker sorting removed (store keeps markers sorted;
+  consumers use `findLast`); `removeMarker` updates only the owning song's
+  array; memoized derivations in the remote control view; map-based setlist
+  order sort.
+
+### Robustness
+- All async file flows (audio load, dummy upgrade, GP attach/remove/create,
+  persisted loads) now surface errors via toast instead of silent unhandled
+  rejections.
+- Object-URL leaks fixed: URLs are revoked when replaced and when songs are
+  removed; URL creation moved after successful processing.
+- `React.MutableRefObject` → `React.RefObject` (React 19).
+- `preferredSheetType` migrated from localStorage to the IndexedDB config
+  store (one-time automatic migration).
+- Song activation unified on `navigateToSong` everywhere.
+
+### Tests
+- New regression tests: marker scoping across song switches and Band Sync
+  event application (incl. races and late events), setlist lazy-create.
+
+---
+
+# Refactor pass (pre-v0.14)
 
 All changes verified with: `tsc -b` (clean), `vitest run` (25 tests, 6 files, all
 passing), `eslint` (clean on every changed file), and `npm run build` (production
