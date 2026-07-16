@@ -95,7 +95,7 @@ async function restoreBundle(bundle: SongBundle): Promise<void> {
   }
 
   await saveSong(bundle.song);
-  for (const marker of bundle.markers ?? []) await saveMarker(marker);
+  await Promise.all((bundle.markers ?? []).map((marker) => saveMarker(marker)));
 
   // Restore GP file if present in export
   if (bundle.gpFileBase64 && bundle.gpFileName) {
@@ -118,13 +118,12 @@ async function restoreBundle(bundle: SongBundle): Promise<void> {
     sheets = [defaultSheet];
   }
 
-  for (const sheet of sheets) await saveTabSheet(sheet);
+  await Promise.all(sheets.map((sheet) => saveTabSheet(sheet)));
 
   const defaultSheetId = sheets[0]?.id ?? null;
-  for (const tab of tabs) {
-    const fixed = tab.sheetId ? tab : { ...tab, sheetId: defaultSheetId! };
-    await saveTab(fixed);
-  }
+  await Promise.all(
+    tabs.map((tab) => saveTab(tab.sheetId ? tab : { ...tab, sheetId: defaultSheetId! })),
+  );
 }
 
 /** Read a File as text via FileReader (Promise wrapper) */

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useSongStore } from '../stores/useSongStore';
+import { useToastStore } from '../stores/useToastStore';
 import { saveGpFile, getGpFile, deleteGpFile } from '../services/db';
 import type { SongData } from '../types';
 import { useSetlistStore } from '../stores/useSetlistStore';
@@ -26,21 +27,32 @@ export function useGpFile() {
     const song = useSongStore.getState().getActiveSong();
     if (!song) return;
 
-    const arrayBuffer = await file.arrayBuffer();
-    await saveGpFile(song.id, arrayBuffer, file.name);
-    await updateSong({ ...song, gpFileName: file.name, syncPoints: null });
-    setGpData((prev) => ({ ...prev, [song.id]: arrayBuffer }));
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      await saveGpFile(song.id, arrayBuffer, file.name);
+      await updateSong({ ...song, gpFileName: file.name, syncPoints: null });
+      setGpData((prev) => ({ ...prev, [song.id]: arrayBuffer }));
+    } catch (error) {
+      console.error('Failed to load GP file:', file.name, error);
+      useToastStore.getState().addToast('Could not load GP file', 'error');
+    }
   }, [updateSong]);
 
 /** Load persisted GP file from IndexedDB */
 const loadPersistedGp = useCallback(async (songId: string): Promise<ArrayBuffer | null> => {
     if (gpData[songId]) return gpData[songId];
 
-    const stored = await getGpFile(songId);
-    if (!stored) return null;
+    try {
+      const stored = await getGpFile(songId);
+      if (!stored) return null;
 
-    setGpData((prev) => ({ ...prev, [songId]: stored.data }));
-    return stored.data;
+      setGpData((prev) => ({ ...prev, [songId]: stored.data }));
+      return stored.data;
+    } catch (error) {
+      console.error('Failed to load persisted GP file:', songId, error);
+      useToastStore.getState().addToast('Could not load stored GP file', 'error');
+      return null;
+    }
 }, [gpData]);
 
   /** Remove GP file from song */
@@ -48,13 +60,18 @@ const loadPersistedGp = useCallback(async (songId: string): Promise<ArrayBuffer 
     const song = useSongStore.getState().songs.find((s) => s.id === songId);
     if (!song) return;
 
-    await deleteGpFile(songId);
-    await updateSong({ ...song, gpFileName: null, syncPoints: null });
-    setGpData((prev) => {
-      const next = { ...prev };
-      delete next[songId];
-      return next;
-    });
+    try {
+      await deleteGpFile(songId);
+      await updateSong({ ...song, gpFileName: null, syncPoints: null });
+      setGpData((prev) => {
+        const next = { ...prev };
+        delete next[songId];
+        return next;
+      });
+    } catch (error) {
+      console.error('Failed to remove GP file:', songId, error);
+      useToastStore.getState().addToast('Could not remove GP file', 'error');
+    }
   }, [updateSong]);
 
   /** Handle file input change event */
@@ -87,15 +104,20 @@ const loadPersistedGp = useCallback(async (songId: string): Promise<ArrayBuffer 
       timeSignature: null,
     };
 
-    const arrayBuffer = await file.arrayBuffer();
-    await saveGpFile(id, arrayBuffer, file.name);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      await saveGpFile(id, arrayBuffer, file.name);
 
-    const { addSong } = useSongStore.getState();
-    await addSong(song);
-    await useSetlistStore.getState().addSongToActiveSetlist(id);
-    // Unified activation sequence (sets active song, loads tabs + sheets)
-    await navigateToSong(id);
-    setGpData((prev) => ({ ...prev, [id]: arrayBuffer }));
+      const { addSong } = useSongStore.getState();
+      await addSong(song);
+      await useSetlistStore.getState().addSongToActiveSetlist(id);
+      // Unified activation sequence (sets active song, loads tabs + sheets)
+      await navigateToSong(id);
+      setGpData((prev) => ({ ...prev, [id]: arrayBuffer }));
+    } catch (error) {
+      console.error('Failed to create song from GP file:', file.name, error);
+      useToastStore.getState().addToast('Could not create song from GP file', 'error');
+    }
   }, []);
 
   return {

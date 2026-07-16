@@ -3,7 +3,7 @@ import type WaveSurfer from 'wavesurfer.js';
 import { useLoopStore } from '../stores/useLoopStore';
 
 interface KeyboardShortcutsOptions {
-  wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
+  wavesurferRef: React.RefObject<WaveSurfer | null>;
   onPlayPause: () => void;
   onAddMarker: () => void;
   onSeek?: (time: number) => void;

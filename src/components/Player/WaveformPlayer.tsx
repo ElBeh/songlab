@@ -12,7 +12,7 @@ interface WaveformPlayerProps {
   onReady: (duration: number) => void;
   onTimeUpdate: (currentTime: number) => void;
   onFinish: () => void;
-  wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
+  wavesurferRef: React.RefObject<WaveSurfer | null>;
 }
 
 interface DragState {
@@ -81,14 +81,6 @@ export function WaveformPlayer({
     const effectiveVolume = volume * normalizationGain;
     ws.setVolume(Math.min(1, effectiveVolume));
   }, [volume, normalizationGain, wavesurferRef]);
-
-  // Neuer useEffect nur für Songwechsel:
-  useEffect(() => {
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    const effectiveVolume = volume * normalizationGain;
-    ws.setVolume(Math.min(1, effectiveVolume));
-  }, [activeSongId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply height changes dynamically
   useEffect(() => {
@@ -167,10 +159,7 @@ export function WaveformPlayer({
     const { abMode: am, abStart: as_ } = useLoopStore.getState();
     if (!am) return;
 
-    const rect = waveContainerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const t = percent * duration;
+    const t = getPercentFromEvent(e.nativeEvent) * duration;
 
     if (as_ === null) {
       setAbStart(t);
@@ -181,7 +170,7 @@ export function WaveformPlayer({
       setAbStart(null);
       toggleAbMode();
     }
-  }, [duration, setAbStart, setLoop, toggleAbMode]);
+  }, [duration, getPercentFromEvent, setAbStart, setLoop, toggleAbMode]);
 
   const handleMarkerMouseDown = useCallback(
     (e: React.MouseEvent, markerId: string) => {

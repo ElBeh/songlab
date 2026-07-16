@@ -41,19 +41,78 @@ const API_CORS_ORIGINS = [
 function isPrivateUrl(urlString: string): boolean {
   try {
     const parsed = new URL(urlString);
-    const hostname = parsed.hostname;
+    // URL keeps IPv6 hostnames in brackets — strip them for matching
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+
+    if (hostname.includes(':')) {
+      // IPv6: loopback, unspecified, link-local (fe80::/10),
+      // unique local (fc00::/7), and IPv4-mapped addresses
+      return (
+        hostname === '::1' ||
+        hostname === '::' ||
+        hostname.startsWith('fe80:') ||
+        hostname.startsWith('fc') ||
+        hostname.startsWith('fd') ||
+        hostname.startsWith('::ffff:')
+      );
+    }
+
     return (
       hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '::1' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
+      hostname === '0.0.0.0' ||
+      /^127\./.test(hostname) ||
+      /^10\./.test(hostname) ||
+      /^192\.168\./.test(hostname) ||
       /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
-      hostname.endsWith('.local')
+      // Link-local incl. cloud metadata endpoints (169.254.169.254)
+      /^169\.254\./.test(hostname) ||
+      hostname.endsWith('.local') ||
+      hostname.endsWith('.internal')
     );
   } catch {
     return true;
   }
+}
+
+/**
+ * Fetch with manual redirect handling: every hop is re-validated against
+ * the HTTPS and private-URL rules, so a redirect cannot be used to reach
+ * internal services (SSRF). Cloud providers (Dropbox, Google Drive) rely
+ * on redirects for direct downloads, which is why they cannot simply be
+ * disabled. Note: DNS rebinding is not covered — that would require
+ * resolving and pinning IPs, which is out of proportion for a LAN tool.
+ */
+const MAX_REDIRECTS = 5;
+
+async function fetchWithValidatedRedirects(
+  startUrl: string,
+  init: { signal: AbortSignal; headers: Record<string, string> },
+): Promise<Response> {
+  let currentUrl = startUrl;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    if (!currentUrl.startsWith('https://')) {
+      throw new Error('Redirected to a non-HTTPS URL');
+    }
+    if (isPrivateUrl(currentUrl)) {
+      throw new Error('Redirected to a private/local URL');
+    }
+
+    const response = await fetch(currentUrl, { ...init, redirect: 'manual' });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (!location) {
+        throw new Error(`Redirect (${response.status}) without Location header`);
+      }
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error(`Too many redirects (more than ${MAX_REDIRECTS})`);
 }
 
 /** Transform cloud sharing links into direct download URLs */
@@ -101,7 +160,7 @@ app.get('/api/fetch-setlist', async (req, res) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    const response = await fetch(downloadUrl, {
+    const response = await fetchWithValidatedRedirects(downloadUrl, {
       signal: controller.signal,
       headers: {
         'Accept': 'application/json, */*',
@@ -161,6 +220,13 @@ app.get('/api/fetch-setlist', async (req, res) => {
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') {
       res.status(504).json({ error: 'Request timed out after 15 seconds' });
+      return;
+    }
+    if (
+      error instanceof Error &&
+      (error.message.startsWith('Redirected to') || error.message.startsWith('Too many redirects'))
+    ) {
+      res.status(400).json({ error: error.message });
       return;
     }
     console.error('[api] Fetch setlist error:', error);
@@ -372,6 +438,12 @@ io.on('connection', (socket) => {
 
     if (isHost(socket.id)) {
       hostId = null;
+      // Clear the session snapshot: without a host the cached playback,
+      // song, and setlist data are orphaned — late joiners would otherwise
+      // receive a stale welcome snapshot from a session that no longer runs.
+      playbackState = null;
+      songData = null;
+      setlistData = null;
       console.log(`[sync] Host disconnected (${reason}). Session has no host.`);
     }
 

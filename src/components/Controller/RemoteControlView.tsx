@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useSyncStore } from '../../stores/useSyncStore';
 import { useTempoStore } from '../../stores/useTempoStore';
@@ -33,7 +33,10 @@ export function RemoteControlView() {
 
   const activeSong = songs.find((s) => s.id === activeSongId) ?? null;
   const markers = activeSongId ? (markersBySong[activeSongId] ?? []) : [];
-  const songOrder = allSetlists.find((sl) => sl.id === activeSetlistId)?.items ?? [];
+  const songOrder = useMemo(
+    () => allSetlists.find((sl) => sl.id === activeSetlistId)?.items ?? [],
+    [allSetlists, activeSetlistId],
+  );
 
   const syncedTime = useSyncStore((s) => s.syncedTime);
   const syncedIsPlaying = useSyncStore((s) => s.syncedIsPlaying);
@@ -64,8 +67,12 @@ export function RemoteControlView() {
     ? markers[activeMarkerIdx + 1] ?? null
     : null;
 
-  const songMap = new Map(songs.map((s) => [s.id, s]));
-  const songItems = songOrder.filter((item) => item.type === 'song');
+  // Memoized: this view re-renders on every playback sync tick (~250 ms)
+  const songMap = useMemo(() => new Map(songs.map((s) => [s.id, s])), [songs]);
+  const songItems = useMemo(
+    () => songOrder.filter((item) => item.type === 'song'),
+    [songOrder],
+  );
 
   // --- Handlers ---
   const handleToggleController = () => {

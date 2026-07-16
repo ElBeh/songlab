@@ -124,12 +124,12 @@ export const useSetlistStore = create<SetlistStore>((set, get) => {
       if (existing.length > 0) {
         // Sort by persisted order if available
         const order = await getConfig<string[]>('setlistOrder');
+        // Map lookup instead of indexOf inside the comparator
+        const orderIndex = new Map((order ?? []).map((id, i) => [id, i]));
         const sorted = order
-          ? [...existing].sort((a, b) => {
-              const ia = order.indexOf(a.id);
-              const ib = order.indexOf(b.id);
-              return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
-            })
+          ? [...existing].sort(
+              (a, b) => (orderIndex.get(a.id) ?? Infinity) - (orderIndex.get(b.id) ?? Infinity),
+            )
           : existing;
         set({ setlists: sorted, activeSetlistId: sorted[0].id });
         return;
@@ -266,9 +266,9 @@ export const useSetlistStore = create<SetlistStore>((set, get) => {
       ),
     }));
     set({ setlists: updatedSetlists });
-    for (const s of updatedSetlists) {
-      await persistSetlist(s);
-    }
+    // Persist only setlists that actually contained the song, in parallel
+    const changed = updatedSetlists.filter((s, i) => s.items.length !== setlists[i].items.length);
+    await Promise.all(changed.map((s) => persistSetlist(s)));
   },
 
   getSetlistsContainingSong: (songId) => {

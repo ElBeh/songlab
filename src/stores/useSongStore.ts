@@ -214,14 +214,17 @@ export const useSongStore = create<SongStore>((set, get) => ({
         .find(([, markers]) => markers.some((m) => m.id === id))?.[0] ?? '';
       await deleteMarker(id);
       emitMarkerDelete(id, songId);
-      set((state) => ({
-        markersBySong: Object.fromEntries(
-          Object.entries(state.markersBySong).map(([songId, markers]) => [
-            songId,
-            markers.filter((m) => m.id !== id),
-          ])
-        ),
-      }));
+      // Only the owning song's array contains the marker — no need to
+      // rebuild the whole map. Keeps other arrays referentially stable
+      // (avoids re-renders of components subscribed to unrelated songs).
+      if (songId) {
+        set((state) => ({
+          markersBySong: {
+            ...state.markersBySong,
+            [songId]: (state.markersBySong[songId] ?? []).filter((m) => m.id !== id),
+          },
+        }));
+      }
     } catch (error) {
       console.error('Failed to delete marker:', error);
       useToastStore.getState().addToast('Could not delete marker', 'error');
@@ -237,7 +240,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
   applyRemoteSongData: async (song, markers, gp) => {
     try {
       await saveSong(song);
-      for (const m of markers) await saveMarker(m);
+      await Promise.all(markers.map((m) => saveMarker(m)));
       if (gp) {
         await saveGpFile(song.id, gp.data, gp.fileName);
       } else {

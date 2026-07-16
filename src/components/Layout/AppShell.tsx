@@ -249,7 +249,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   const handleGpImportMerge = useCallback(async () => {
     if (!gpImportMarks || !activeSong) return;
     const markers = gpMarksToSectionMarkers(gpImportMarks, activeSong.id);
-    for (const m of markers) await addMarker(m);
+    await Promise.all(markers.map((m) => addMarker(m)));
     addToast(`Imported ${markers.length} section(s)`, 'success');
     setGpImportMarks(null);
   }, [gpImportMarks, activeSong, addMarker, addToast]);
@@ -258,9 +258,9 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     if (!gpImportMarks || !activeSong) return;
     const { removeMarker } = useSongStore.getState();
     const existing = useSongStore.getState().getActiveMarkers();
-    for (const m of existing) await removeMarker(m.id);
+    await Promise.all(existing.map((m) => removeMarker(m.id)));
     const markers = gpMarksToSectionMarkers(gpImportMarks, activeSong.id);
-    for (const m of markers) await addMarker(m);
+    await Promise.all(markers.map((m) => addMarker(m)));
     addToast(`Replaced with ${markers.length} section(s)`, 'success');
     setGpImportMarks(null);
   }, [gpImportMarks, activeSong, addMarker, addToast]);
@@ -349,7 +349,11 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     handleSeekTo,
     isPlaying: _isPlaying,
   });
-  controlCommandRef.current = handleControlCommand;
+  // Keep the ref in sync inside an effect — mutating refs during render is
+  // unsafe with concurrent rendering (a render may be discarded or replayed).
+  useEffect(() => {
+    controlCommandRef.current = handleControlCommand;
+  }, [handleControlCommand]);
 
   // MIDI input: footswitch / controller via Web MIDI API
   useMidiInput({
@@ -546,32 +550,35 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     gpFile.loadPersistedGp(activeSongId);
   }, [activeSongId, isDummy, audioFile.audioUrl, audioFile.loadPersistedAudio, gpFile.loadPersistedGp]);
 
-  // Host: push full song data to viewers on song switch
-  // Use a small delay to ensure tabs/sheets are loaded first
-  const sheets = useTabStore((s) => s.sheets);
-  const tabs = useTabStore((s) => s.tabs);
+  // Host: push full song data to viewers on song switch, GP change, or
+  // (re)connect. Incremental edits (markers, tabs, sheets) are synced via
+  // their granular events, and song metadata reaches viewers through the
+  // setlist broadcast — so the heavy full push (incl. GP binary) must not
+  // be re-sent on every edit.
   useEffect(() => {
-    if (!activeSongId || !activeSong) return;
+    if (!activeSongId) return;
     if (syncStatus !== 'connected' || syncRole !== 'host') return;
 
     // Debounce: wait for tabs/sheets to settle after song switch
     const timer = setTimeout(() => {
+      const song = useSongStore.getState().songs.find((s) => s.id === activeSongId);
+      if (!song) return;
       const markers = useSongStore.getState().getActiveMarkers();
       const { tabs: currentTabs, sheets: currentSheets } = useTabStore.getState();
       const songTabs = Object.values(currentTabs).filter((t) => t.songId === activeSongId);
 
       emitSongData({
-        song: activeSong,
+        song,
         markers,
         tabs: songTabs,
         sheets: currentSheets.filter((s) => s.songId === activeSongId),
         gpData: gpFile.activeGpData ?? null,
-        gpFileName: activeSong.gpFileName ?? null,
+        gpFileName: song.gpFileName ?? null,
       });
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [activeSongId, activeSong, syncStatus, syncRole, sheets, tabs, gpFile.activeGpData]);
+  }, [activeSongId, syncStatus, syncRole, gpFile.activeGpData]);
 
 // Host: push setlist to viewers on connect + when songs/order change
   const songs = useSongStore((s) => s.songs);
@@ -1017,9 +1024,9 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                     const sameType = getActiveMarkers().filter(
                       (x) => x.type === marker.type && x.id !== marker.id,
                     );
-                    for (const x of sameType) {
-                      await updateMarker({ ...x, color: marker.color });
-                    }
+                    await Promise.all(
+                      sameType.map((x) => updateMarker({ ...x, color: marker.color })),
+                    );
                     setShowMarkerForm(false);
                   }}
                   onCancel={() => setShowMarkerForm(false)}

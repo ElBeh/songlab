@@ -7,6 +7,8 @@ import {
   saveTabSheet,
   getTabSheetsForSong,
   deleteTabSheet,
+  getConfig,
+  setConfig,
 } from '../services/db';
 import {
   emitTabSave,
@@ -57,7 +59,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
   sheets: [],
   activeMarkerId: null,
   activeSheetId: null,
-  preferredSheetType: localStorage.getItem('songlab:preferredSheetType'),
+  preferredSheetType: null,
 
   loadTabsForSong: async (songId) => {
     try {
@@ -172,7 +174,10 @@ export const useTabStore = create<TabStore>((set, get) => ({
   setActiveSheet: (id) => {
     const sheet = get().sheets.find((s) => s.id === id);
     if (sheet) {
-      localStorage.setItem('songlab:preferredSheetType', sheet.type);
+      // Persist via the config store, consistent with all other persistence
+      void setConfig('preferredSheetType', sheet.type).catch((error) => {
+        console.error('Failed to persist preferred sheet type:', error);
+      });
       set({ activeSheetId: id, preferredSheetType: sheet.type });
     } else {
       set({ activeSheetId: id });
@@ -188,8 +193,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
   applyRemoteTabsAndSheets: async (tabs, sheets, activeMarkerId) => {
     try {
       const sortedSheets = [...sheets].sort((a, b) => a.order - b.order);
-      for (const s of sortedSheets) await saveTabSheet(s);
-      for (const t of tabs) await saveTab(t);
+      await Promise.all(sortedSheets.map((s) => saveTabSheet(s)));
+      await Promise.all(tabs.map((t) => saveTab(t)));
 
       const tabMap: Record<string, SectionTab> = {};
       for (const t of tabs) {
@@ -268,3 +273,20 @@ export const useTabStore = create<TabStore>((set, get) => ({
     }
   },
 }));
+
+// Load the persisted sheet preference once at startup. A legacy value from
+// localStorage (pre-config-store versions) is migrated on first run.
+void (async () => {
+  try {
+    let stored = await getConfig<string>('preferredSheetType');
+    const legacy = localStorage.getItem('songlab:preferredSheetType');
+    if (!stored && legacy) {
+      stored = legacy;
+      await setConfig('preferredSheetType', legacy);
+      localStorage.removeItem('songlab:preferredSheetType');
+    }
+    if (stored) useTabStore.setState({ preferredSheetType: stored });
+  } catch (error) {
+    console.error('Failed to load preferred sheet type:', error);
+  }
+})();

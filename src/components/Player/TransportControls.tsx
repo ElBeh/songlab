@@ -5,7 +5,7 @@ import { SkipBack, Rewind, Play, Pause, FastForward, Repeat } from 'lucide-react
 import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface TransportControlsProps {
-  wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
+  wavesurferRef: React.RefObject<WaveSurfer | null>;
   onSeek?: (time: number) => void;    
   currentTime: number;
   duration: number;

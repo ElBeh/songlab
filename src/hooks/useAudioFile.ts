@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSongStore } from '../stores/useSongStore';
-import { useTabStore } from '../stores/useTabStore';
+import { useToastStore } from '../stores/useToastStore';
 import { analyzeRmsGain } from '../services/audioAnalysis';
 import { saveAudioFile, getAudioFile, getSong } from '../services/db';
 import type { SongData } from '../types';
 import { useSetlistStore } from '../stores/useSetlistStore';
+import { navigateToSong } from '../utils/songNavigation';
 
 interface UseAudioFileOptions {
   /** Called after a new file is loaded, before wavesurfer picks it up */
@@ -18,64 +19,90 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
   const [isDragging, setIsDragging] = useState(false);
 
   const activeSongId = useSongStore((state) => state.activeSongId);
-  const addSong = useSongStore((state) => state.addSong);
   const updateSong = useSongStore((state) => state.updateSong);
-  const setActiveSongId = useSongStore((state) => state.setActiveSongId);
-  const loadTabsForSong = useTabStore((state) => state.loadTabsForSong);
 
   const audioUrl = activeSongId ? audioUrls[activeSongId] ?? null : null;
 
+  // Revoke object URLs of songs that no longer exist in the library,
+  // otherwise their audio blobs (up to ~30 MB each) stay referenced forever.
+  // Implemented as a store subscription so the cleanup runs on song removal
+  // without subscribing this hook's render to the songs array.
+  useEffect(() => {
+    return useSongStore.subscribe((state, prevState) => {
+      if (state.songs === prevState.songs) return;
+      const ids = new Set(state.songs.map((s) => s.id));
+      setAudioUrls((prev) => {
+        const stale = Object.entries(prev).filter(([id]) => !ids.has(id));
+        if (stale.length === 0) return prev;
+        for (const [, url] of stale) URL.revokeObjectURL(url);
+        return Object.fromEntries(Object.entries(prev).filter(([id]) => ids.has(id)));
+      });
+    });
+  }, []);
+
+  /** Publish a fresh object URL for a song, revoking a replaced one.
+   *  revokeObjectURL is idempotent, so a double-invoked updater
+   *  (React StrictMode) is harmless. */
+  const publishAudioUrl = useCallback((songId: string, url: string) => {
+    setAudioUrls((prev) => {
+      if (prev[songId] && prev[songId] !== url) URL.revokeObjectURL(prev[songId]);
+      return { ...prev, [songId]: url };
+    });
+  }, []);
+
   const handleFile = useCallback(async (file: File) => {
-    const url = URL.createObjectURL(file);
     onFileLoaded?.();
+    try {
+      // Analyze loudness
+      const normalizationGain = await analyzeRmsGain(file);
 
-    // Analyze loudness
-    const normalizationGain = await analyzeRmsGain(file);
+      // Preserve metadata if song was previously imported
+      const existingId = `${file.name}-${file.size}`;
+      const existingSong = useSongStore.getState().songs.find((s) => s.id === existingId)
+        ?? await getSong(existingId);
 
-    // Preserve metadata if song was previously imported
-    const existingId = `${file.name}-${file.size}`;
-    const existingSong = useSongStore.getState().songs.find((s) => s.id === existingId)
-      ?? await getSong(existingId);
+      const song: SongData = existingSong
+        ? {
+            ...existingSong,
+            fileName: file.name,
+            fileSize: file.size,
+            normalizationGain,
+            normalizationEnabled: normalizationGain !== 1.0,
+            isDummy: false,
+          }
+        : {
+            id: existingId,
+            title: file.name.replace(/\.[^.]+$/, ''),
+            fileName: file.name,
+            fileSize: file.size,
+            duration: 0,
+            createdAt: Date.now(),
+            volume: 1.0,
+            normalizationGain,
+            normalizationEnabled: normalizationGain !== 1.0,
+            isDummy: false,
+            gpFileName: null,
+            syncPoints: null,
+            syncOffset: null,
+            bpmAdjust: null,
+            bpm: null,
+            timeSignature: null,
+          };
 
-    const song: SongData = existingSong
-      ? {
-          ...existingSong,
-          fileName: file.name,
-          fileSize: file.size,
-          normalizationGain,
-          normalizationEnabled: normalizationGain !== 1.0,
-          isDummy: false,
-        }
-      : {
-          id: existingId,
-          title: file.name.replace(/\.[^.]+$/, ''),
-          fileName: file.name,
-          fileSize: file.size,
-          duration: 0,
-          createdAt: Date.now(),
-          volume: 1.0,
-          normalizationGain,
-          normalizationEnabled: normalizationGain !== 1.0,
-          isDummy: false,
-          gpFileName: null,
-          syncPoints: null,
-          syncOffset: null,
-          bpmAdjust: null,
-          bpm: null,
-          timeSignature: null,
-        };
+      // Persist audio data to IndexedDB
+      const arrayBuffer = await file.arrayBuffer();
+      await saveAudioFile(song.id, arrayBuffer, file.type || 'audio/mpeg');
 
-    // Persist audio data to IndexedDB
-    const arrayBuffer = await file.arrayBuffer();
-    await saveAudioFile(song.id, arrayBuffer, file.type || 'audio/mpeg');
-
-    await addSong(song);
-    await useSetlistStore.getState().addSongToActiveSetlist(song.id);
-    await setActiveSongId(song.id);
-    await loadTabsForSong(song.id);
-    await useTabStore.getState().loadSheetsForSong(song.id);
-    setAudioUrls((prev) => ({ ...prev, [song.id]: url }));
-  }, [addSong, setActiveSongId, loadTabsForSong, onFileLoaded]);
+      await useSongStore.getState().addSong(song);
+      await useSetlistStore.getState().addSongToActiveSetlist(song.id);
+      // Unified activation sequence (sets active song, loads tabs + sheets)
+      await navigateToSong(song.id);
+      publishAudioUrl(song.id, URL.createObjectURL(file));
+    } catch (error) {
+      console.error('Failed to load audio file:', file.name, error);
+      useToastStore.getState().addToast('Could not load audio file', 'error');
+    }
+  }, [onFileLoaded, publishAudioUrl]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -100,43 +127,53 @@ export function useAudioFile({ onFileLoaded, onUpgraded }: UseAudioFileOptions =
 
   /** Attach a real audio file to an existing dummy song (upgrade flow) */
   const upgradeDummySong = useCallback(async (file: File, dummySongId: string) => {
-    const url = URL.createObjectURL(file);
-    const normalizationGain = await analyzeRmsGain(file);
+    try {
+      const normalizationGain = await analyzeRmsGain(file);
 
-    const existing = useSongStore.getState().songs.find((s) => s.id === dummySongId);
-    if (!existing) return;
+      const existing = useSongStore.getState().songs.find((s) => s.id === dummySongId);
+      if (!existing) return;
 
-    const upgraded = {
-      ...existing,
-      fileName: file.name,
-      fileSize: file.size,
-      normalizationGain,
-      normalizationEnabled: normalizationGain !== 1.0,
-      isDummy: false,
-    };
+      const upgraded = {
+        ...existing,
+        fileName: file.name,
+        fileSize: file.size,
+        normalizationGain,
+        normalizationEnabled: normalizationGain !== 1.0,
+        isDummy: false,
+      };
 
-    // Persist audio data to IndexedDB
-    const arrayBuffer = await file.arrayBuffer();
-    await saveAudioFile(dummySongId, arrayBuffer, file.type || 'audio/mpeg');
+      // Persist audio data to IndexedDB
+      const arrayBuffer = await file.arrayBuffer();
+      await saveAudioFile(dummySongId, arrayBuffer, file.type || 'audio/mpeg');
 
-    await updateSong(upgraded);
-    setAudioUrls((prev) => ({ ...prev, [dummySongId]: url }));
-    onUpgraded?.();
-  }, [updateSong, onUpgraded]);
+      await updateSong(upgraded);
+      publishAudioUrl(dummySongId, URL.createObjectURL(file));
+      onUpgraded?.();
+    } catch (error) {
+      console.error('Failed to upgrade dummy song:', file.name, error);
+      useToastStore.getState().addToast('Could not attach audio file', 'error');
+    }
+  }, [updateSong, onUpgraded, publishAudioUrl]);
 
   /** Load persisted audio from IndexedDB for a given song */
   const loadPersistedAudio = useCallback(async (songId: string): Promise<string | null> => {
     // Already cached in memory
     if (audioUrls[songId]) return audioUrls[songId];
 
-    const stored = await getAudioFile(songId);
-    if (!stored) return null;
+    try {
+      const stored = await getAudioFile(songId);
+      if (!stored) return null;
 
-    const blob = new Blob([stored.data], { type: stored.mimeType });
-    const url = URL.createObjectURL(blob);
-    setAudioUrls((prev) => ({ ...prev, [songId]: url }));
-    return url;
-  }, [audioUrls]);
+      const blob = new Blob([stored.data], { type: stored.mimeType });
+      const url = URL.createObjectURL(blob);
+      publishAudioUrl(songId, url);
+      return url;
+    } catch (error) {
+      console.error('Failed to load persisted audio:', songId, error);
+      useToastStore.getState().addToast('Could not load stored audio', 'error');
+      return null;
+    }
+  }, [audioUrls, publishAudioUrl]);
 
   return {
     audioUrl,

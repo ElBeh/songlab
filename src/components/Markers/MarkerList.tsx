@@ -32,9 +32,7 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
     const marker = markers.find((m) => m.id === markerId);
     if (!marker) return;
     const sameType = markers.filter((m) => m.type === marker.type);
-    for (const m of sameType) {
-      await updateMarker({ ...m, color: newColor });
-    }
+    await Promise.all(sameType.map((m) => updateMarker({ ...m, color: newColor })));
   };
 
   const handleColorCommit = () => setEditingColorId(null);
@@ -173,9 +171,9 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
                     const sameType = markers.filter(
                       (m) => m.type === updated.type && m.id !== updated.id
                     );
-                    for (const m of sameType) {
-                      await updateMarker({ ...m, color: updated.color });
-                    }
+                    await Promise.all(
+                      sameType.map((m) => updateMarker({ ...m, color: updated.color })),
+                    );
                   }
                   await updateMarker(updated);
                   setEditingMarkerId(null);
