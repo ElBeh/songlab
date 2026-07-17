@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { SyncOffsetEditor } from './SyncOffsetEditor';
 import { useExternalMediaSync, buildTempoMap, tickToElapsedMs } from '../../hooks/useExternalMediaSync';
+import { useResizablePanelHeight } from '../../hooks/useResizablePanelHeight';
 import { analyzeTuning, formatTuning } from '../../utils/tuningPresets';
 import type { TempoMapEntry } from '../../types';
 import { ArrowLeftRight, ArrowUpDown, Minus, Plus, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
@@ -78,6 +79,12 @@ export function NotationPanel({
   const [trackStates, setTrackStates] = useState<TrackMixerState[]>([]);
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [apiForEditor, setApiForEditor] = useState<alphaTab.AlphaTabApi | null>(null);
+
+  // User-resizable panel height, persisted separately per layout mode
+  const { height: panelMaxHeight, isResizing, startResize, adjustHeight } = useResizablePanelHeight({
+    configKey: layout === 'page' ? 'notationPanelHeightPage' : 'notationPanelHeightHorizontal',
+    defaultHeight: 400,
+  });
 
   // Keep refs in sync
   useEffect(() => {
@@ -570,8 +577,31 @@ export function NotationPanel({
       {/* alphaTab render container */}
       <div
         ref={containerRef}
-        className="overflow-auto bg-white rounded relative h-auto max-h-[400px]"
+        className="overflow-auto bg-white rounded relative"
+        style={{ height: panelMaxHeight }}
       />
+      {/* Resize handle: drag to change panel height, arrow keys when focused */}
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize notation panel height"
+        tabIndex={0}
+        onPointerDown={startResize}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            adjustHeight(-24);
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            adjustHeight(24);
+          }
+        }}
+        className={`mt-1 h-2 flex items-center justify-center rounded cursor-row-resize touch-none
+                    select-none transition-colors focus:outline-none focus:ring-1 focus:ring-slate-400
+                    ${isResizing ? 'bg-slate-500' : 'bg-slate-700 hover:bg-slate-600'}`}
+      >
+        <div className="w-10 h-1 rounded bg-slate-400" />
+      </div>
     </div>
   );
 }

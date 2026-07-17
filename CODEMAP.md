@@ -288,6 +288,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 14:export function usePlayback({ onTimeUpdate, onFinish, onLoopRestart }: UsePlaybackOptions = {})
 - **deps**: ../stores/useLoopStore
 
+### useResizablePanelHeight.ts (119 lines)
+- 29:export function useResizablePanelHeight({
+- **deps**: ../services/db
+
 ### useSetlistAdvance.ts (131 lines)
 - 27:export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): SetlistAdvanceResult
 - **deps**: ../stores/useModeStore,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore
@@ -414,9 +418,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function GpMarkerImportDialog({
 - **deps**: ../../utils/formatTime,../../utils/gpMarkerImport
 
-### NotationPanel.tsx (576 lines)
-- 51:export function NotationPanel({
-- **deps**: ../../hooks/useExternalMediaSync,../../types,../../utils/iconSizes,../../utils/tuningPresets
+### NotationPanel.tsx (606 lines)
+- 52:export function NotationPanel({
+- **deps**: ../../hooks/useExternalMediaSync,../../hooks/useResizablePanelHeight,../../types,../../utils/iconSizes,../../utils/tuningPresets
 
 ### SheetBar.tsx (175 lines)
 - 19:export function SheetBar({ songId, isViewer = false }: SheetBarProps)
