@@ -314,6 +314,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 13:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
 - **deps**: ../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore
 
+### ImportExportPanel.tsx (276 lines)
+- 19:export function ImportExportPanel()
+- **deps**: ../../hooks/useClickOutside,../../hooks/useOrderedSetlist,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
+
 ### MidiSettingsDialog.tsx (261 lines)
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
@@ -322,9 +326,17 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 3:export function ModeMenu()
 - **deps**: ../../stores/useModeStore
 
-### Sidebar.tsx (1141 lines)
-- 29:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
-- **deps**: ../../hooks/useClickOutside,../../hooks/useOrderedSetlist,../Markers/MarkerList,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/formatTime,../../utils/iconSizes
+### SetlistItemList.tsx (588 lines)
+- 28:export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }: SetlistItemListProps)
+- **deps**: ../../hooks/useClickOutside,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
+
+### SetlistSelector.tsx (241 lines)
+- 19:export function SetlistSelector({ canEdit }: SetlistSelectorProps)
+- **deps**: ../../hooks/useClickOutside,../../hooks/useOrderedSetlist,../../stores/useSetlistStore,../../utils/formatTime,../../utils/iconSizes
+
+### Sidebar.tsx (181 lines)
+- 26:export function Sidebar({ onSeekTo, duration, currentTime, isViewer = false, collapsed = false, onToggleCollapse, o...
+- **deps**: ../Markers/MarkerList,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../utils/iconSizes
 
 ### SongTabs.tsx (250 lines)
 - 16:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
