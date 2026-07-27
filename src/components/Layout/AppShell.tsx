@@ -167,6 +167,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
   // --- GP file (loaded early for isAlphaSynth routing) ---
   const gpFile = useGpFile();
+  const { loadPersistedGp } = gpFile;
   const hasGpFile = !!gpFile.activeGpData;
   const isAlphaSynth = isDummy && hasGpFile;
   const isPureDummy = isDummy && !hasGpFile;
@@ -194,15 +195,25 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     onLoopRestart: isAlphaSynth ? handleLoopRestart : undefined,
   });
 
+  // Destructured stable references (memoized in the hooks) so effect/callback
+  // dependency arrays can list them directly and stay exhaustive-deps clean.
+  const { wavesurferRef, setIsPlaying: playbackSetIsPlaying } = playback;
+  const { handlePlayPause: dummyHandlePlayPause, setIsPlaying: dummySetIsPlaying } = dummyPlayback;
+  const {
+    setApi: alphaSynthSetApi,
+    handlePlayPause: alphaSynthHandlePlayPause,
+    isPlaying: alphaSynthIsPlaying,
+  } = alphaSynthPlayback;
+
   // --- Notation API callback (forwards to alphaSynth when needed) ---
   // Also stores raw API ref for viewer synth control (play/pause/seek/drift)
   const viewerApiRef = useRef<alphaTab.AlphaTabApi | null>(null);
   const handleNotationApiReady = useCallback((api: alphaTab.AlphaTabApi | null) => {
     // Host Dummy+GP: wire synth playback natively
     // Viewer Audio+GP: wire synth so we can track isReady + drive cursor
-    if (isAlphaSynth || (isAudioGp && isViewer)) alphaSynthPlayback.setApi(api);
+    if (isAlphaSynth || (isAudioGp && isViewer)) alphaSynthSetApi(api);
     viewerApiRef.current = api;
-  }, [isAlphaSynth, isAudioGp, isViewer, alphaSynthPlayback.setApi]);
+  }, [isAlphaSynth, isAudioGp, isViewer, alphaSynthSetApi]);
 
   // Tick reported by External Media sync (Audio+GP host) – used for broadcast
   const [externalMediaTick, setExternalMediaTick] = useState(0);
@@ -502,6 +513,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       dummyPlayback.setCurrentTime(0);
     },
   });
+  const { audioUrl, loadPersistedAudio, upgradeDummySong } = audioFile;
 
   // --- Marker tracking ---
   const { selectedMarker, selectedMarkerEnd } = useActiveMarkerTracker(currentTime, duration);
@@ -533,40 +545,40 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       pendingAutoPlayRef.current = false;
       // Small delay to let wavesurfer settle
       setTimeout(() => {
-        playback.wavesurferRef.current?.play();
-        playback.setIsPlaying(true);
+        wavesurferRef.current?.play();
+        playbackSetIsPlaying(true);
       }, 100);
     }
-  }, [baseHandleReady, addToast, playback.wavesurferRef, playback.setIsPlaying]);
+  }, [baseHandleReady, addToast, wavesurferRef, playbackSetIsPlaying]);
 
   // Auto-play pure dummy songs after setlist advance (band mode)
   const activeSongId = useSongStore((state) => state.activeSongId);
   useEffect(() => {
     if (pendingAutoPlayRef.current && isPureDummy) {
       pendingAutoPlayRef.current = false;
-      dummyPlayback.handlePlayPause();
+      dummyHandlePlayPause();
     }
-  }, [activeSongId, isPureDummy, dummyPlayback.handlePlayPause]);
+  }, [activeSongId, isPureDummy, dummyHandlePlayPause]);
 
   // Auto-play alphaSynth songs after setlist advance (band mode)
   const alphaSynthReady = alphaSynthPlayback.isReady;
   useEffect(() => {
     if (pendingAutoPlayRef.current && isAlphaSynth && alphaSynthReady) {
       pendingAutoPlayRef.current = false;
-      alphaSynthPlayback.handlePlayPause();
+      alphaSynthHandlePlayPause();
     }
-  }, [isAlphaSynth, alphaSynthReady, alphaSynthPlayback.handlePlayPause]);
+  }, [isAlphaSynth, alphaSynthReady, alphaSynthHandlePlayPause]);
 
   // Load persisted audio from IndexedDB when switching songs
   useEffect(() => {
     if (!activeSongId) return;
     if (!isDummy) {
-      if (!audioFile.audioUrl) {
-        audioFile.loadPersistedAudio(activeSongId);
+      if (!audioUrl) {
+        loadPersistedAudio(activeSongId);
       }
     }
-    gpFile.loadPersistedGp(activeSongId);
-  }, [activeSongId, isDummy, audioFile.audioUrl, audioFile.loadPersistedAudio, gpFile.loadPersistedGp]);
+    loadPersistedGp(activeSongId);
+  }, [activeSongId, isDummy, audioUrl, loadPersistedAudio, loadPersistedGp]);
 
   // Host: push full song data to viewers on song switch, GP change, or
   // (re)connect. Incremental edits (markers, tabs, sheets) are synced via
@@ -625,39 +637,39 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
   // --- Add marker handler ---
   const handleAddMarker = useCallback(() => {
-    if (!audioFile.audioUrl && !isDummy) return;
+    if (!audioUrl && !isDummy) return;
 
     if (isAlphaSynth) {
       // alphaSynth: pause via API toggle if currently playing
-      if (alphaSynthPlayback.isPlaying) alphaSynthPlayback.handlePlayPause();
+      if (alphaSynthIsPlaying) alphaSynthHandlePlayPause();
     } else if (isDummy) {
-      dummyPlayback.setIsPlaying(false);
+      dummySetIsPlaying(false);
     } else {
-      const ws = playback.wavesurferRef.current;
+      const ws = wavesurferRef.current;
       if (ws?.isPlaying()) {
         ws.pause();
-        playback.setIsPlaying(false);
+        playbackSetIsPlaying(false);
       }
     }
     setShowMarkerForm(true);
   }, [
-    audioFile.audioUrl,
+    audioUrl,
     isDummy,
     isAlphaSynth,
-    dummyPlayback.setIsPlaying,
-    playback.wavesurferRef,
-    playback.setIsPlaying,
-    alphaSynthPlayback.isPlaying,
-    alphaSynthPlayback.handlePlayPause,
+    dummySetIsPlaying,
+    wavesurferRef,
+    playbackSetIsPlaying,
+    alphaSynthIsPlaying,
+    alphaSynthHandlePlayPause,
   ]);
 
   // --- Upgrade dummy → real audio ---
   const handleUpgradeFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && activeSong) {
-      audioFile.upgradeDummySong(file, activeSong.id);
+      upgradeDummySong(file, activeSong.id);
     }
-  }, [activeSong, audioFile.upgradeDummySong]);
+  }, [activeSong, upgradeDummySong]);
 
   // --- Keyboard shortcuts ---
   useKeyboardShortcuts({
