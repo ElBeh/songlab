@@ -3,6 +3,7 @@ import { useSyncStore } from '../../stores/useSyncStore';
 import { useMidiStore } from '../../stores/useMidiStore';
 import { isMidiSupported } from '../../services/midiService';
 import { MidiSettingsDialog } from './MidiSettingsDialog';
+import { QrJoinDialog } from './QrJoinDialog';
 import type { SyncRole } from '../../../shared/syncProtocol';
 
 interface SyncStatusProps {
@@ -15,8 +16,10 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
   const role = useSyncStore((s) => s.role);
   const peers = useSyncStore((s) => s.peers);
   const error = useSyncStore((s) => s.error);
+  const connectedServerUrl = useSyncStore((s) => s.serverUrl);
 
   const [showPanel, setShowPanel] = useState(false);
+  const [showQrDialog, setShowQrDialog] = useState(false);
   const [showMidiDialog, setShowMidiDialog] = useState(false);
   const [serverUrl, setServerUrl] = useState(window.location.origin);
   const [displayName, setDisplayName] = useState('');
@@ -123,6 +126,17 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
                   </div>
                 ))}
               </div>
+
+              <button
+                onClick={() => {
+                  setShowPanel(false);
+                  setShowQrDialog(true);
+                }}
+                className='px-3 py-1.5 text-xs font-mono bg-slate-700 text-slate-300
+                           hover:bg-slate-600 rounded transition-colors'
+              >
+                Show join QR code
+              </button>
 
               <button
                 onClick={handleDisconnect}
@@ -261,6 +275,10 @@ export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps) {
 
       {showMidiDialog && (
         <MidiSettingsDialog onClose={() => setShowMidiDialog(false)} />
+      )}
+
+      {showQrDialog && connectedServerUrl && (
+        <QrJoinDialog serverUrl={connectedServerUrl} onClose={() => setShowQrDialog(false)} />
       )}
     </div>
   );

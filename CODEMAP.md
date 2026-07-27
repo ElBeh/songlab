@@ -306,8 +306,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1222 lines)
-- 58:export default function AppShell()
+### AppShell.tsx (1251 lines)
+- 59:export default function AppShell()
 - **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../Tools/StandaloneMetronome,../../types,../../utils/gpMarkerImport,../../utils/iconSizes
 
 ### CreateDummySongDialog.tsx (265 lines)
@@ -318,6 +318,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 19:export function ImportExportPanel()
 - **deps**: ../../hooks/useClickOutside,../../hooks/useOrderedSetlist,../../services/exportService,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
 
+### JoinPromptDialog.tsx (80 lines)
+- 16:export function JoinPromptDialog({ role, onJoin, onClose }: JoinPromptDialogProps)
+- **deps**: ../../../shared/syncProtocol
+
 ### MidiSettingsDialog.tsx (261 lines)
 - 37:export function MidiSettingsDialog({ onClose }: MidiSettingsDialogProps)
 - **deps**: ../../services/midiService,../../stores/useMidiStore,../../stores/useToastStore
@@ -325,6 +329,10 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### ModeMenu.tsx (30 lines)
 - 3:export function ModeMenu()
 - **deps**: ../../stores/useModeStore
+
+### QrJoinDialog.tsx (131 lines)
+- 15:export function QrJoinDialog({ serverUrl, onClose }: QrJoinDialogProps)
+- **deps**: ../../stores/useToastStore
 
 ### SetlistItemList.tsx (588 lines)
 - 28:export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }: SetlistItemListProps)
@@ -342,8 +350,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 16:export function SongTabs({ onAddSong, onCreateDummy, isViewer = false }: SongTabsProps)
 - **deps**: ../../hooks/useOrderedSetlist,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useTabStore,../../stores/useToastStore,../../utils/iconSizes
 
-### SyncStatus.tsx (266 lines)
-- 13:export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps)
+### SyncStatus.tsx (284 lines)
+- 14:export function SyncStatus({ onConnect, onDisconnect }: SyncStatusProps)
 - **deps**: ../../services/midiService,../../../shared/syncProtocol,../../stores/useMidiStore,../../stores/useSyncStore
 
 ### Toast.tsx (40 lines)
@@ -477,7 +485,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## server
 
-### index.ts (457 lines)
+### index.ts (478 lines)
 - **deps**: ../shared/syncProtocol.js
 
 ## src/

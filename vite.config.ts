@@ -47,15 +47,19 @@ export default defineConfig({
       },
     }),
   ],
-  server: {
-    proxy: {
-      // Proxy socket.io requests to the Express sync server during development
-      '/socket.io': {
-        target: 'http://localhost:3000',
-        ws: true,
-      },
+server: {
+  proxy: {
+    // Proxy socket.io requests to the Express sync server during development
+    '/socket.io': {
+      target: 'http://localhost:3000',
+      ws: true,
+    },
+    // Proxy API requests (server-info, fetch-setlist) to the sync server
+    '/api': {
+      target: 'http://localhost:3000',
     },
   },
+},
   test: {
     // Use describe/it/expect without imports and enable RTL auto-cleanup
     globals: true,

@@ -1,3 +1,4 @@
+import os from 'node:os';
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -131,6 +132,26 @@ function toDirectDownloadUrl(url: string): string {
 
   return url;
 }
+
+
+// Report the server's LAN addresses so hosts can display a join QR code.
+app.get('/api/server-info', (req, res) => {
+  // CORS (same policy as /api/fetch-setlist)
+  const origin = req.headers.origin;
+  if (origin && API_CORS_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  const addresses: string[] = [];
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const iface of ifaces ?? []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        addresses.push(`http://${iface.address}:${PORT}`);
+      }
+    }
+  }
+  res.json({ port: PORT, addresses });
+});
 
 app.get('/api/fetch-setlist', async (req, res) => {
   // CORS

@@ -29,6 +29,7 @@ import { useSyncBroadcast } from '../../hooks/useSyncBroadcast';
 import { useSyncStore } from '../../stores/useSyncStore';
 import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
+import { JoinPromptDialog } from './JoinPromptDialog';
 import { NotationPanel } from '../Tabs/NotationPanel';
 import type { TempoMapEntry } from '../../types';
 import { GpMarkerImportDialog } from '../Tabs/GpMarkerImportDialog';
@@ -45,7 +46,7 @@ import { CountInIndicator } from '../Player/CountInIndicator';
 import { useMetronome } from '../../hooks/useMetronome';
 import { MetronomeToggle } from '../Player/MetronomeToggle';
 import { MetronomeSplitButton } from '../Player/MetronomeSplitButton';
-import type { ControlCommand } from '../../../shared/syncProtocol';
+import type { ControlCommand, SyncRole } from '../../../shared/syncProtocol';
 import { RemoteControlView } from '../Controller/RemoteControlView';
 import { Music, Pause, Play, SkipBack, Repeat, Eye, Pencil, Music2, X } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
@@ -59,6 +60,23 @@ export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showDummyDialog, setShowDummyDialog] = useState(false);
+  // Role requested via QR join link (?join=viewer); triggers the join prompt
+  const [joinRole, setJoinRole] = useState<SyncRole | null>(null);
+
+  // Detect the QR join parameter once on mount, then strip it from the URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('join') === 'viewer') {
+      setJoinRole('viewer');
+      params.delete('join');
+      const query = params.toString();
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${query ? `?${query}` : ''}`,
+      );
+    }
+  }, []);
   const [tabMode, setTabMode] = useState<'ascii' | 'notation'>('notation');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showRemoteControl, setShowRemoteControl] = useState(false);
@@ -1203,6 +1221,17 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       <ToastContainer />
       {showDummyDialog && (
         <CreateDummySongDialog onClose={() => setShowDummyDialog(false)} />
+      )}
+
+      {joinRole && (
+        <JoinPromptDialog
+          role={joinRole}
+          onJoin={(name) => {
+            syncSession.connect(window.location.origin, joinRole, name);
+            setJoinRole(null);
+          }}
+          onClose={() => setJoinRole(null)}
+        />
       )}
 
       {showMetronome && (
