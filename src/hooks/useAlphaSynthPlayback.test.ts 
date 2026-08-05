@@ -1,0 +1,103 @@
+// Regression test for the alphaSynth time axis (issue #13 follow-up).
+// alphaTab reports public time positions in real elapsed milliseconds, while
+// the rest of the app works in score time. The hook converts at the boundary;
+// this test pins that behaviour through the public hook surface.
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useAlphaSynthPlayback } from './useAlphaSynthPlayback';
+import { useTempoStore } from '../stores/useTempoStore';
+
+type Listener<T> = (arg: T) => void;
+
+/** Minimal AlphaTabApi stub covering the events the hook subscribes to. */
+function createApiStub(playbackSpeed: number) {
+  const positionListeners: Listener<unknown>[] = [];
+
+  return {
+    playbackSpeed,
+    timePosition: 0,
+    isReadyForPlayback: true,
+    countInVolume: 1,
+    metronomeVolume: 1,
+    playerPositionChanged: {
+      on: (fn: Listener<unknown>) => positionListeners.push(fn),
+      off: () => {},
+    },
+    playerFinished: { on: () => {}, off: () => {} },
+    playerStateChanged: { on: () => {}, off: () => {} },
+    playerReady: { on: () => {}, off: () => {} },
+    midiLoaded: { on: () => {}, off: () => {} },
+    playPause: () => {},
+    emitPosition(currentTime: number, endTime: number) {
+      for (const fn of positionListeners) {
+        fn({ currentTime, endTime, currentTick: 0, endTick: 0, isSeek: false });
+      }
+    },
+  };
+}
+
+describe('useAlphaSynthPlayback', () => {
+  beforeEach(() => {
+    useTempoStore.setState({ playbackRate: 1 });
+    vi.clearAllMocks();
+  });
+
+  it('passes positions through unchanged at full speed', () => {
+    const api = createApiStub(1);
+    const { result } = renderHook(() => useAlphaSynthPlayback());
+
+    act(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result.current.setApi(api as any);
+    });
+    act(() => api.emitPosition(4000, 120000));
+
+    expect(result.current.currentTime).toBeCloseTo(4);
+    expect(result.current.duration).toBeCloseTo(120);
+  });
+
+  it('converts the reported real time to score time at reduced speed', () => {
+    useTempoStore.setState({ playbackRate: 0.75 });
+    const api = createApiStub(1);
+    const { result } = renderHook(() => useAlphaSynthPlayback());
+
+    act(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result.current.setApi(api as any);
+    });
+    // 4s of real playback at 75% equals 3s of score position
+    act(() => api.emitPosition(4000, 160000));
+
+    expect(result.current.currentTime).toBeCloseTo(3);
+    expect(result.current.duration).toBeCloseTo(120);
+  });
+
+  it('converts score time back to the player axis when seeking', () => {
+    useTempoStore.setState({ playbackRate: 0.75 });
+    const api = createApiStub(1);
+    const { result } = renderHook(() => useAlphaSynthPlayback());
+
+    act(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result.current.setApi(api as any);
+    });
+    act(() => result.current.handleSeekTo(30));
+
+    expect(api.timePosition).toBeCloseTo(40000);
+    expect(result.current.currentTime).toBeCloseTo(30);
+  });
+
+  it('clamps negative seek targets to zero', () => {
+    const api = createApiStub(1);
+    const { result } = renderHook(() => useAlphaSynthPlayback());
+
+    act(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result.current.setApi(api as any);
+    });
+    act(() => result.current.handleSeekTo(-5));
+
+    expect(api.timePosition).toBe(0);
+    expect(result.current.currentTime).toBe(0);
+  });
+});

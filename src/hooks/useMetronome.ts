@@ -1,10 +1,9 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMetronomeStore } from '../stores/useMetronomeStore';
 import { useCountInStore } from '../stores/useCountInStore';
 import { startMetronome, type MetronomeHandle } from '../services/metronomeScheduler';
-import type { TempoMapEntry } from '../types';
-
-const TICKS_PER_QUARTER = 960;
+import { buildFixedTimeline } from '../services/tempoMap';
+import type { TimelineBar } from '../types';
 
 interface UseMetronomeOptions {
   /** Whether a song is currently loaded */
@@ -13,44 +12,21 @@ interface UseMetronomeOptions {
   bpm: number | null;
   /** Song time signature (null defaults to [4, 4]) */
   timeSignature: [number, number] | null;
-  /** Current playback rate from tempo store (0.5–1.5) */
+  /** Current playback rate from tempo store (0.5-1.5) */
   playbackRate: number;
   /** Whether song playback is currently active */
   isPlaying: boolean;
   /** Whether to produce audible clicks */
   audible?: boolean;
-  /** Tempo map from GP file (enables internal position tracking in scheduler) */
-  tempoMap?: TempoMapEntry[];
-  /** Current tick position from alphaSynth or external media sync */
-  currentTick?: number;
-  /** Current playback time in seconds */
+  /** Musical timeline from the GP score; falls back to bpm + time signature */
+  timeline?: TimelineBar[];
+  /** Current playback position in seconds, as reported by the active player */
   currentTime?: number;
-}
-
-/** Compute beat-in-bar (0-based) from tick position and tempo map */
-function beatInBarFromTick(
-  tick: number,
-  tempoMap: TempoMapEntry[],
-): number {
-  // Find the active entry
-  let entry = tempoMap[0];
-  for (const e of tempoMap) {
-    if (e.tick <= tick) entry = e;
-    else break;
-  }
-  const ticksSinceEntry = tick - entry.tick;
-  const beatsFromEntry = Math.floor(ticksSinceEntry / TICKS_PER_QUARTER);
-  return beatsFromEntry % entry.beatsPerBar;
-}
-
-/** Compute beat-in-bar (0-based) from time and fixed BPM */
-function beatInBarFromTime(
-  time: number,
-  bpm: number,
-  beatsPerBar: number,
-): number {
-  const beatsSinceStart = Math.floor(time / (60 / bpm));
-  return beatsSinceStart % beatsPerBar;
+  /**
+   * Player time of bar 1 beat 1 in seconds. Zero when the player already
+   * reports score time (alphaSynth); the song's sync offset otherwise.
+   */
+  songTimeOffset?: number;
 }
 
 export function useMetronome({
@@ -60,9 +36,9 @@ export function useMetronome({
   playbackRate,
   isPlaying,
   audible = true,
-  tempoMap,
-  currentTick,
-  currentTime,
+  timeline,
+  currentTime = 0,
+  songTimeOffset = 0,
 }: UseMetronomeOptions) {
   const enabled = useMetronomeStore((s) => s.enabled);
   const isRunning = useMetronomeStore((s) => s.isRunning);
@@ -72,92 +48,120 @@ export function useMetronome({
   const isCountingIn = useCountInStore((s) => s.isCountingIn);
 
   const handleRef = useRef<MetronomeHandle | null>(null);
+  // Marks whether the current handle was created by solo mode, so stopSolo()
+  // can never tear down the song-mode metronome.
+  const soloOwnedRef = useRef(false);
   const volumeRef = useRef(volume);
-  const currentTickRef = useRef(currentTick ?? 0);
-  const currentTimeRef = useRef(currentTime ?? 0);
-
   useEffect(() => { volumeRef.current = volume; }, [volume]);
-  useEffect(() => { currentTickRef.current = currentTick ?? 0; }, [currentTick]);
-  useEffect(() => { currentTimeRef.current = currentTime ?? 0; }, [currentTime]);
 
-  const hasSongBpm = bpm !== null && bpm > 0;
   const isSoloMode = !hasSong;
 
-  // onTempoChange callback for scheduler → store (for UI display)
+  // Destructured to primitives so a new array identity does not rebuild the
+  // timeline on every render.
+  const beatsPerBar = timeSignature?.[0] ?? 4;
+  const denominator = timeSignature?.[1] ?? 4;
+
+  const songTimeline = useMemo(() => {
+    if (timeline && timeline.length > 0) return timeline;
+    return buildFixedTimeline(bpm, [beatsPerBar, denominator]);
+  }, [timeline, bpm, beatsPerBar, denominator]);
+
+  const soloTimeline = useMemo(
+    () => buildFixedTimeline(soloBpm, soloTimeSignature),
+    [soloBpm, soloTimeSignature],
+  );
+
+  const songTime = currentTime - songTimeOffset;
+
+  const songTimelineRef = useRef(songTimeline);
+  const playbackRateRef = useRef(playbackRate);
+  const songTimeRef = useRef(songTime);
+  useEffect(() => { songTimelineRef.current = songTimeline; }, [songTimeline]);
+  useEffect(() => { playbackRateRef.current = playbackRate; }, [playbackRate]);
+  useEffect(() => { songTimeRef.current = songTime; }, [songTime]);
+
+  // Scheduler reports the effective tempo for the UI display
   const handleTempoChange = useCallback((newBpm: number, newBeatsPerBar: number) => {
     useMetronomeStore.getState().setEffective(newBpm, newBeatsPerBar);
   }, []);
 
-  // --- Song mode: couple to playback ---
+  const hasSongTimeline = songTimeline.length > 0;
+
+  // --- Song mode: start / stop ---
   useEffect(() => {
-    if (!hasSongBpm) return;
     if (isSoloMode) return;
     if (!enabled) return;
     if (!isPlaying) return;
     if (isCountingIn) return;
+    if (!hasSongTimeline) return;
 
-    const beats = timeSignature ? timeSignature[0] : 4;
-
-    // Compute current beat position for correct accent placement
-    let startBeatInBar = 0;
-    if (tempoMap && currentTickRef.current > 0) {
-      startBeatInBar = beatInBarFromTick(currentTickRef.current, tempoMap);
-    } else if (bpm! > 0 && currentTimeRef.current > 0) {
-      const effectiveBpm = bpm! * playbackRate;
-      startBeatInBar = beatInBarFromTime(currentTimeRef.current, effectiveBpm, beats);
-    }
-
-    handleRef.current = startMetronome({
-      bpm: bpm!,
-      beatsPerBar: beats,
+    const handle = startMetronome({
+      timeline: songTimelineRef.current,
+      playbackRate: playbackRateRef.current,
       audible,
       volume: volumeRef.current,
-      playbackRate,
-      tempoMap,
-      startTick: currentTickRef.current,
-      startBeatInBar,
-      onTempoChange: tempoMap ? handleTempoChange : undefined,
+      onTempoChange: handleTempoChange,
     });
+    handleRef.current = handle;
+
+    const first = songTimelineRef.current[0];
     useMetronomeStore.getState().setRunning(true);
-    useMetronomeStore.getState().setEffective(bpm!, beats);
+    useMetronomeStore.getState().setEffective(first.bpm, first.beatsPerBar);
+
+    // Anchor with the last known position; every position update refines it.
+    handle.sync(songTimeRef.current);
 
     return () => {
-      handleRef.current?.stop();
+      handle.stop();
       handleRef.current = null;
       useMetronomeStore.getState().setRunning(false);
     };
-  }, [hasSongBpm, isSoloMode, enabled, isPlaying, isCountingIn, bpm, playbackRate, timeSignature, audible, tempoMap, handleTempoChange]);
+  }, [isSoloMode, enabled, isPlaying, isCountingIn, hasSongTimeline, audible, handleTempoChange]);
 
-  // --- Song mode: live tempo update without restart (only when no tempo map) ---
+  // --- Song mode: keep the click grid locked to the playback position ---
   useEffect(() => {
-    if (isSoloMode || !handleRef.current || tempoMap) return;
-    const effectiveBpm = bpm! * playbackRate;
-    const beats = timeSignature ? timeSignature[0] : 4;
-    handleRef.current.setTempo(effectiveBpm, beats);
-  }, [isSoloMode, bpm, playbackRate, timeSignature, tempoMap]);
+    if (isSoloMode) return;
+    handleRef.current?.sync(songTime);
+  }, [isSoloMode, songTime]);
 
-  // --- Solo mode: start/stop ---
+  // --- Song mode: live timeline update without restart ---
+  useEffect(() => {
+    if (isSoloMode) return;
+    handleRef.current?.setTimeline(songTimeline);
+  }, [isSoloMode, songTimeline]);
+
+  // --- Song mode: live playback rate update without restart ---
+  useEffect(() => {
+    if (isSoloMode) return;
+    handleRef.current?.setPlaybackRate(playbackRate);
+  }, [isSoloMode, playbackRate]);
+
+  // --- Solo mode: start / stop ---
   const startSolo = useCallback(() => {
     if (!isSoloMode || !enabled) return;
     if (handleRef.current) return;
+    if (soloTimeline.length === 0) return;
 
-    const beats = soloTimeSignature[0];
     handleRef.current = startMetronome({
-      bpm: soloBpm,
-      beatsPerBar: beats,
+      timeline: soloTimeline,
       audible,
       volume: volumeRef.current,
+      autoStart: true,
     });
+    soloOwnedRef.current = true;
     useMetronomeStore.getState().setRunning(true);
-  }, [isSoloMode, enabled, soloBpm, soloTimeSignature, audible]);
+    useMetronomeStore.getState().setEffective(soloTimeline[0].bpm, soloTimeline[0].beatsPerBar);
+  }, [isSoloMode, enabled, soloTimeline, audible]);
 
   const stopSolo = useCallback(() => {
+    if (!soloOwnedRef.current) return;
     handleRef.current?.stop();
     handleRef.current = null;
+    soloOwnedRef.current = false;
     useMetronomeStore.getState().setRunning(false);
   }, []);
 
-  // --- Solo mode: stop when disabled or song loaded ---
+  // --- Solo mode: stop when disabled or a song is loaded ---
   useEffect(() => {
     if (!isSoloMode || !enabled) {
       stopSolo();
@@ -166,14 +170,13 @@ export function useMetronome({
 
   // --- Solo mode: update tempo live ---
   useEffect(() => {
-    if (!isSoloMode || !handleRef.current) return;
-    handleRef.current.setTempo(soloBpm, soloTimeSignature[0]);
-  }, [isSoloMode, soloBpm, soloTimeSignature]);
+    if (!isSoloMode) return;
+    handleRef.current?.setTimeline(soloTimeline);
+  }, [isSoloMode, soloTimeline]);
 
   // --- Live volume update (both modes) ---
   useEffect(() => {
-    if (!handleRef.current) return;
-    handleRef.current.setVolume(volume);
+    handleRef.current?.setVolume(volume);
   }, [volume]);
 
   // --- Cleanup on unmount ---

@@ -14,6 +14,27 @@ interface UseAlphaSynthPlaybackOptions {
 }
 
 /**
+ * alphaTab reports its public time positions in real elapsed milliseconds:
+ * the sequencer advances an internal score clock and the public getter divides
+ * it by playbackSpeed again. The rest of the app (markers, loops, metronome)
+ * works in score time, which matches what wavesurfer reports for audio songs.
+ * These two helpers convert at the boundary so the hook exposes score time.
+ */
+function toScoreSeconds(playerMs: number, speed: number): number {
+  return (playerMs / 1000) * speed;
+}
+
+function toPlayerMs(scoreSeconds: number, speed: number): number {
+  return (scoreSeconds * 1000) / speed;
+}
+
+/** Current playback speed of the api, guarded against zero. */
+function apiSpeed(api: AlphaTabApi | null): number {
+  const speed = api?.playbackSpeed ?? 1;
+  return speed > 0 ? speed : 1;
+}
+
+/**
  * Playback hook for Dummy + GP songs using alphaSynth (MIDI synthesis).
  * Return shape mirrors usePlayback / useDummyPlayback so AppShell can
  * switch between the three playback paths seamlessly.
@@ -58,8 +79,9 @@ export function useAlphaSynthPlayback({
   // --- Event handlers (stable refs, wired in setApi) ---
 
   const handlePositionChanged = useCallback((e: synth.PositionChangedEventArgs) => {
-    const timeSec = e.currentTime / 1000;
-    const endSec = e.endTime / 1000;
+    const speed = apiSpeed(apiRef.current);
+    const timeSec = toScoreSeconds(e.currentTime, speed);
+    const endSec = toScoreSeconds(e.endTime, speed);
 
     setCurrentTime(timeSec);
     setCurrentTick(e.currentTick);
@@ -149,7 +171,7 @@ export function useAlphaSynthPlayback({
 
       // Capture duration from midiLoaded if available
       api.midiLoaded.on((e: synth.PositionChangedEventArgs) => {
-        const endSec = e.endTime / 1000;
+        const endSec = toScoreSeconds(e.endTime, apiSpeed(api));
         if (endSec > 0) setDuration(endSec);
       });
     },
@@ -168,10 +190,10 @@ export function useAlphaSynthPlayback({
     (time: number) => {
       const api = apiRef.current;
       if (!api || !isReady) return;
-      const ms = Math.max(0, time * 1000);
-      api.timePosition = ms;
-      setCurrentTime(time);
-      onTimeUpdate?.(time);
+      const clamped = Math.max(0, time);
+      api.timePosition = toPlayerMs(clamped, apiSpeed(api));
+      setCurrentTime(clamped);
+      onTimeUpdate?.(clamped);
     },
     [isReady, onTimeUpdate],
   );

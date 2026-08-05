@@ -7,13 +7,21 @@ interface UseCountInOptions {
   bpm: number | null;
   /** Time signature, defaults to [4, 4] */
   timeSignature: [number, number] | null;
+  /** Playback rate the song will start at (count-in matches that tempo) */
+  playbackRate?: number;
   /** Called after the last beat has elapsed */
   onComplete: () => void;
   /** Whether to play audible clicks (false for viewers) */
   audible?: boolean;
 }
 
-export function useCountIn({ bpm, timeSignature, onComplete, audible = true }: UseCountInOptions) {
+export function useCountIn({
+  bpm,
+  timeSignature,
+  playbackRate = 1,
+  onComplete,
+  audible = true,
+}: UseCountInOptions) {
   const scheduledRef = useRef<ScheduledBar | null>(null);
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
@@ -45,8 +53,9 @@ export function useCountIn({ bpm, timeSignature, onComplete, audible = true }: U
         onCompleteRef.current();
       },
       audible,
+      playbackRate,
     );
-  }, [bpm, timeSignature, audible]);
+  }, [bpm, timeSignature, audible, playbackRate]);
 
   const cancelCountIn = useCallback(() => {
     scheduledRef.current?.cancel();

@@ -98,9 +98,35 @@ export interface TempoSegment {
   bpm: number;
 }
 
-/** Tempo and time signature at a specific tick position in the score. */
-export interface TempoMapEntry {
-  tick: number;
+/**
+ * One bar of the musical timeline with absolute timing.
+ * Song time is measured in seconds from bar 1 beat 1 (not from audio t=0).
+ */
+export interface TimelineBar {
+  /** Bar index in the score (0-based) */
+  index: number;
+  /** Absolute alphaTab tick of the bar start */
+  startTick: number;
+  /** Song time of the bar start in seconds */
+  startTime: number;
+  /** Tempo in quarter notes per minute */
   bpm: number;
+  /** Time signature numerator (beats per full bar) */
   beatsPerBar: number;
+  /** Time signature denominator (4 = quarter, 8 = eighth) */
+  denominator: number;
+  /** Duration of one beat in seconds (denominator aware) */
+  secondsPerBeat: number;
+  /** Beats actually contained in this bar (smaller than beatsPerBar for a pickup bar) */
+  beatCount: number;
+  /** Accent index of this bar's first beat (non-zero for a pickup bar) */
+  firstBeatIndex: number;
+}
+
+/** A single beat position inside a timeline. */
+export interface BeatPosition {
+  /** Bar index; may exceed the timeline length (extrapolated bars) */
+  barIndex: number;
+  /** 0-based beat index inside that bar */
+  beatInBar: number;
 }

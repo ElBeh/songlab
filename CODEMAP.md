@@ -7,7 +7,7 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/types
 
-### index.ts (105 lines)
+### index.ts (131 lines)
 - 3:export type SectionType =
 - 14:export interface SectionMarker
 - 23:export interface SongData
@@ -21,7 +21,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 81:export interface Setlist
 - 89:export interface SyncPoint
 - 96:export interface TempoSegment
-- 102:export interface TempoMapEntry
+- 105:export interface TimelineBar
+- 127:export interface BeatPosition
 
 ## src/stores
 
@@ -81,12 +82,12 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 ### audioAnalysis.ts (28 lines)
 - 4:export async function analyzeRmsGain(file: File): Promise<number>
 
-### clickSoundGenerator.ts (128 lines)
+### clickSoundGenerator.ts (132 lines)
 - 18:export function ensureAudioReady(): void
 - 28:export function getAudioContext(): AudioContext
 - 39:export function scheduleClick(
 - 64:export interface ScheduledBar
-- 79:export function scheduleBar(
+- 81:export function scheduleBar(
 
 ### db.ts (238 lines)
 - 86:export async function saveSong(song: SongData): Promise<void>
@@ -126,9 +127,11 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 303:export async function importSetlistFromUrl(
 - **deps**: ../types,../utils/encoding
 
-### metronomeScheduler.ts (182 lines)
-- 13:export interface MetronomeHandle
-- 60:export function startMetronome(opts: MetronomeOptions): MetronomeHandle
+### metronomeScheduler.test.ts (241 lines)
+
+### metronomeScheduler.ts (254 lines)
+- 27:export interface MetronomeHandle
+- 74:export function startMetronome(opts: MetronomeOptions): MetronomeHandle
 - **deps**: ../types
 
 ### midiService.ts (270 lines)
@@ -173,14 +176,22 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 134:export function emitControlCommand(command: ControlCommand): void
 - **deps**: ../../shared/syncProtocol,../stores/useSyncStore
 
-### tempoMap.test.ts (64 lines)
+### tempoMap.test.ts (226 lines)
 - **deps**: ../types
 
-### tempoMap.ts (94 lines)
-- 15:export function buildTempoSegments(score: alphaTab.model.Score | null | undefined): TempoSegment[]
-- 36:export function elapsedMsToTick(elapsedMs: number, tempoMap: TempoSegment[]): number
-- 66:export function tickToElapsedMs(tick: number, tempoMap: TempoSegment[]): number
-- 92:export function tickToSeconds(tick: number, tempoMap: TempoSegment[]): number
+### tempoMap.ts (313 lines)
+- 19:export function buildTempoSegments(score: alphaTab.model.Score | null | undefined): TempoSegment[]
+- 40:export function elapsedMsToTick(elapsedMs: number, tempoMap: TempoSegment[]): number
+- 70:export function tickToElapsedMs(tick: number, tempoMap: TempoSegment[]): number
+- 96:export function tickToSeconds(tick: number, tempoMap: TempoSegment[]): number
+- 139:export function buildTimeline(score: alphaTab.model.Score | null | undefined): TimelineBar[]
+- 180:export function buildFixedTimeline(
+- 208:export function withBpmAdjust(timeline: TimelineBar[], adjust: number): TimelineBar[]
+- 220:export function barAt(timeline: TimelineBar[], barIndex: number): TimelineBar
+- 241:export function beatTime(timeline: TimelineBar[], pos: BeatPosition): number
+- 247:export function beatAccentIndex(timeline: TimelineBar[], pos: BeatPosition): number
+- 253:export function nextBeatPosition(timeline: TimelineBar[], pos: BeatPosition): BeatPosition
+- 285:export function beatPositionAtOrAfter(
 - **deps**: ../types
 
 ## src/utils
@@ -231,8 +242,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 14:export function useActiveMarkerTracker(
 - **deps**: ../stores/useSongStore,../stores/useTabStore,../types
 
-### useAlphaSynthPlayback.ts (218 lines)
-- 24:export function useAlphaSynthPlayback({
+### useAlphaSynthPlayback.ts (240 lines)
+- 45:export function useAlphaSynthPlayback({
 - **deps**: ../stores/useLoopStore,../stores/useTempoStore
 
 ### useAudioFile.ts (189 lines)
@@ -248,8 +259,8 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 17:export function useControlCommandHandler({
 - **deps**: ../../shared/syncProtocol,../stores/useSetlistStore,../stores/useTempoStore,../utils/songNavigation
 
-### useCountIn.ts (62 lines)
-- 16:export function useCountIn({ bpm, timeSignature, onComplete, audible = true }: UseCountInOptions)
+### useCountIn.ts (71 lines)
+- 18:export function useCountIn({
 - **deps**: ../services/clickSoundGenerator,../stores/useCountInStore
 
 ### useDummyPlayback.ts (142 lines)
@@ -272,9 +283,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 15:export function useKeyboardShortcuts({
 - **deps**: ../stores/useLoopStore
 
-### useMetronome.ts (192 lines)
-- 56:export function useMetronome({
-- **deps**: ../services/metronomeScheduler,../stores/useCountInStore,../stores/useMetronomeStore,../types
+### useMetronome.ts (195 lines)
+- 32:export function useMetronome({
+- **deps**: ../services/metronomeScheduler,../services/tempoMap,../stores/useCountInStore,../stores/useMetronomeStore,../types
 
 ### useMidiInput.ts (223 lines)
 - 33:export function useMidiInput({
@@ -306,9 +317,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 
 ## src/components/Layout
 
-### AppShell.tsx (1263 lines)
-- 59:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../Tools/StandaloneMetronome,../../types,../../utils/gpMarkerImport,../../utils/iconSizes
+### AppShell.tsx (1272 lines)
+- 60:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../services/tempoMap,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../Tools/StandaloneMetronome,../../types,../../utils/gpMarkerImport,../../utils/iconSizes
 
 ### CreateDummySongDialog.tsx (265 lines)
 - 13:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
@@ -438,9 +449,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 12:export function GpMarkerImportDialog({
 - **deps**: ../../utils/formatTime,../../utils/gpMarkerImport
 
-### NotationPanel.tsx (606 lines)
-- 52:export function NotationPanel({
-- **deps**: ../../hooks/useExternalMediaSync,../../hooks/useResizablePanelHeight,../../types,../../utils/iconSizes,../../utils/tuningPresets
+### NotationPanel.tsx (590 lines)
+- 53:export function NotationPanel({
+- **deps**: ../../hooks/useExternalMediaSync,../../hooks/useResizablePanelHeight,../../services/tempoMap,../../types,../../utils/iconSizes,../../utils/tuningPresets
 
 ### SheetBar.tsx (175 lines)
 - 19:export function SheetBar({ songId, isViewer = false }: SheetBarProps)

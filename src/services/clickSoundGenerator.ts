@@ -69,11 +69,13 @@ export interface ScheduledBar {
 /**
  * Schedule one bar of clicks and invoke callbacks for each beat.
  *
- * @param bpm        - Tempo in beats per minute
- * @param beats      - Number of beats in the bar (e.g. 4 for 4/4)
- * @param onBeat     - Called on each beat (1-based index)
- * @param onComplete - Called after the last beat's duration has elapsed
- * @param audible    - Whether to play the click sound (false for viewers)
+ * @param bpm          - Tempo in beats per minute
+ * @param beats        - Number of beats in the bar (e.g. 4 for 4/4)
+ * @param onBeat       - Called on each beat (1-based index)
+ * @param onComplete   - Called after the last beat's duration has elapsed
+ * @param audible      - Whether to play the click sound (false for viewers)
+ * @param playbackRate - Playback rate multiplier, so the count-in matches the
+ *                       tempo the song will actually start at
  * @returns Handle with cancel() to abort early
  */
 export function scheduleBar(
@@ -82,9 +84,11 @@ export function scheduleBar(
   onBeat: (beat: number) => void,
   onComplete: () => void,
   audible = true,
+  playbackRate = 1,
 ): ScheduledBar {
   const ctx = getAudioContext();
-  const beatInterval = 60 / bpm; // seconds per beat
+  const effectiveBpm = bpm * (playbackRate > 0 ? playbackRate : 1);
+  const beatInterval = 60 / effectiveBpm; // seconds per beat
   const startTime = ctx.currentTime + 0.15; // buffer to ensure first beat is not in the past
 
   const timeouts: number[] = [];

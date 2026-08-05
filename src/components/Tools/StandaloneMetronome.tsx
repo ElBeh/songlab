@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { startMetronome, type MetronomeHandle } from '../../services/metronomeScheduler';
+import { buildFixedTimeline } from '../../services/tempoMap';
 import { ensureAudioReady } from '../../services/clickSoundGenerator';
 import { getConfig, setConfig } from '../../services/db';
 
@@ -78,18 +79,25 @@ export function StandaloneMetronome({ onClose }: StandaloneMetronomeProps) {
     handleRef.current?.setVolume(volume / 100);
   }, [volume]);
 
+  // The dial value is clicks per minute. The timeline expects quarter-note BPM,
+  // so convert it for the selected beat unit (120 in 6/8 -> 60 quarter BPM).
+  const timeline = useMemo(
+    () => buildFixedTimeline((bpm * 4) / beatUnit, [beatsPerBar, beatUnit]),
+    [bpm, beatsPerBar, beatUnit],
+  );
+
   // Sync tempo to running metronome
   useEffect(() => {
-    handleRef.current?.setTempo(bpm, beatsPerBar);
-  }, [bpm, beatsPerBar]);
+    handleRef.current?.setTimeline(timeline);
+  }, [timeline]);
 
   const handleStart = useCallback(() => {
     ensureAudioReady();
     handleRef.current?.stop();
 
     const handle = startMetronome({
-      bpm,
-      beatsPerBar,
+      timeline,
+      autoStart: true,
       volume: volume / 100,
       onBeat: (beat) => setCurrentBeat(beat),
     });
@@ -97,7 +105,7 @@ export function StandaloneMetronome({ onClose }: StandaloneMetronomeProps) {
     handleRef.current = handle;
     setIsRunning(true);
     setCurrentBeat(0);
-  }, [bpm, beatsPerBar, volume]);
+  }, [timeline, volume]);
 
   const handleStop = useCallback(() => {
     handleRef.current?.stop();

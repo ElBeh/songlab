@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { WaveformPlayer } from '../Player/WaveformPlayer';
 import { DummyWaveform } from '../Player/DummyWaveform';
 import { TransportControls } from '../Player/TransportControls';
@@ -31,7 +31,8 @@ import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
 import { JoinPromptDialog } from './JoinPromptDialog';
 import { NotationPanel } from '../Tabs/NotationPanel';
-import type { TempoMapEntry } from '../../types';
+import { withBpmAdjust } from '../../services/tempoMap';
+import type { TimelineBar } from '../../types';
 import { GpMarkerImportDialog } from '../Tabs/GpMarkerImportDialog';
 import { useGpFile, isGpFile } from '../../hooks/useGpFile';
 import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerImport';
@@ -237,11 +238,11 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   }, []);
 
   // Auto-set BPM and time signature from GP file score data
-  const [tempoMap, setTempoMap] = useState<TempoMapEntry[]>([]);
+  const [scoreTimeline, setScoreTimeline] = useState<TimelineBar[]>([]);
   const handleScoreInfo = useCallback((info: {
     bpm: number;
     timeSignature: [number, number];
-    tempoMap: TempoMapEntry[];
+    timeline: TimelineBar[];
   }) => {
     const song = useSongStore.getState().getActiveSong();
     if (!song) return;
@@ -251,7 +252,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       bpm: Math.round(info.bpm),
       timeSignature: info.timeSignature,
     });
-    setTempoMap(info.tempoMap);
+    setScoreTimeline(info.timeline);
   }, []);
 
   // --- GP Marker Import ---
@@ -312,10 +313,13 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   const toggleSongLoop = isAlphaSynth ? alphaSynthPlayback.toggleSongLoop
     : isDummy ? dummyPlayback.toggleSongLoop : playback.toggleSongLoop;
 
+  const playbackRate = useTempoStore((s) => s.playbackRate);
+
   // --- Count-in (plays click bar before actual playback starts) ---
   const countIn = useCountIn({
     bpm: activeSong?.bpm ?? null,
     timeSignature: activeSong?.timeSignature ?? null,
+    playbackRate,
     onComplete: handlePlayPause,
     audible: !isViewer,
   });
@@ -356,10 +360,15 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   }, [canCountIn, startCountIn, handlePlayPause]);
 
   // --- Metronome (continuous click during playback) ---
-  const playbackRate = useTempoStore((s) => s.playbackRate);
-  const metronomeTick = isAlphaSynth
-    ? alphaSynthPlayback.currentTick
-    : isAudioGp ? externalMediaTick : null;
+  // alphaSynth reports score time directly, so no sync offset applies there.
+  // Audio playback reports media time, which the song's sync offset maps to
+  // score time. The BPM correction only exists in Audio + GP mode.
+  const metronomeTimeline = useMemo(() => {
+    if (scoreTimeline.length === 0) return undefined;
+    if (isAlphaSynth) return scoreTimeline;
+    return withBpmAdjust(scoreTimeline, activeSong?.bpmAdjust ?? 0);
+  }, [scoreTimeline, isAlphaSynth, activeSong?.bpmAdjust]);
+
   const metronome = useMetronome({
     hasSong: !!activeSong,
     bpm: activeSong?.bpm ?? null,
@@ -367,9 +376,9 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     playbackRate,
     isPlaying: _isPlaying,
     audible: !isViewer,
-    tempoMap: tempoMap.length > 1 ? tempoMap : undefined,
-    currentTick: metronomeTick ?? undefined,
+    timeline: metronomeTimeline,
     currentTime: _currentTime,
+    songTimeOffset: isAlphaSynth ? 0 : (activeSong?.syncOffset ?? 0) / 1000,
   });
 
   // Host: handle incoming control commands from remote Controller
