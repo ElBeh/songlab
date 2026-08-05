@@ -45,6 +45,7 @@ import { useCountInStore } from '../../stores/useCountInStore';
 import { CountInToggle } from '../Player/CountInToggle';
 import { CountInIndicator } from '../Player/CountInIndicator';
 import { useMetronome } from '../../hooks/useMetronome';
+import { useSectionLoop } from '../../hooks/useSectionLoop';
 import { MetronomeToggle } from '../Player/MetronomeToggle';
 import { MetronomeSplitButton } from '../Player/MetronomeSplitButton';
 import type { ControlCommand, SyncRole } from '../../../shared/syncProtocol';
@@ -358,6 +359,14 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       }
     };
   }, [canCountIn, startCountIn, handlePlayPause]);
+
+  // --- Section loop (shared across wavesurfer, alphaSynth and dummy clock) ---
+  useSectionLoop({
+    isPlaying: _isPlaying,
+    currentTime: _currentTime,
+    onSeek: handleSeekTo,
+    enabled: !isViewer,
+  });
 
   // --- Metronome (continuous click during playback) ---
   // alphaSynth reports score time directly, so no sync offset applies there.

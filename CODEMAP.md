@@ -303,6 +303,13 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 29:export function useResizablePanelHeight({
 - **deps**: ../services/db
 
+### useSectionLoop.test.ts (84 lines)
+- **deps**: ../stores/useLoopStore
+
+### useSectionLoop.ts (46 lines)
+- 25:export function useSectionLoop({
+- **deps**: ../stores/useLoopStore,../utils/songLoop
+
 ### useSetlistAdvance.ts (131 lines)
 - 27:export function useSetlistAdvance({ onPlay }: UseSetlistAdvanceOptions): SetlistAdvanceResult
 - **deps**: ../stores/useModeStore,../stores/useSetlistStore,../stores/useSongStore,../stores/useTabStore
@@ -315,11 +322,19 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 34:export function useSyncSession({
 - **deps**: ../services/syncEmitter,../../shared/syncProtocol,../stores/useSetlistStore,../stores/useSongStore,../stores/useSyncStore,../stores/useTabStore,../stores/useTempoStore,../types
 
+### useWaveformInteraction.test.ts (185 lines)
+- **deps**: ../stores/useLoopStore,../stores/useSongStore,../types
+
+### useWaveformInteraction.ts (167 lines)
+- 9:export interface WaveformDragState
+- 39:export function useWaveformInteraction({
+- **deps**: ../stores/useLoopStore,../stores/useSongStore,../types
+
 ## src/components/Layout
 
-### AppShell.tsx (1272 lines)
-- 60:export default function AppShell()
-- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../services/tempoMap,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../Tools/StandaloneMetronome,../../types,../../utils/gpMarkerImport,../../utils/iconSizes
+### AppShell.tsx (1281 lines)
+- 61:export default function AppShell()
+- **deps**: ../Controller/RemoteControlView,../../hooks/useActiveMarkerTracker,../../hooks/useAlphaSynthPlayback,../../hooks/useAudioFile,../../hooks/useControlCommandHandler,../../hooks/useCountIn,../../hooks/useDummyPlayback,../../hooks/useGpFile,../../hooks/useKeyboardShortcuts,../../hooks/useMetronome,../../hooks/useMidiInput,../../hooks/usePlayback,../../hooks/useSectionLoop,../../hooks/useSetlistAdvance,../../hooks/useSyncBroadcast,../../hooks/useSyncSession,../Markers/MarkerForm,../Player/CountInIndicator,../Player/CountInToggle,../Player/DummyWaveform,../Player/Looppopoverbutton,../Player/MetronomeSplitButton,../Player/MetronomeToggle,../Player/TempoControls,../Player/TempoIndicator,../Player/TransportControls,../Player/VolumeControl,../Player/WaveformPlayer,../../services/syncEmitter,../../services/tempoMap,../../../shared/syncProtocol,../../stores/useCountInStore,../../stores/useModeStore,../../stores/useSetlistStore,../../stores/useSongStore,../../stores/useSyncStore,../../stores/useTabStore,../../stores/useTempoStore,../../stores/useToastStore,../Tabs/GpMarkerImportDialog,../Tabs/NotationPanel,../Tabs/TabEditor,../Tabs/TabViewer,../Tools/StandaloneMetronome,../../types,../../utils/gpMarkerImport,../../utils/iconSizes
 
 ### CreateDummySongDialog.tsx (265 lines)
 - 13:export function CreateDummySongDialog({ onClose }: CreateDummySongDialogProps)
@@ -386,17 +401,25 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 11:export function CountInToggle({ compact = false }: CountInToggleProps = {})
 - **deps**: ../../services/clickSoundGenerator,../../stores/useCountInStore,../../stores/useMetronomeStore,../../stores/useSongStore
 
-### DummyWaveform.tsx (145 lines)
-- 16:export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: DummyWaveformProps)
-- **deps**: ../../stores/useSongStore
+### DummyWaveform.tsx (124 lines)
+- 28:export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: DummyWaveformProps)
+- **deps**: ../../hooks/useWaveformInteraction,../../stores/useLoopStore,../../stores/useSongStore
 
 ### LoopControls.tsx (136 lines)
 - 15:export function LoopControls({ songLoop }: LoopControlsProps)
 - **deps**: ../../stores/useLoopStore,../../utils/formatTime,../../utils/iconSizes
 
+### LoopOverlay.tsx (127 lines)
+- 66:export function LoopOverlay({
+- **deps**: ../../hooks/useWaveformInteraction,../../types
+
 ### Looppopoverbutton.tsx (31 lines)
 - 13:export function LoopPopoverButton({ songLoop }: LoopPopoverButtonProps)
 - **deps**: ../Common/Popover
+
+### MarkerOverlay.tsx (93 lines)
+- 21:export function MarkerOverlay({
+- **deps**: ../../hooks/useWaveformInteraction,../../types
 
 ### MetronomeSplitButton.tsx (198 lines)
 - 25:export function MetronomeSplitButton({
@@ -422,9 +445,9 @@ Re-generate: `./scripts/generate-codemap.sh > CODEMAP.md`
 - 6:export function VolumeControl()
 - **deps**: ../../stores/useSongStore,../../utils/iconSizes
 
-### WaveformPlayer.tsx (416 lines)
-- 25:export function WaveformPlayer({
-- **deps**: ../../stores/useLoopStore,../../stores/useSongStore,../../stores/useTempoStore,../../utils/songLoop
+### WaveformPlayer.tsx (193 lines)
+- 20:export function WaveformPlayer({
+- **deps**: ../../hooks/useWaveformInteraction,../../stores/useLoopStore,../../stores/useSongStore,../../stores/useTempoStore
 
 ### WaveformTimeline.tsx (70 lines)
 - 12:export function WaveformTimeline({ duration, currentTime }: WaveformTimelineProps)

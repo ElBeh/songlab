@@ -1,6 +1,17 @@
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { useSongStore } from '../../stores/useSongStore';
+import { useLoopStore } from '../../stores/useLoopStore';
 import { WaveformTimeline } from './WaveformTimeline';
+import { LoopOverlay } from './LoopOverlay';
+import { MarkerOverlay } from './MarkerOverlay';
+import { useWaveformInteraction } from '../../hooks/useWaveformInteraction';
+
+const PLACEHOLDER_BAR_COUNT = 120;
+
+/** Deterministic pseudo-random bar height for visual variety */
+function placeholderBarHeight(index: number): number {
+  return 20 + ((index * 7 + 13) % 60);
+}
 
 interface DummyWaveformProps {
   duration: number;
@@ -11,93 +22,50 @@ interface DummyWaveformProps {
 
 /**
  * Static waveform placeholder for dummy songs (no audio file).
- * Displays marker overlays, a clickable seek area, and a playhead cursor.
+ * Displays marker overlays, the loop region, a clickable seek area and a
+ * playhead cursor. Pointer interaction is shared with WaveformPlayer.
  */
 export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: DummyWaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markersBySong = useSongStore((state) => state.markersBySong);
   const activeSongId = useSongStore((state) => state.activeSongId);
+  const loop = useLoopStore((state) => state.loop);
+  const loopEnabled = useLoopStore((state) => state.loopEnabled);
+  const abMode = useLoopStore((state) => state.abMode);
+  const abStart = useLoopStore((state) => state.abStart);
 
   const markers = useMemo(
     () => (activeSongId ? (markersBySong[activeSongId] ?? []) : []),
     [markersBySong, activeSongId],
   );
 
-  const sortedMarkers = useMemo(
-    () => [...markers].sort((a, b) => a.startTime - b.startTime),
-    [markers],
-  );
-
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    const el = containerRef.current;
-    if (!el || !duration || !onSeek) return;
-    const rect = el.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    onSeek(percent * duration);
-  }, [duration, onSeek]);
+  const { drag, handleClick, handleMarkerMouseDown, handleLoopHandleMouseDown } =
+    useWaveformInteraction({
+      containerRef,
+      duration,
+      markers,
+      onSeek,
+    });
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  // Marker overlays (simplified version of WaveformPlayer's rendering)
-  const markerOverlays = sortedMarkers.map((marker, idx) => {
-    const leftPercent = (marker.startTime / duration) * 100;
-    const nextStart = sortedMarkers[idx + 1]?.startTime ?? duration;
-    const widthPercent = ((nextStart - marker.startTime) / duration) * 100;
-
-    return (
-      <div key={marker.id}>
-        {/* Section background fill */}
-        <div
-          className='absolute top-0 h-full pointer-events-none'
-          style={{
-            left: `${leftPercent}%`,
-            width: `${Math.max(0, widthPercent)}%`,
-            backgroundColor: marker.color,
-            opacity: 0.25,
-          }}
-        />
-        {/* Marker line + label */}
-        <div
-          className='absolute top-0 h-full pointer-events-none'
-          style={{ left: `${leftPercent}%` }}
-        >
-          <div
-            className='absolute top-0 h-full w-px'
-            style={{ backgroundColor: marker.color }}
-          />
-          <span
-            className='absolute top-1 left-2 text-xs font-mono whitespace-nowrap
-                       px-1.5 py-0.5 rounded'
-            style={{ backgroundColor: marker.color, color: '#fff' }}
-          >
-            {marker.label}
-          </span>
-        </div>
-      </div>
-    );
-  });
 
   return (
     <div className='w-full bg-slate-800 rounded-lg p-4'>
       <div
         ref={containerRef}
-        className='relative w-full cursor-pointer'
-        style={{ height: `${height}px` }}
+        className='relative w-full'
+        style={{ height: `${height}px`, cursor: abMode ? 'crosshair' : 'pointer' }}
         onClick={handleClick}
       >
         {/* Static placeholder bars (unplayed = dim) */}
         <div className='absolute inset-0 flex items-center justify-center gap-px opacity-30'>
-          {Array.from({ length: 120 }).map((_, i) => {
-            // Deterministic pseudo-random heights for visual variety
-            const h = 20 + ((i * 7 + 13) % 60);
-            return (
-              <div
-                key={i}
-                className='flex-1 bg-slate-500 rounded-sm'
-                style={{ height: `${h}%`, minWidth: '2px' }}
-              />
-            );
-          })}
+          {Array.from({ length: PLACEHOLDER_BAR_COUNT }).map((_, i) => (
+            <div
+              key={i}
+              className='flex-1 bg-slate-500 rounded-sm'
+              style={{ height: `${placeholderBarHeight(i)}%`, minWidth: '2px' }}
+            />
+          ))}
         </div>
 
         {/* Progress overlay (played = bright, clipped to playhead position) */}
@@ -106,16 +74,13 @@ export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: Du
                      pointer-events-none'
           style={{ clipPath: `inset(0 ${100 - progressPercent}% 0 0)` }}
         >
-          {Array.from({ length: 120 }).map((_, i) => {
-            const h = 20 + ((i * 7 + 13) % 60);
-            return (
-              <div
-                key={i}
-                className='flex-1 bg-slate-300 rounded-sm'
-                style={{ height: `${h}%`, minWidth: '2px' }}
-              />
-            );
-          })}
+          {Array.from({ length: PLACEHOLDER_BAR_COUNT }).map((_, i) => (
+            <div
+              key={i}
+              className='flex-1 bg-slate-300 rounded-sm'
+              style={{ height: `${placeholderBarHeight(i)}%`, minWidth: '2px' }}
+            />
+          ))}
         </div>
 
         {/* "No audio" indicator */}
@@ -128,15 +93,29 @@ export function DummyWaveform({ duration, currentTime, height = 96, onSeek }: Du
         {/* Playhead cursor */}
         <div
           className='absolute top-0 h-full w-px bg-white pointer-events-none'
-          style={{ left: `${progressPercent}%`, zIndex: 4 }}
+          style={{ left: `${progressPercent}%`, zIndex: 5 }}
         />
 
-        {/* Marker overlays */}
+        {/* Loop region and marker overlays */}
         <div
           className='absolute top-0 left-0 w-full h-full pointer-events-none'
           style={{ zIndex: 1 }}
         >
-          {markerOverlays}
+          <LoopOverlay
+            loop={loop}
+            loopEnabled={loopEnabled}
+            abStart={abStart}
+            duration={duration}
+            drag={drag}
+            onHandleMouseDown={handleLoopHandleMouseDown}
+          />
+          <MarkerOverlay
+            markers={markers}
+            duration={duration}
+            drag={drag}
+            abMode={abMode}
+            onMarkerMouseDown={handleMarkerMouseDown}
+          />
         </div>
       </div>
 
