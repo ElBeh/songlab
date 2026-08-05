@@ -1,9 +1,10 @@
 {
   "name": "songlab",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.14.1",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "vite",
     "dev:server": "tsx watch server/index.ts",
     "dev:sync": "concurrently -n vite,server -c blue,green \"vite --host\" \"tsx watch server/index.ts\"",

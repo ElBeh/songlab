@@ -711,7 +711,10 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       {/* Header */}
       <header className='px-6 py-3 border-b border-slate-700 flex items-center gap-3'>
         <img src={import.meta.env.BASE_URL + 'logo.png'} alt='SongLab' className='h-10 w-10 object-contain' />
-        <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
+        <div className='flex items-baseline gap-2'>
+          <h1 className='text-lg font-mono font-semibold tracking-wide'>SongLab</h1>
+          <span className='font-mono text-xs text-slate-500'>v{__APP_VERSION__}</span>
+        </div>
 
         {/* Mode toggle – segmented control (hidden for viewers) */}
           {!isViewer && (
@@ -1229,9 +1232,12 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           <div className='flex flex-col h-full'>
             <div className='flex items-center justify-between px-4 py-2
                             border-b border-slate-700'>
-              <span className='font-mono text-xs text-slate-400 uppercase tracking-widest'>
-                Remote Control
-              </span>
+              <div className='flex items-baseline gap-2'>
+                <span className='font-mono text-xs text-slate-400 uppercase tracking-widest'>
+                  Remote Control
+                </span>
+                <span className='font-mono text-xs text-slate-500'>v{__APP_VERSION__}</span>
+              </div>
               <button
                 onClick={() => setShowRemoteControl(false)}
                 className='px-3 py-1.5 rounded font-mono text-xs

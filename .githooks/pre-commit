@@ -1,0 +1,59 @@
+#!/bin/sh
+# Bump the patch version on every commit, so the version shown in the app
+# header identifies exactly one commit. package.json stays the single source
+# of truth; Vite injects it at build time as __APP_VERSION__.
+#
+# The bump is skipped when:
+#   - SKIP_VERSION_BUMP is set in the environment
+#   - a merge, rebase or cherry-pick is in progress
+#   - the staged package.json already carries a version different from HEAD
+#     (keeps a deliberate bump such as "npm version minor" intact)
+#
+# Use "git commit --no-verify" to bypass this hook entirely.
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+if [ -n "$SKIP_VERSION_BUMP" ]; then
+  exit 0
+fi
+
+GIT_DIR_PATH=$(git rev-parse --git-dir)
+if [ -e "$GIT_DIR_PATH/MERGE_HEAD" ] || \
+   [ -d "$GIT_DIR_PATH/rebase-merge" ] || \
+   [ -d "$GIT_DIR_PATH/rebase-apply" ] || \
+   [ -e "$GIT_DIR_PATH/CHERRY_PICK_HEAD" ]; then
+  echo "pre-commit: merge or rebase in progress, keeping the version"
+  exit 0
+fi
+
+read_version() {
+  node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0,'utf-8')).version || '')"
+}
+
+STAGED_VERSION=$(git show :package.json 2>/dev/null | read_version 2>/dev/null)
+HEAD_VERSION=$(git show HEAD:package.json 2>/dev/null | read_version 2>/dev/null)
+
+if [ -n "$STAGED_VERSION" ] && [ -n "$HEAD_VERSION" ] && \
+   [ "$STAGED_VERSION" != "$HEAD_VERSION" ]; then
+  echo "pre-commit: version already set to $STAGED_VERSION, keeping it"
+  exit 0
+fi
+
+if ! npm version patch --no-git-tag-version > /dev/null 2>&1; then
+  echo "pre-commit: version bump failed, aborting commit" >&2
+  exit 1
+fi
+
+NEW_VERSION=$(node -p "require('./package.json').version")
+
+if ! git add package.json; then
+  echo "pre-commit: could not stage package.json, aborting commit" >&2
+  exit 1
+fi
+# The lockfile carries the version too, but may be absent in a fresh checkout
+if [ -f package-lock.json ] && ! git add package-lock.json; then
+  echo "pre-commit: could not stage package-lock.json, aborting commit" >&2
+  exit 1
+fi
+
+echo "pre-commit: version bumped to $NEW_VERSION"

@@ -1,11 +1,21 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { alphaTab } from '@coderline/alphatab-vite';
 
+// Single source of truth for the displayed build version: package.json.
+// Injected as a global constant at build time; see src/vite-env.d.ts.
+const packageJsonPath = fileURLToPath(new URL('./package.json', import.meta.url));
+const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [
     react(),
     tailwindcss(),
