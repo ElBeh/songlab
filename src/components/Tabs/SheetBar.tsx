@@ -87,7 +87,7 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
             <span className='max-w-24 truncate'>{sheet.name}</span>
           )}
 
-          {/* Edit + Delete – visible on hover */}
+          {/* Edit + Delete – visible on hover, always visible on touch devices */}
           <span className='text-slate-600 text-xs ml-1'>({sheet.type})</span>
           {!isViewer && (
           <>
@@ -97,7 +97,8 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
               setEditingId(sheet.id);
               setEditName(sheet.name);
             }}
-            className='opacity-0 group-hover:opacity-100 text-slate-500
+            className='pointer-fine:opacity-0 group-hover:opacity-100
+                       focus-visible:opacity-100 text-slate-500
                        hover:text-slate-300 transition-opacity text-xs ml-1'
             title='Rename sheet'
           >
@@ -108,7 +109,8 @@ export function SheetBar({ songId, isViewer = false }: SheetBarProps) {
               e.stopPropagation();
               removeSheet(sheet.id);
             }}
-            className='opacity-0 group-hover:opacity-100 text-slate-500
+            className='pointer-fine:opacity-0 group-hover:opacity-100
+                       focus-visible:opacity-100 text-slate-500
                        hover:text-red-400 transition-opacity text-xs'
             title='Delete sheet'
           >

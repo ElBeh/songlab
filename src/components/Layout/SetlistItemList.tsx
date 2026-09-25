@@ -264,8 +264,8 @@ export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }:
                            style={{ color: song.id === activeSongId ? '#f1f5f9' : '#94a3b8' }}>
                         {/* Reorder buttons */}
                         {canEdit && (
-                        <div className='flex flex-col opacity-0 group-hover:opacity-100
-                                        transition-opacity'>
+                        <div className='flex flex-col pointer-fine:opacity-0 group-hover:opacity-100
+                                        focus-within:opacity-100 transition-opacity'>
                           <button
                             onClick={() => moveItem(idx, 'up')}
                             disabled={idx === 0}
@@ -326,7 +326,8 @@ export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }:
                             setEditingSongValue(song.title);
                           }}
                           className='text-slate-600 hover:text-indigo-400 transition-colors
-                                     text-sm font-mono opacity-0 group-hover:opacity-100'
+                                     text-sm font-mono pointer-fine:opacity-0
+                                     group-hover:opacity-100 focus-visible:opacity-100'
                           title='Rename song'
                         >
                           <Pencil size={ICON_SIZE.ACTION} />
@@ -343,7 +344,8 @@ export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }:
                               setSongMenuId(songMenuId === song.id ? null : song.id);
                             }}
                             className='text-slate-600 hover:text-slate-300 transition-colors
-                                       text-xs opacity-0 group-hover:opacity-100 font-mono'
+                                       text-xs pointer-fine:opacity-0 group-hover:opacity-100
+                                       focus-visible:opacity-100 font-mono'
                             title='Copy or move to another setlist'
                           >
                             ...
@@ -394,7 +396,8 @@ export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }:
                         <button
                           onClick={() => handleDeleteSong(song.id)}
                           className='text-slate-600 hover:text-red-400 transition-colors text-xs
-                                     opacity-0 group-hover:opacity-100'
+                                     pointer-fine:opacity-0 group-hover:opacity-100
+                                     focus-visible:opacity-100'
                           title='Remove song'
                         >
                           <X size={ICON_SIZE.ACTION} />
@@ -463,8 +466,8 @@ export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }:
                     }}
                   >
                     {/* Reorder buttons */}
-                    <div className='flex flex-col opacity-0 group-hover:opacity-100
-                                    transition-opacity'>
+                    <div className='flex flex-col pointer-fine:opacity-0 group-hover:opacity-100
+                                    focus-within:opacity-100 transition-opacity'>
                       <button
                         onClick={() => moveItem(idx, 'up')}
                         disabled={idx === 0}
@@ -526,7 +529,8 @@ export function SetlistItemList({ isViewer, canEdit, onAddSong, onCreateDummy }:
                     <button
                       onClick={() => removePause(item.id)}
                       className='text-slate-600 hover:text-red-400 transition-colors text-xs
-                                 opacity-0 group-hover:opacity-100'
+                                 pointer-fine:opacity-0 group-hover:opacity-100
+                                 focus-visible:opacity-100'
                       title='Remove pause'
                     >
                       <X size={ICON_SIZE.ACTION} />

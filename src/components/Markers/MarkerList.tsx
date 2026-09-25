@@ -109,7 +109,8 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
                   setLoop({ start: marker.startTime, end: endTime, label: marker.label });
                 }}
                 className='text-slate-600 hover:text-indigo-400 transition-colors
-                           opacity-0 group-hover:opacity-100 text-xl font-mono'
+                           pointer-fine:opacity-0 group-hover:opacity-100
+                           focus-visible:opacity-100 text-xl font-mono'
                 style={{
                   color: loop?.label === marker.label && loopEnabled ? '#6366f1' : undefined,
                 }}
@@ -122,7 +123,8 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
               <button
                 onClick={() => setEditingMarkerId(editingMarkerId === marker.id ? null : marker.id)}
                 className='text-slate-600 hover:text-indigo-400 transition-colors
-                           opacity-0 group-hover:opacity-100 text-xl font-mono'
+                           pointer-fine:opacity-0 group-hover:opacity-100
+                           focus-visible:opacity-100 text-xl font-mono'
                 title='Edit marker'
               >
                 <Pencil size={ICON_SIZE.ACTION} />
@@ -132,7 +134,8 @@ export function MarkerList({ onSeekTo, duration, currentTime, onMarkerSelect }: 
               <button
                 onClick={() => removeMarker(marker.id)}
                 className='text-slate-600 hover:text-red-400 transition-colors
-                           opacity-0 group-hover:opacity-100 text-xl font-mono'
+                           pointer-fine:opacity-0 group-hover:opacity-100
+                           focus-visible:opacity-100 text-xl font-mono'
                 title='Delete marker'
               >
                 <X size={ICON_SIZE.ACTION} />
