@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { importSetlistFromUrl, type SetlistImportResult } from '../../services/exportService';
+import { parseSetlistFromUrl, type ParsedImport } from '../../services/exportService';
 import { getConfig, setConfig } from '../../services/db';
 import { useSyncStore } from '../../stores/useSyncStore';
-import { useToastStore } from '../../stores/useToastStore';
 
 interface UrlImportDialogProps {
   onClose: () => void;
-  onImported: (result: SetlistImportResult) => void;
+  /** Receives the parsed (not yet persisted) setlist; conflicts are resolved by the caller */
+  onImported: (parsed: ParsedImport) => void;
 }
 
 const CONFIG_KEY_SERVER_URL = 'importServerUrl';
@@ -15,7 +15,6 @@ const CONFIG_KEY_SETLIST_URL = 'importSetlistUrl';
 export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps) {
   const syncServerUrl = useSyncStore((state) => state.serverUrl);
   const syncStatus = useSyncStore((state) => state.status);
-  const addToast = useToastStore((state) => state.addToast);
 
   const [serverUrl, setServerUrl] = useState('');
   const [setlistUrl, setSetlistUrl] = useState('');
@@ -56,16 +55,15 @@ export function UrlImportDialog({ onClose, onImported }: UrlImportDialogProps) {
       await setConfig(CONFIG_KEY_SERVER_URL, serverUrl.trim());
       await setConfig(CONFIG_KEY_SETLIST_URL, setlistUrl.trim());
 
-      const result = await importSetlistFromUrl(serverUrl.trim(), setlistUrl.trim());
+      const parsed = await parseSetlistFromUrl(serverUrl.trim(), setlistUrl.trim());
 
-      if (result.songs.length === 0) {
+      if (parsed.type !== 'gig' || parsed.bundles.length === 0) {
         setError('Setlist contained no songs');
         setLoading(false);
         return;
       }
 
-      addToast(`Imported ${result.songs.length} song(s) from URL`, 'success');
-      onImported(result);
+      onImported(parsed);
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed';

@@ -78,6 +78,9 @@ export interface SetlistSong {
 
 export type SetlistItem = SetlistSong | SetlistPause;
 
+/** How to resolve a setlist name clash on import */
+export type ImportConflictResolution = 'replace' | 'keepBoth' | 'skip';
+
 export interface Setlist {
   id: string;
   name: string;

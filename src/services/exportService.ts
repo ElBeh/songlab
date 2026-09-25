@@ -14,7 +14,7 @@ import { arrayBufferToBase64, base64ToArrayBuffer } from '../utils/encoding';
 
 // --- Shared types ---
 
-interface SongBundle {
+export interface SongBundle {
   song: SongData;
   markers: SectionMarker[];
   tabs: SectionTab[];
@@ -42,17 +42,16 @@ interface SetlistExportLegacy {
   createdAt?: number;
 }
 
-// Unified import result — auto-detected from file structure
-export type ImportResult =
-  | { type: 'song'; song: SongData }
-  | { type: 'gig'; songs: SongData[]; setlists: { name: string; items: SetlistItem[] }[] };
-
-// Single-setlist result (used by UrlImportDialog)
-export interface SetlistImportResult {
-  songs: SongData[];
-  items: SetlistItem[];
+// Setlist entry as stored in an export file
+export interface ImportedSetlist {
   name: string;
+  items: SetlistItem[];
 }
+
+// Parsed (normalized, not yet persisted) import — auto-detected from file structure
+export type ParsedImport =
+  | { type: 'song'; bundle: SongBundle }
+  | { type: 'gig'; bundles: SongBundle[]; setlists: ImportedSetlist[] };
 
 // --- Shared helpers ---
 
@@ -86,44 +85,50 @@ async function bundleSong(song: SongData): Promise<SongBundle> {
   return { song, markers, tabs, sheets, gpFileBase64, gpFileName };
 }
 
-/** Restore a single song bundle into IndexedDB (song, markers, tabs, sheets, GP file) */
-async function restoreBundle(bundle: SongBundle): Promise<void> {
-  // Audio files are never exported, so treat non-dummy songs as dummy on import.
-  // When the user later drops an audio file, isDummy is set back to false.
-  if (!bundle.song.isDummy) {
-    bundle.song = { ...bundle.song, isDummy: true };
+/**
+ * Normalize a song bundle without touching IndexedDB:
+ * - Audio files are never exported, so non-dummy songs become dummy songs.
+ *   When the user later drops an audio file, isDummy is set back to false.
+ * - Old exports without sheets get a default sheet; orphan tabs are assigned to it.
+ */
+function normalizeBundle(bundle: SongBundle): SongBundle {
+  const song = bundle.song.isDummy ? bundle.song : { ...bundle.song, isDummy: true };
+  const tabs = bundle.tabs ?? [];
+  let sheets = bundle.sheets ?? [];
+
+  if (sheets.length === 0 && tabs.length > 0) {
+    sheets = [{
+      id: `default-${song.id}`,
+      songId: song.id,
+      name: 'Guitar',
+      type: 'Guitar',
+      order: 0,
+    }];
   }
 
-  await saveSong(bundle.song);
-  await Promise.all((bundle.markers ?? []).map((marker) => saveMarker(marker)));
+  const defaultSheetId = sheets[0]?.id ?? null;
 
-  // Restore GP file if present in export
+  return {
+    ...bundle,
+    song,
+    markers: bundle.markers ?? [],
+    sheets,
+    tabs: tabs.map((tab) => (tab.sheetId ? tab : { ...tab, sheetId: defaultSheetId! })),
+  };
+}
+
+/** Write a normalized song bundle into IndexedDB (song, markers, tabs, sheets, GP file) */
+async function writeBundle(bundle: SongBundle): Promise<void> {
+  await saveSong(bundle.song);
+  await Promise.all(bundle.markers.map((marker) => saveMarker(marker)));
+
   if (bundle.gpFileBase64 && bundle.gpFileName) {
     const gpBuffer = base64ToArrayBuffer(bundle.gpFileBase64);
     await saveGpFile(bundle.song.id, gpBuffer, bundle.gpFileName);
   }
 
-  // Migrate old exports: create default sheet if none exist
-  let sheets = bundle.sheets ?? [];
-  const tabs = bundle.tabs ?? [];
-
-  if (sheets.length === 0 && tabs.length > 0) {
-    const defaultSheet: TabSheet = {
-      id: `default-${bundle.song.id}`,
-      songId: bundle.song.id,
-      name: 'Guitar',
-      type: 'Guitar',
-      order: 0,
-    };
-    sheets = [defaultSheet];
-  }
-
-  await Promise.all(sheets.map((sheet) => saveTabSheet(sheet)));
-
-  const defaultSheetId = sheets[0]?.id ?? null;
-  await Promise.all(
-    tabs.map((tab) => saveTab(tab.sheetId ? tab : { ...tab, sheetId: defaultSheetId! })),
-  );
+  await Promise.all(bundle.sheets.map((sheet) => saveTabSheet(sheet)));
+  await Promise.all(bundle.tabs.map((tab) => saveTab(tab)));
 }
 
 /** Read a File as text via FileReader (Promise wrapper) */
@@ -195,115 +200,59 @@ export async function exportGig(
   downloadJson(data, 'gig.json');
 }
 
-// --- Unified import (auto-detects song / setlist / gig / legacy) ---
+// --- Import: parse (pure) and commit (writes to IndexedDB) are separate steps ---
+// This allows conflict resolution (e.g. setlist name clashes) before anything is persisted.
 
-/** Restore data from parsed JSON and return a tagged ImportResult */
-async function restoreImportData(raw: object): Promise<ImportResult> {
+/** Detect the export format and return a normalized, not yet persisted import */
+function parseImportData(raw: object): ParsedImport {
   // Song export: top-level `song` + `markers`
   if (isSongExport(raw)) {
-    await restoreBundle(raw);
-    return { type: 'song', song: raw.song };
+    return { type: 'song', bundle: normalizeBundle(raw) };
   }
 
   // v2 format: setlists[] + songs[]
   if (isV2Export(raw)) {
-    const importedSongs: SongData[] = [];
+    const bundles = (raw.songs ?? []).filter((b) => b.song).map(normalizeBundle);
 
-    for (const bundle of raw.songs ?? []) {
-      if (!bundle.song) continue;
-      await restoreBundle(bundle);
-      importedSongs.push(bundle.song);
-    }
-
-    // Build setlist entries — fall back to flat song list if setlists array is empty
+    // Fall back to a flat song list if the setlists array is empty
     const setlists = raw.setlists.length > 0
       ? raw.setlists.map((sl) => ({ name: sl.name, items: sl.items }))
-      : [{
-          name: 'Imported',
-          items: importedSongs.map((s) => ({
-            type: 'song' as const,
-            songId: s.id,
-          })),
-        }];
+      : [{ name: 'Imported', items: toSongItems(bundles) }];
 
-    return { type: 'gig', songs: importedSongs, setlists };
+    return { type: 'gig', bundles, setlists };
   }
 
-  // Legacy format: entries[] with embedded song bundles → single setlist
+  // Legacy format: entries[] with embedded song bundles -> single setlist
   const legacy = raw as SetlistExportLegacy;
-  const importedSongs: SongData[] = [];
-
-  for (const entry of legacy.entries ?? []) {
-    if (!entry.song) continue;
-    await restoreBundle(entry);
-    importedSongs.push(entry.song);
-  }
+  const bundles = (legacy.entries ?? []).filter((e) => e.song).map(normalizeBundle);
 
   return {
     type: 'gig',
-    songs: importedSongs,
-    setlists: [{
-      name: legacy.name ?? 'Imported',
-      items: importedSongs.map((s) => ({ type: 'song' as const, songId: s.id })),
-    }],
+    bundles,
+    setlists: [{ name: legacy.name ?? 'Imported', items: toSongItems(bundles) }],
   };
 }
 
-export async function importFile(file: File): Promise<ImportResult> {
+/** Build plain song items (no pauses) in bundle order */
+function toSongItems(bundles: SongBundle[]): SetlistItem[] {
+  return bundles.map((b) => ({ type: 'song' as const, songId: b.song.id }));
+}
+
+/** Parse an export file picked by the user. Nothing is written to IndexedDB. */
+export async function parseImportFile(file: File): Promise<ParsedImport> {
   const text = await readFileAsText(file);
-  const raw = JSON.parse(text);
-  return restoreImportData(raw);
+  return parseImportData(JSON.parse(text));
 }
 
-// --- URL import (used by UrlImportDialog) ---
-
-/** Detect format and restore songs, returning single-setlist result */
-async function restoreSetlistData(
-  raw: SetlistExportV2 | SetlistExportLegacy,
-): Promise<SetlistImportResult> {
-  // v2 format: has version field and setlists array
-  if ('version' in raw && raw.version === 2 && 'setlists' in raw) {
-    const v2 = raw as SetlistExportV2;
-    const importedSongs: SongData[] = [];
-
-    for (const bundle of v2.songs ?? []) {
-      if (!bundle.song) continue;
-      await restoreBundle(bundle);
-      importedSongs.push(bundle.song);
-    }
-
-    const firstSetlist = v2.setlists[0];
-    return {
-      songs: importedSongs,
-      items: firstSetlist?.items ?? importedSongs.map((s) => ({
-        type: 'song' as const,
-        songId: s.id,
-      })),
-      name: firstSetlist?.name ?? 'Imported',
-    };
-  }
-
-  // Legacy format: entries array with embedded song bundles
-  const legacy = raw as SetlistExportLegacy;
-  const importedSongs: SongData[] = [];
-
-  for (const entry of legacy.entries ?? []) {
-    if (!entry.song) continue;
-    await restoreBundle(entry);
-    importedSongs.push(entry.song);
-  }
-
-  return {
-    songs: importedSongs,
-    items: importedSongs.map((s) => ({ type: 'song' as const, songId: s.id })),
-    name: legacy.name ?? 'Imported',
-  };
-}
-
-export async function importSetlistFromUrl(
+/**
+ * Fetch a setlist export via the sync server proxy and parse it.
+ * Only the first setlist of a v2 export is kept (URL import is single-setlist).
+ * Nothing is written to IndexedDB.
+ */
+export async function parseSetlistFromUrl(
   serverUrl: string,
   setlistUrl: string,
-): Promise<SetlistImportResult> {
+): Promise<ParsedImport> {
   const base = serverUrl.replace(/\/+$/, '');
   const endpoint = `${base}/api/fetch-setlist?url=${encodeURIComponent(setlistUrl)}`;
 
@@ -315,6 +264,36 @@ export async function importSetlistFromUrl(
     throw new Error(message);
   }
 
-  const raw = await response.json();
-  return restoreSetlistData(raw);
+  const parsed = parseImportData(await response.json());
+  if (parsed.type === 'song') {
+    throw new Error('URL does not point to a setlist export');
+  }
+  return { ...parsed, setlists: parsed.setlists.slice(0, 1) };
+}
+
+/** Persist the given song bundles and return their songs */
+export async function commitBundles(bundles: SongBundle[]): Promise<SongData[]> {
+  for (const bundle of bundles) {
+    await writeBundle(bundle);
+  }
+  return bundles.map((b) => b.song);
+}
+
+
+/**
+ * Pick the bundles to persist when some imported setlists were skipped.
+ * A song is dropped only if every setlist referencing it was skipped;
+ * songs not referenced by any setlist (e.g. library songs in a gig export) are kept.
+ */
+export function selectBundlesToCommit(
+  bundles: SongBundle[],
+  allSetlists: ImportedSetlist[],
+  keptSetlists: ImportedSetlist[],
+): SongBundle[] {
+  const songIds = (setlists: ImportedSetlist[]) => new Set(
+    setlists.flatMap((sl) => sl.items.flatMap((i) => (i.type === 'song' ? [i.songId] : []))),
+  );
+  const referenced = songIds(allSetlists);
+  const kept = songIds(keptSetlists);
+  return bundles.filter((b) => kept.has(b.song.id) || !referenced.has(b.song.id));
 }

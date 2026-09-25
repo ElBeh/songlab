@@ -21,6 +21,11 @@ function migrateOrder(raw: unknown, fallbackIds: string[]): SetlistItem[] {
   return (raw as string[]).map((id) => ({ type: 'song' as const, songId: id }));
 }
 
+/** Normalize a setlist name for duplicate detection (trimmed, case-insensitive) */
+function normalizeName(name: string): string {
+  return name.trim().toLocaleLowerCase();
+}
+
 function generateId(): string {
   return `setlist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -33,6 +38,10 @@ interface SetlistStore {
   // --- Derived ---
   getActiveSetlist: () => Setlist | null;
   getActiveItems: () => SetlistItem[];
+  /** Find a setlist whose name matches (trimmed, case-insensitive) */
+  findSetlistByName: (name: string) => Setlist | null;
+  /** Return `name`, or `name (2)`, `name (3)`, ... if already taken */
+  getUniqueSetlistName: (name: string) => string;
 
   // --- Lifecycle ---
   loadSetlists: () => Promise<void>;
@@ -44,6 +53,8 @@ interface SetlistStore {
   deleteSetlist: (id: string) => Promise<void>;
   switchSetlist: (id: string) => void;
   moveSetlist: (id: string, direction: 'up' | 'down') => Promise<void>;
+  /** Replace all items of a setlist by id (keeps id, name and position) */
+  replaceSetlistItems: (id: string, items: SetlistItem[]) => Promise<void>;
 
   // --- Item actions (operate on active setlist) ---
   addSongToActiveSetlist: (songId: string) => Promise<void>;
@@ -113,6 +124,23 @@ export const useSetlistStore = create<SetlistStore>((set, get) => {
 
   getActiveItems: () => {
     return get().getActiveSetlist()?.items ?? [];
+  },
+
+  findSetlistByName: (name) => {
+    const target = normalizeName(name);
+    return get().setlists.find((s) => normalizeName(s.name) === target) ?? null;
+  },
+
+  getUniqueSetlistName: (name) => {
+    const taken = new Set(get().setlists.map((s) => normalizeName(s.name)));
+    const trimmed = name.trim();
+    if (!taken.has(normalizeName(trimmed))) return trimmed;
+
+    // Strip an existing " (n)" suffix so "Gig (2)" becomes "Gig (3)", not "Gig (2) (2)"
+    const base = trimmed.replace(/ \(\d+\)$/, '');
+    let counter = 2;
+    while (taken.has(normalizeName(`${base} (${counter})`))) counter++;
+    return `${base} (${counter})`;
   },
 
   // --- Lifecycle ---
@@ -230,6 +258,10 @@ export const useSetlistStore = create<SetlistStore>((set, get) => {
 
     set({ setlists: reordered });
     await setConfig('setlistOrder', reordered.map((s) => s.id));
+  },
+
+  replaceSetlistItems: async (id, items) => {
+    await updateSetlistById(id, (s) => ({ ...s, items }));
   },
 
   // --- Item actions ---

@@ -84,3 +84,34 @@ describe('useSetlistStore item operations', () => {
     expect(store().getActiveSetlist()?.name).toBe('Gig A');
   });
 });
+
+describe('useSetlistStore import helpers', () => {
+  beforeEach(async () => {
+    useSetlistStore.setState({ setlists: [], activeSetlistId: null });
+    await store().createSetlist('Gig');
+  });
+
+  it('finds a setlist by name, ignoring case and surrounding whitespace', () => {
+    expect(store().findSetlistByName('  gig ')?.name).toBe('Gig');
+    expect(store().findSetlistByName('Other')).toBeNull();
+  });
+
+  it('returns the name unchanged when it is free', () => {
+    expect(store().getUniqueSetlistName('Other')).toBe('Other');
+  });
+
+  it('appends the next free counter when the name is taken', async () => {
+    expect(store().getUniqueSetlistName('Gig')).toBe('Gig (2)');
+    await store().createSetlist('Gig (2)');
+    expect(store().getUniqueSetlistName('Gig')).toBe('Gig (3)');
+    expect(store().getUniqueSetlistName('Gig (2)')).toBe('Gig (3)');
+  });
+
+  it('replaces the items of a setlist and keeps its id and name', async () => {
+    const { id } = store().setlists[0];
+    await store().replaceSetlistItems(id, [{ type: 'song', songId: 'x' }]);
+    const updated = store().setlists.find((s) => s.id === id);
+    expect(updated?.name).toBe('Gig');
+    expect(updated?.items).toEqual([{ type: 'song', songId: 'x' }]);
+  });
+});

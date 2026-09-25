@@ -4,10 +4,11 @@ import { useSetlistStore } from '../../stores/useSetlistStore';
 import { useOrderedSetlist } from '../../hooks/useOrderedSetlist';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useModeStore } from '../../stores/useModeStore';
-import { useTabStore } from '../../stores/useTabStore';
 import { useToastStore } from '../../stores/useToastStore';
-import { exportSong, exportSetlist, exportGig, importFile } from '../../services/exportService';
+import { exportSong, exportSetlist, exportGig } from '../../services/exportService';
+import { useImportFlow } from '../../hooks/useImportFlow';
 import { UrlImportDialog } from './UrlImportDialog';
+import { ImportConflictDialog } from './ImportConflictDialog';
 import { ChevronRight, Download, Upload } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
 import { useShallow } from 'zustand/shallow';
@@ -34,8 +35,6 @@ export function ImportExportPanel() {
   // --- Song store ---
   const songs = useSongStore((state) => state.songs);
   const activeSongId = useSongStore((state) => state.activeSongId);
-  const setActiveSongId = useSongStore((state) => state.setActiveSongId);
-  const addSong = useSongStore((state) => state.addSong);
   const activeSong = songs.find((s) => s.id === activeSongId) ?? null;
 
   // --- Setlist store ---
@@ -46,12 +45,11 @@ export function ImportExportPanel() {
     const active = state.setlists.find((s) => s.id === state.activeSetlistId);
     return active?.items ?? [];
   }));
-  const switchSetlist = useSetlistStore((state) => state.switchSetlist);
-  const createSetlist = useSetlistStore((state) => state.createSetlist);
 
   const { orderedSongs } = useOrderedSetlist();
   const addToast = useToastStore((state) => state.addToast);
   const isSession = useModeStore((state) => state.mode) === 'session';
+  const { importFromFile, importParsed, conflictDialog } = useImportFlow();
 
   const closeMenus = () => {
     setShowImportExport(false);
@@ -98,53 +96,9 @@ export function ImportExportPanel() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = async (e) => {
+    input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const result = await importFile(file);
-
-        if (result.type === 'song') {
-          // Single song import
-          await addSong(result.song);
-          await useSetlistStore.getState().addSongToActiveSetlist(result.song.id);
-          await setActiveSongId(result.song.id);
-          await useTabStore.getState().loadTabsForSong(result.song.id);
-          await useTabStore.getState().loadSheetsForSong(result.song.id);
-          addToast(`Imported "${result.song.title}"`, 'success');
-        } else {
-          // Gig / setlist import (one or more setlists)
-          for (const song of result.songs) {
-            await addSong(song);
-          }
-
-          let firstSetlistId: string | null = null;
-          for (const sl of result.setlists) {
-            const id = await createSetlist(sl.name);
-            await useSetlistStore.getState().setActiveItems(sl.items);
-            if (!firstSetlistId) firstSetlistId = id;
-          }
-
-          if (firstSetlistId) {
-            switchSetlist(firstSetlistId);
-          }
-          if (result.songs.length > 0) {
-            await setActiveSongId(result.songs[0].id);
-            await useTabStore.getState().loadTabsForSong(result.songs[0].id);
-            await useTabStore.getState().loadSheetsForSong(result.songs[0].id);
-          }
-
-          const setlistCount = result.setlists.length;
-          const importedSongCount = result.songs.length;
-          const label = setlistCount > 1
-            ? `Imported ${setlistCount} setlists with ${importedSongCount} song(s)`
-            : `Imported ${importedSongCount} song(s)`;
-          addToast(label, 'success');
-        }
-      } catch (err) {
-        console.error('Import failed:', err);
-        addToast('Import failed', 'error');
-      }
+      if (file) void importFromFile(file);
     };
     input.click();
   };
@@ -253,25 +207,12 @@ export function ImportExportPanel() {
       {showUrlImport && (
         <UrlImportDialog
           onClose={() => setShowUrlImport(false)}
-          onImported={async (result) => {
-            try {
-              for (const song of result.songs) {
-                await addSong(song);
-              }
-              await createSetlist(result.name);
-              await useSetlistStore.getState().setActiveItems(result.items);
-              if (result.songs.length > 0) {
-                await setActiveSongId(result.songs[0].id);
-                await useTabStore.getState().loadTabsForSong(result.songs[0].id);
-                await useTabStore.getState().loadSheetsForSong(result.songs[0].id);
-              }
-            } catch (error) {
-              console.error('URL import failed:', error);
-              addToast('Import failed', 'error');
-            }
-          }}
+          onImported={importParsed}
         />
       )}
+
+      {/* Setlist name conflict dialog (file and URL import) */}
+      {conflictDialog && <ImportConflictDialog {...conflictDialog} />}
     </>
   );
 }
