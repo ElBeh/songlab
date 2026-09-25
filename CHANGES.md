@@ -1,5 +1,30 @@
 # SongLab — Changes
 
+## v0.14.3 — 2026-09-25
+
+All changes verified with: `tsc -b` (clean), `vitest run` (all passing),
+`eslint` (no errors), and `npm run build` (production build succeeds).
+
+### Features
+- Import conflict handling: importing a setlist or gig whose name matches an
+  existing setlist (trimmed, case-insensitive) opens a dialog with Replace /
+  Keep both / Skip. Keep both imports as "Name (2)", "Name (3)", ... Multiple
+  conflicts are resolved one by one or via "Apply to all remaining". Applies to
+  file and URL import.
+- Touch support: controls that were only revealed on hover (setlist items,
+  pauses, markers, tab sheets) are now always visible on touch devices
+  (`pointer-fine:` variant) and on keyboard focus.
+
+### Internals
+- Import pipeline split into parse (pure) and commit (IndexedDB) steps
+  (`parseImportFile`, `parseSetlistFromUrl`, `commitBundles`); nothing is
+  persisted before all conflicts are resolved. Songs referenced only by skipped
+  setlists are not imported.
+- New `useImportFlow` hook orchestrates import and conflict dialog.
+- `useSetlistStore`: `findSetlistByName`, `getUniqueSetlistName`,
+  `replaceSetlistItems`.
+- Tests for store helpers, import parsing, the conflict flow and the dialog.
+
 ## v0.14.0 — 2026-07-16
 
 All changes verified with: `tsc -b` (clean), `vitest run` (30 tests, 7 files, all
