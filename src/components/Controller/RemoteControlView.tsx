@@ -63,9 +63,8 @@ export function RemoteControlView() {
   const activeMarkerIdx = activeMarker
     ? markers.indexOf(activeMarker)
     : -1;
-  const nextMarker = activeMarkerIdx >= 0
-    ? markers[activeMarkerIdx + 1] ?? null
-    : null;
+  // Before the first marker (no active section) the next marker is the first one
+  const nextMarker = markers[activeMarkerIdx + 1] ?? null;
 
   // Memoized: this view re-renders on every playback sync tick (~250 ms)
   const songMap = useMemo(() => new Map(songs.map((s) => [s.id, s])), [songs]);

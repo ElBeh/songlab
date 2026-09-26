@@ -4,9 +4,11 @@ import { SheetBar } from './SheetBar';
 import type { SectionMarker } from '../../types';
 import { Upload, Download, X } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
+import { resolveTab, isSongScope } from '../../utils/tabScope';
 
 interface TabEditorProps {
-  marker: SectionMarker;
+  /** Active marker, null edits the whole-song tab */
+  marker: SectionMarker | null;
   songId: string;
 }
 
@@ -20,43 +22,65 @@ E|-------------------------------|`;
 export function TabEditor({ marker, songId }: TabEditorProps) {
   const sheets = useTabStore((state) => state.sheets);
   const activeSheetId = useTabStore((state) => state.activeSheetId);
-  const getTabForMarkerAndSheet = useTabStore((state) => state.getTabForMarkerAndSheet);
+  const tabs = useTabStore((state) => state.tabs);
   const saveTab = useTabStore((state) => state.saveTab);
   const deleteTab = useTabStore((state) => state.deleteTab);
 
+  const markerId = marker?.id ?? null;
   const activeSheet = sheets.find((s) => s.id === activeSheetId) ?? null;
-  const existingTab = activeSheetId
-    ? getTabForMarkerAndSheet(marker.id, activeSheetId)
-    : null;
+  const resolved = activeSheetId ? resolveTab(tabs, songId, markerId, activeSheetId) : null;
+
+  // "Create section tab" switches a fallback view to the marker's own scope.
+  // The new section tab starts as a copy of the whole-song tab.
+  const [forceSectionScope, setForceSectionScope] = useState(false);
+  const sectionScopeActive = forceSectionScope && markerId !== null;
+  const scopeId = sectionScopeActive ? markerId : (resolved?.scopeId ?? null);
+  const existingTab = sectionScopeActive ? null : (resolved?.tab ?? null);
+  const isFallback = !sectionScopeActive && (resolved?.isFallback ?? false);
 
   const [localContent, setLocalContent] = useState(existingTab?.content ?? '');
-  const [lastKey, setLastKey] = useState(`${marker.id}-${activeSheetId}`);
+  const [lastKey, setLastKey] = useState(`${markerId}-${activeSheetId}`);
 
-  // Reset content when marker or sheet changes – no useEffect needed
-  const currentKey = `${marker.id}-${activeSheetId}`;
+  // Reset content and scope when marker or sheet changes – no useEffect needed
+  const currentKey = `${markerId}-${activeSheetId}`;
   if (currentKey !== lastKey) {
-    setLocalContent(existingTab?.content ?? '');
+    // Use the resolved tab directly: the section-scope flag belongs to the old key
+    setLocalContent(resolved?.tab?.content ?? '');
+    setForceSectionScope(false);
     setLastKey(currentKey);
   }
 
   const dirty = localContent !== (existingTab?.content ?? '');
 
   const handleSave = async () => {
-    if (!activeSheetId) return;
+    if (!activeSheetId || !scopeId) return;
     await saveTab({
       id: existingTab?.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       songId,
-      markerId: marker.id,
+      markerId: scopeId,
       sheetId: activeSheetId,
       content: localContent,
       updatedAt: Date.now(),
     });
+    // The section tab now exists and is found by resolveTab directly
+    setForceSectionScope(false);
   };
 
+  const handleCreateSectionTab = () => {
+    setForceSectionScope(true);
+  };
+
+  const scopeLabel = scopeId && !isSongScope(scopeId) && marker
+    ? (marker.label ?? marker.type)
+    : 'whole-song';
+
   const handleDelete = async () => {
-    if (!existingTab) return;
+    if (!existingTab || !activeSheetId) return;
     await deleteTab(existingTab.id);
-    setLocalContent('');
+    // Deleting a section tab reveals the whole-song tab again: load its content,
+    // otherwise saving would overwrite the whole-song tab with an empty text
+    const next = resolveTab(useTabStore.getState().tabs, songId, markerId, activeSheetId);
+    setLocalContent(next.tab?.content ?? '');
   };
 
   const handleExport = () => {
@@ -65,7 +89,7 @@ export function TabEditor({ marker, songId }: TabEditorProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${marker.label ?? marker.type}-${activeSheet.name}.txt`;
+    a.download = `${scopeLabel}-${activeSheet.name}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -131,6 +155,25 @@ export function TabEditor({ marker, songId }: TabEditorProps) {
               {dirty ? '● save' : 'saved'}
             </button>
           </div>
+
+          {/* Scope hint: marker without own tab edits the whole-song tab */}
+          {isFallback && marker && (
+            <div className='flex items-center gap-2 text-xs font-mono text-slate-400'>
+              <span>Editing whole-song tab ({marker.label ?? marker.type} has no own tab)</span>
+              <button
+                onClick={handleCreateSectionTab}
+                className='px-2 py-0.5 bg-slate-700 hover:bg-slate-600 text-slate-300
+                           rounded transition-colors'
+              >
+                Create section tab
+              </button>
+            </div>
+          )}
+          {sectionScopeActive && marker && (
+            <div className='text-xs font-mono text-slate-400'>
+              New section tab for {marker.label ?? marker.type} (unsaved)
+            </div>
+          )}
 
           {/* Textarea */}
           <textarea

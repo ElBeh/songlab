@@ -17,10 +17,11 @@ import {
   emitSheetDelete,
 } from '../services/syncEmitter';
 import { useToastStore } from './useToastStore';
+import { resolveTab, tabKey, type ResolvedTab } from '../utils/tabScope';
 
 interface TabStore {
   // --- State ---
-  tabs: Record<string, SectionTab>;           // key: `${markerId}-${sheetId}`
+  tabs: Record<string, SectionTab>;           // key: tabKey(scopeId, sheetId)
   sheets: TabSheet[];                          // global per song
   activeMarkerId: string | null;
   activeSheetId: string | null;               // active sheet per session
@@ -38,9 +39,11 @@ interface TabStore {
   removeSheet: (id: string) => Promise<void>;
 
   // --- Selection ---
-  setActiveMarker: (id: string) => void;
+  setActiveMarker: (id: string | null) => void;
   setActiveSheet: (id: string) => void;
   getTabForMarkerAndSheet: (markerId: string, sheetId: string) => SectionTab | null;
+  /** Marker tab with fallback to the whole-song tab (see utils/tabScope) */
+  getResolvedTab: (songId: string, markerId: string | null, sheetId: string) => ResolvedTab;
 
   // --- Remote sync application (no re-broadcast; caller wraps in runAsRemote) ---
   applyRemoteTabsAndSheets: (
@@ -66,7 +69,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
       const tabs = await getTabsForSong(songId);
       const tabMap: Record<string, SectionTab> = {};
       for (const tab of tabs) {
-        tabMap[`${tab.markerId}-${tab.sheetId}`] = tab;
+        tabMap[tabKey(tab.markerId, tab.sheetId)] = tab;
       }
       set({ tabs: tabMap });
     } catch (error) {
@@ -80,7 +83,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
       await saveTab(tab);
       emitTabSave(tab);
       set((state) => ({
-        tabs: { ...state.tabs, [`${tab.markerId}-${tab.sheetId}`]: tab },
+        tabs: { ...state.tabs, [tabKey(tab.markerId, tab.sheetId)]: tab },
       }));
     } catch (error) {
       console.error('Failed to save tab:', error);
@@ -185,7 +188,11 @@ export const useTabStore = create<TabStore>((set, get) => ({
   },
 
   getTabForMarkerAndSheet: (markerId, sheetId) => {
-    return get().tabs[`${markerId}-${sheetId}`] ?? null;
+    return get().tabs[tabKey(markerId, sheetId)] ?? null;
+  },
+
+  getResolvedTab: (songId, markerId, sheetId) => {
+    return resolveTab(get().tabs, songId, markerId, sheetId);
   },
 
   // --- Remote sync application ---
@@ -198,7 +205,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
       const tabMap: Record<string, SectionTab> = {};
       for (const t of tabs) {
-        tabMap[`${t.markerId}-${t.sheetId}`] = t;
+        tabMap[tabKey(t.markerId, t.sheetId)] = t;
       }
       set({
         tabs: tabMap,
@@ -216,7 +223,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
     try {
       await saveTab(tab);
       set((state) => ({
-        tabs: { ...state.tabs, [`${tab.markerId}-${tab.sheetId}`]: tab },
+        tabs: { ...state.tabs, [tabKey(tab.markerId, tab.sheetId)]: tab },
       }));
     } catch (error) {
       console.error('Failed to apply remote tab:', error);

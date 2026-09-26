@@ -164,7 +164,9 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     // so the last matching entry is the active section — no re-sort needed.
     const markers = useSongStore.getState().getActiveMarkers();
     const active = markers.findLast((m) => m.startTime <= t + 0.1);
-    if (active) setActiveMarker(active.id);
+    // Before the first marker no section is active: clear the selection so the
+    // whole-song tab is shown instead of the last visited marker's tab
+    setActiveMarker(active?.id ?? null);
   }, [setActiveMarker]);
 
   // --- GP file (loaded early for isAlphaSynth routing) ---
@@ -1092,7 +1094,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
               )}
 
               {/* Tab section */}
-              {(selectedMarker || hasGpFile || activeSong) && (
+              {activeSong && (
                 <div className='flex flex-col gap-2 flex-1 min-h-64'>
                   <div className='border-t border-slate-700 pt-4 flex items-center
                                   justify-between'>
@@ -1127,8 +1129,8 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                         </div>
                       )}
 
-                      {/* Edit toggle (ASCII mode only) */}
-                      {(!hasGpFile || tabMode === 'ascii') && !isSession && selectedMarker && (
+                      {/* Edit toggle (ASCII mode only). Without markers the whole-song tab is edited */}
+                      {(!hasGpFile || tabMode === 'ascii') && !isSession && (
                         <button
                           onClick={() => setEditMode((v) => !v)}
                           className='self-start px-3 py-1 text-sm font-mono rounded
@@ -1202,17 +1204,19 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       onSeek={handleSeekTo} 
                     />
                   ) : (
-                    /* ASCII mode (existing behavior) */
-                    selectedMarker && (
+                    /* ASCII mode: marker tab with fallback to the whole-song tab */
+                    activeSong && (
                       <>
                         {!isSession && editMode ? (
-                          <TabEditor marker={selectedMarker} songId={activeSong!.id} />
+                          <TabEditor marker={selectedMarker} songId={activeSong.id} />
                         ) : (
                           <TabViewer
                             marker={selectedMarker}
+                            songId={activeSong.id}
                             currentTime={currentTime}
                             isPlaying={isPlaying}
                             sectionEnd={selectedMarkerEnd}
+                            songDuration={duration}
                             isViewer={isViewer}
                           />
                         )}
