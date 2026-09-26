@@ -1,7 +1,7 @@
 {
   "name": "songlab",
   "private": true,
-  "version": "0.14.5",
+  "version": "0.14.7",
   "type": "module",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
@@ -27,6 +27,8 @@
     "react-dom": "^19.2.0",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",
+    "svguitar": "^2.6.2",
+    "tonal": "^6.4.3",
     "wavesurfer.js": "^7.12.1",
     "zustand": "^5.0.11"
   },

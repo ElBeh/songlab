@@ -31,12 +31,16 @@ import { emitSongData, emitSetlistSync } from '../../services/syncEmitter';
 import { SyncStatus } from './SyncStatus';
 import { JoinPromptDialog } from './JoinPromptDialog';
 import { NotationPanel } from '../Tabs/NotationPanel';
+import { SongbookView } from '../Songbook/SongbookView';
+import { SongbookEditor } from '../Songbook/SongbookEditor';
 import { withBpmAdjust } from '../../services/tempoMap';
 import type { TimelineBar } from '../../types';
-import { GpMarkerImportDialog } from '../Tabs/GpMarkerImportDialog';
+import { MarkerImportDialog } from '../Markers/MarkerImportDialog';
 import { useGpFile, isGpFile } from '../../hooks/useGpFile';
-import { extractGpMarkers, gpMarksToSectionMarkers } from '../../utils/gpMarkerImport';
-import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
+import { extractGpMarkers } from '../../utils/gpMarkerImport';
+import { importedMarksToSectionMarkers, type ImportedMark } from '../../utils/sectionImport';
+import { parseChordPro } from '../../utils/chordSheetParser';
+import { songbookSectionsToMarks } from '../../utils/songbookMarkerImport';
 import type * as alphaTab from '@coderline/alphatab';
 import { useControlCommandHandler } from '../../hooks/useControlCommandHandler';
 import { useMidiInput } from '../../hooks/useMidiInput';
@@ -57,6 +61,8 @@ import { useShallow } from 'zustand/shallow';
 import { ModeMenu } from './ModeMenu';
 import { ToolsMenu } from './ToolsMenu';  
 import { StandaloneMetronome } from '../Tools/StandaloneMetronome';
+
+const VIEW_MODE_LABELS = { notation: 'Notation', ascii: 'ASCII', songbook: 'Songbook' } as const;
 
 export default function AppShell() {
   const [showMarkerForm, setShowMarkerForm] = useState(false);
@@ -79,7 +85,8 @@ export default function AppShell() {
       );
     }
   }, []);
-  const [tabMode, setTabMode] = useState<'ascii' | 'notation'>('notation');
+  // Sheet view mode; 'notation' falls back to ASCII while no GP file is loaded
+  const [tabMode, setTabMode] = useState<'ascii' | 'notation' | 'songbook'>('notation');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showRemoteControl, setShowRemoteControl] = useState(false);
   const [showMetronome, setShowMetronome] = useState(false);
@@ -90,6 +97,14 @@ export default function AppShell() {
   );
   const addMarker = useSongStore((state) => state.addMarker);
   const setActiveMarker = useTabStore((state) => state.setActiveMarker);
+
+  // On song switch: songs without GP file open in the songbook if they have one.
+  // Adjusting state during render on a changed key – no useEffect needed.
+  const [lastViewSongId, setLastViewSongId] = useState<string | null>(null);
+  if (activeSong && activeSong.id !== lastViewSongId) {
+    setLastViewSongId(activeSong.id);
+    if (!activeSong.gpFileName && activeSong.chordSheet) setTabMode('songbook');
+  }
   const addToast = useToastStore((state) => state.addToast);
 
   const mode = useModeStore((state) => state.mode);
@@ -173,6 +188,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   const gpFile = useGpFile();
   const { loadPersistedGp } = gpFile;
   const hasGpFile = !!gpFile.activeGpData;
+  const viewMode = tabMode === 'notation' && !hasGpFile ? 'ascii' : tabMode;
   const isAlphaSynth = isDummy && hasGpFile;
   const isPureDummy = isDummy && !hasGpFile;
   const isAudioGp = !isDummy && hasGpFile;
@@ -258,8 +274,15 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     setScoreTimeline(info.timeline);
   }, []);
 
-  // --- GP Marker Import ---
-  const [gpImportMarks, setGpImportMarks] = useState<GpRehearsalMark[] | null>(null);
+  // --- Marker Import (GP rehearsal marks, songbook sections) ---
+  const [markerImport, setMarkerImport] = useState<{
+    title: string;
+    description: string;
+    note?: string;
+    marks: ImportedMark[];
+    /** Marker id prefix per source ("gp", "sb") */
+    idPrefix: string;
+  } | null>(null);
 
   const handleGpMarkerImport = useCallback(() => {
     const api = viewerApiRef.current;
@@ -276,27 +299,32 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       return;
     }
 
-    setGpImportMarks(marks);
+    setMarkerImport({
+      title: 'Import GP Markers',
+      description: `Found ${marks.length} rehearsal mark${marks.length !== 1 ? 's' : ''} in the Guitar Pro file:`,
+      marks,
+      idPrefix: 'gp',
+    });
   }, [activeSong, addToast]);
 
-  const handleGpImportMerge = useCallback(async () => {
-    if (!gpImportMarks || !activeSong) return;
-    const markers = gpMarksToSectionMarkers(gpImportMarks, activeSong.id);
+  const handleMarkerImportMerge = useCallback(async () => {
+    if (!markerImport || !activeSong) return;
+    const markers = importedMarksToSectionMarkers(markerImport.marks, activeSong.id, markerImport.idPrefix);
     await Promise.all(markers.map((m) => addMarker(m)));
     addToast(`Imported ${markers.length} section(s)`, 'success');
-    setGpImportMarks(null);
-  }, [gpImportMarks, activeSong, addMarker, addToast]);
+    setMarkerImport(null);
+  }, [markerImport, activeSong, addMarker, addToast]);
 
-  const handleGpImportReplace = useCallback(async () => {
-    if (!gpImportMarks || !activeSong) return;
+  const handleMarkerImportReplace = useCallback(async () => {
+    if (!markerImport || !activeSong) return;
     const { removeMarker } = useSongStore.getState();
     const existing = useSongStore.getState().getActiveMarkers();
     await Promise.all(existing.map((m) => removeMarker(m.id)));
-    const markers = gpMarksToSectionMarkers(gpImportMarks, activeSong.id);
+    const markers = importedMarksToSectionMarkers(markerImport.marks, activeSong.id, markerImport.idPrefix);
     await Promise.all(markers.map((m) => addMarker(m)));
     addToast(`Replaced with ${markers.length} section(s)`, 'success');
-    setGpImportMarks(null);
-  }, [gpImportMarks, activeSong, addMarker, addToast]);
+    setMarkerImport(null);
+  }, [markerImport, activeSong, addMarker, addToast]);
 
   // Unified playback values (3-way: wavesurfer / alphaSynth / dummy)
   const _isPlaying = isAlphaSynth ? alphaSynthPlayback.isPlaying
@@ -537,6 +565,33 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
   // --- Marker tracking ---
   const { selectedMarker, selectedMarkerEnd } = useActiveMarkerTracker(currentTime, duration);
+
+  // --- Songbook marker import ---
+  // Parsed once per text change, not per playback tick
+  const chordSheet = activeSong?.chordSheet ?? null;
+  const songbookSections = useMemo(
+    () => (chordSheet ? parseChordPro(chordSheet).sections : []),
+    [chordSheet],
+  );
+  const hasSongbookSections = useMemo(
+    () => songbookSectionsToMarks(songbookSections, 0).length > 0,
+    [songbookSections],
+  );
+
+  const handleSongbookMarkerImport = useCallback(() => {
+    const marks = songbookSectionsToMarks(songbookSections, duration);
+    if (marks.length === 0) {
+      addToast('No labeled sections found in the songbook', 'info');
+      return;
+    }
+    setMarkerImport({
+      title: 'Import Songbook Sections',
+      description: `Found ${marks.length} section${marks.length !== 1 ? 's' : ''} in the songbook:`,
+      note: 'Start times are estimated from the text length. Drag the markers to their exact position afterwards.',
+      marks,
+      idPrefix: 'sb',
+    });
+  }, [songbookSections, duration, addToast]);
 
   // --- Ready handler with marker-beyond-duration check ---
   const baseHandleReady = playback.handleReady;
@@ -1100,37 +1155,30 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                                   justify-between'>
                     <div className='flex items-center gap-3'>
                       <h3 className='text-xs font-mono text-slate-400 uppercase tracking-widest'>
-                        Tab
+                        Sheet
                       </h3>
 
-                      {/* Mode toggle: Notation / ASCII (only when GP file exists) */}
-                      {hasGpFile && (
-                        <div className='flex bg-slate-800 rounded p-0.5 font-mono text-xs'>
+                      {/* View mode toggle: Notation (only with GP file) / ASCII / Songbook */}
+                      <div className='flex bg-slate-800 rounded p-0.5 font-mono text-xs'>
+                        {(['notation', 'ascii', 'songbook'] as const)
+                          .filter((value) => value !== 'notation' || hasGpFile)
+                          .map((value) => (
                           <button
-                            onClick={() => setTabMode('notation')}
+                            key={value}
+                            onClick={() => setTabMode(value)}
                             className='px-2 py-0.5 rounded transition-colors'
                             style={{
-                              backgroundColor: tabMode === 'notation' ? '#6366f1' : 'transparent',
-                              color: tabMode === 'notation' ? '#fff' : '#64748b',
+                              backgroundColor: viewMode === value ? '#6366f1' : 'transparent',
+                              color: viewMode === value ? '#fff' : '#64748b',
                             }}
                           >
-                            Notation
+                            {VIEW_MODE_LABELS[value]}
                           </button>
-                          <button
-                            onClick={() => setTabMode('ascii')}
-                            className='px-2 py-0.5 rounded transition-colors'
-                            style={{
-                              backgroundColor: tabMode === 'ascii' ? '#6366f1' : 'transparent',
-                              color: tabMode === 'ascii' ? '#fff' : '#64748b',
-                            }}
-                          >
-                            ASCII
-                          </button>
-                        </div>
-                      )}
+                        ))}
+                      </div>
 
-                      {/* Edit toggle (ASCII mode only). Without markers the whole-song tab is edited */}
-                      {(!hasGpFile || tabMode === 'ascii') && !isSession && (
+                      {/* Edit toggle (ASCII and songbook). Without markers the whole-song tab is edited */}
+                      {viewMode !== 'notation' && !isSession && (
                         <button
                           onClick={() => setEditMode((v) => !v)}
                           className='self-start px-3 py-1 text-sm font-mono rounded
@@ -1140,7 +1188,9 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                             color: editMode ? '#fff' : '#cbd5e1',
                           }}
                         >
-                          {editMode ? <><Eye size={ICON_SIZE.ACTION} className='inline-block' /> View Tab</> : <><Pencil size={ICON_SIZE.ACTION} className='inline-block' /> Edit Tab</>}
+                          {editMode
+                            ? <><Eye size={ICON_SIZE.ACTION} className='inline-block' /> View {viewMode === 'songbook' ? 'Songbook' : 'Tab'}</>
+                            : <><Pencil size={ICON_SIZE.ACTION} className='inline-block' /> Edit {viewMode === 'songbook' ? 'Songbook' : 'Tab'}</>}
                         </button>
                       )}
 
@@ -1171,6 +1221,17 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                         </button>
                       )}
 
+                      {/* Import markers from the songbook sections (songbook mode only) */}
+                      {viewMode === 'songbook' && hasSongbookSections && !isSession && (
+                        <button
+                          onClick={handleSongbookMarkerImport}
+                          className='px-2 py-1 text-xs font-mono rounded transition-colors
+                                    bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        >
+                          Import Songbook Markers
+                        </button>
+                      )}
+
                       {/* Import markers from GP file */}
                       {hasGpFile && !isSession && (
                         <button
@@ -1185,7 +1246,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                   </div>
 
                   {/* Notation mode */}
-                  {hasGpFile && tabMode === 'notation' ? (
+                  {viewMode === 'notation' ? (
                     <NotationPanel
                       gpData={gpFile.activeGpData!}
                       songId={activeSong!.id}
@@ -1203,6 +1264,22 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       onScoreInfo={handleScoreInfo}
                       onSeek={handleSeekTo} 
                     />
+                  ) : viewMode === 'songbook' ? (
+                    /* Songbook mode: lyrics with chords for the whole song */
+                    !isSession && editMode ? (
+                      <SongbookEditor song={activeSong} />
+                    ) : activeSong.chordSheet ? (
+                      <SongbookView
+                        chordSheet={activeSong.chordSheet}
+                        activeMarker={selectedMarker}
+                      />
+                    ) : (
+                      <div className='flex-1 min-h-48 flex items-center justify-center
+                                      bg-slate-900 rounded-lg border border-slate-700
+                                      text-slate-600 font-mono text-sm'>
+                        {isSession ? 'No songbook for this song' : 'No songbook yet. Click Edit Songbook to add lyrics and chords.'}
+                      </div>
+                    )
                   ) : (
                     /* ASCII mode: marker tab with fallback to the whole-song tab */
                     activeSong && (
@@ -1278,13 +1355,16 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
         <StandaloneMetronome onClose={() => setShowMetronome(false)} />
       )}
 
-      {gpImportMarks && (
-        <GpMarkerImportDialog
-          marks={gpImportMarks}
+      {markerImport && (
+        <MarkerImportDialog
+          title={markerImport.title}
+          description={markerImport.description}
+          note={markerImport.note}
+          marks={markerImport.marks}
           hasExistingSections={useSongStore.getState().getActiveMarkers().length > 0}
-          onMerge={handleGpImportMerge}
-          onReplace={handleGpImportReplace}
-          onCancel={() => setGpImportMarks(null)}
+          onMerge={handleMarkerImportMerge}
+          onReplace={handleMarkerImportReplace}
+          onCancel={() => setMarkerImport(null)}
         />
       )}
     </div>

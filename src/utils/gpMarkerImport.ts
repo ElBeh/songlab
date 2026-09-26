@@ -1,52 +1,10 @@
 import type * as alphaTab from '@coderline/alphatab';
-import type { SectionMarker, SectionType } from '../types';
 import { SECTION_COLORS } from './sectionColors';
+import { mapSectionType, type ImportedMark } from './sectionImport';
 import { buildTempoSegments, tickToSeconds } from '../services/tempoMap';
 
-/** Map common GP rehearsal mark names to SongLab section types. */
-const SECTION_NAME_MAP: Record<string, SectionType> = {
-  // English
-  intro: 'intro',
-  introduction: 'intro',
-  verse: 'verse',
-  'pre-chorus': 'pre-chorus',
-  prechorus: 'pre-chorus',
-  chorus: 'chorus',
-  refrain: 'chorus',
-  bridge: 'bridge',
-  solo: 'solo',
-  interlude: 'interlude',
-  outro: 'outro',
-  ending: 'outro',
-  coda: 'outro',
-  // German
-  strophe: 'verse',
-  refr: 'chorus',
-  zwischenspiel: 'interlude',
-};
-
-/** Try to map a rehearsal mark name to a SectionType. */
-function mapSectionType(name: string): SectionType {
-  const lower = name.toLowerCase().trim();
-
-  // Exact match
-  if (SECTION_NAME_MAP[lower]) return SECTION_NAME_MAP[lower];
-
-  // Partial match: "Verse 1", "Chorus A", "Solo 2" etc.
-  for (const [key, type] of Object.entries(SECTION_NAME_MAP)) {
-    if (lower.startsWith(key)) return type;
-  }
-
-  return 'custom';
-}
-
-/** A rehearsal mark extracted from the GP file, before conversion to SectionMarker. */
-export interface GpRehearsalMark {
-  name: string;
-  type: SectionType;
-  color: string;
-  timeSeconds: number;
-}
+/** A rehearsal mark extracted from the GP file (shared import shape). */
+export type GpRehearsalMark = ImportedMark;
 
 /**
  * Extract rehearsal marks from an alphaTab score.
@@ -83,21 +41,4 @@ export function extractGpMarkers(
   }
 
   return marks.sort((a, b) => a.timeSeconds - b.timeSeconds);
-}
-
-/**
- * Convert extracted GP markers to SongLab SectionMarkers.
- */
-export function gpMarksToSectionMarkers(
-  marks: GpRehearsalMark[],
-  songId: string,
-): SectionMarker[] {
-  return marks.map((mark) => ({
-    id: `gp-${songId}-${mark.timeSeconds.toFixed(3)}`,
-    songId,
-    type: mark.type,
-    label: mark.name,
-    startTime: mark.timeSeconds,
-    color: mark.color,
-  }));
 }

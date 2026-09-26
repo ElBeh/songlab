@@ -1,21 +1,31 @@
-import type { GpRehearsalMark } from '../../utils/gpMarkerImport';
+import type { ImportedMark } from '../../utils/sectionImport';
 import { formatTime } from '../../utils/formatTime';
 
-interface GpMarkerImportDialogProps {
-  marks: GpRehearsalMark[];
+interface MarkerImportDialogProps {
+  /** Dialog title, e.g. "Import GP Markers" */
+  title: string;
+  /** Line above the preview, e.g. "Found 5 sections in the songbook:" */
+  description: string;
+  /** Optional hint below the preview, e.g. that start times are estimated */
+  note?: string;
+  marks: ImportedMark[];
   hasExistingSections: boolean;
   onReplace: () => void;
   onMerge: () => void;
   onCancel: () => void;
 }
 
-export function GpMarkerImportDialog({
+/** Preview and confirm dialog for importing section markers (GP file, songbook) */
+export function MarkerImportDialog({
+  title,
+  description,
+  note,
   marks,
   hasExistingSections,
   onReplace,
   onMerge,
   onCancel,
-}: GpMarkerImportDialogProps) {
+}: MarkerImportDialogProps) {
   return (
     <div
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'
@@ -27,11 +37,11 @@ export function GpMarkerImportDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className='text-sm font-mono text-slate-200 font-semibold'>
-          Import GP Markers
+          {title}
         </h2>
 
         <p className='text-xs font-mono text-slate-400'>
-          Found {marks.length} rehearsal mark{marks.length !== 1 ? 's' : ''} in the Guitar Pro file:
+          {description}
         </p>
 
         {/* Preview list */}
@@ -54,6 +64,10 @@ export function GpMarkerImportDialog({
             </div>
           ))}
         </div>
+
+        {note && (
+          <p className='text-xs font-mono text-slate-500'>{note}</p>
+        )}
 
         {/* Action buttons */}
         {hasExistingSections ? (

@@ -166,6 +166,8 @@ export interface SongSyncPayload {
   bpmAdjust: number | null;
   bpm: number | null;
   timeSignature: [number, number] | null;
+  /** Songbook text (ChordPro), absent for older hosts */
+  chordSheet?: string | null;
 }
 
 export interface SongDataPayload {

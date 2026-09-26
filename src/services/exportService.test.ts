@@ -90,3 +90,38 @@ describe('selectBundlesToCommit', () => {
     expect(ids(selectBundlesToCommit(bundles, [first, second], []))).toEqual(['lib']);
   });
 });
+
+describe('songbook chordSheet', () => {
+  it('survives a song export and re-import', async () => {
+    const chordSheet = '{title: Test}\n{start_of_verse: Verse 1}\n[Am]Hello [F]world\n{end_of_verse}';
+    const exported = { version: 3, ...bundle('cs-a'), song: { ...song('cs-a'), chordSheet } };
+
+    const parsed = await parseImportFile(jsonFile(exported));
+    if (parsed.type !== 'song') throw new Error('expected song import');
+    await commitBundles([parsed.bundle]);
+
+    expect((await getSong('cs-a'))?.chordSheet).toBe(chordSheet);
+  });
+
+  it('survives a gig export and re-import', async () => {
+    const exported = {
+      version: 2,
+      setlists: [setlist('Gig', ['cs-b'])],
+      songs: [{ ...bundle('cs-b'), song: { ...song('cs-b'), chordSheet: '[G]Hi' } }],
+    };
+
+    const parsed = await parseImportFile(jsonFile(exported));
+    if (parsed.type !== 'gig') throw new Error('expected gig import');
+    await commitBundles(parsed.bundles);
+
+    expect((await getSong('cs-b'))?.chordSheet).toBe('[G]Hi');
+  });
+
+  it('imports older exports without a chordSheet field', async () => {
+    const parsed = await parseImportFile(jsonFile({ version: 3, ...bundle('cs-c') }));
+    if (parsed.type !== 'song') throw new Error('expected song import');
+    await commitBundles([parsed.bundle]);
+
+    expect((await getSong('cs-c'))?.chordSheet).toBeUndefined();
+  });
+});

@@ -37,6 +37,9 @@ export interface SongData {
   bpmAdjust: number | null;  // additive BPM correction (e.g. -0.2)
   bpm: number | null;        // song tempo in BPM, null = unknown (disables count-in)
   timeSignature: [number, number] | null; // e.g. [4, 4], null defaults to 4/4 in UI
+  // Songbook text (ChordPro), optional for songs created before the songbook
+  // existed. Stored raw; the parsed model is derived on render.
+  chordSheet?: string | null;
 }
 
 export interface LoopRange {

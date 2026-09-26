@@ -1,5 +1,42 @@
 # SongLab — Changes
 
+## v0.14.5 — 2026-09-26
+
+All changes verified with: `tsc -b` (clean), `vitest run` (228 tests, all
+passing), `eslint` (no errors), and `npm run build` (production build succeeds).
+
+### Features
+- Songbook: third sheet mode next to Notation and ASCII. Lyrics with chords
+  above, stored as ChordPro text (`SongData.chordSheet`). Pasted
+  chords-over-words sheets are converted automatically; import/export as `.cho`.
+  Songs without GP file open in songbook mode when they have one.
+- Chord overview with guitar diagrams (SVGuitar). Voicings come from a bundled
+  chord database (chords-db), `{define}` directives, or a voicing generator for
+  chords the database lacks (e.g. `G5/F#`, `Cmaj7/G`; marked "auto").
+  Unicode accidentals (`C♯m`, `A♭`) are recognized.
+- Active section highlighting: the songbook section matching the active marker
+  (by label, numbered labels like "Chorus 2" map to repeated sections) is
+  highlighted; auto-scroll keeps the start of the next section in view.
+- Songbook sections can be imported as markers (Replace/Merge). Repeated
+  sections and `{chorus}` references are numbered; start times are estimated
+  from the text length.
+- Whole-song ASCII tab: tabs can be edited without markers. Markers without
+  their own tab fall back to it; "Create section tab" copies it to the marker.
+
+### Fixes
+- Seeking before the first marker kept the last marker selected; the selection
+  is now cleared. The remote control shows the first marker as next.
+
+### Internals
+- `SongData.chordSheet` (optional, no DB migration); passes through export,
+  import and Band Sync unchanged. `SongSyncPayload` extended.
+- New utils: `chordSheetParser`, `chordLookup`, `voicingGenerator`,
+  `fretboard` (tuning model, notes, chord identification — groundwork for
+  issue #5), `songbookSectionMatch`, `songbookMarkerImport`, `sectionImport`,
+  `tabScope`, `scrollLookahead`.
+- `GpMarkerImportDialog` generalized to `Markers/MarkerImportDialog`.
+- New dependencies: `tonal`, `svguitar`.
+
 ## v0.14.3 — 2026-09-25
 
 All changes verified with: `tsc -b` (clean), `vitest run` (all passing),
@@ -28,7 +65,7 @@ All changes verified with: `tsc -b` (clean), `vitest run` (all passing),
 ## v0.14.0 — 2026-07-16
 
 All changes verified with: `tsc -b` (clean), `vitest run` (30 tests, 7 files, all
-passing), `eslint` (no errors), and `npm run build` (production build succeeds).
+passing), `eslint` (no errors), and `npm run build` (production build succeeds). and `npm run build` (production build succeeds).
 
 ### Upgrade notes
 - Sync protocol extended (backward-compatible optional fields). Host and viewers

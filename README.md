@@ -12,7 +12,7 @@ Solo practice only; Band Sync requires a [local server](#band-sync-mode).
 ![alphaTab](https://img.shields.io/badge/alphaTab-1.8-orange)
 
 <!-- TODO: Record hero GIF — load song, press play, notation cursor follows waveform, click section marker to jump (10–15s, ~800px wide) -->
-![SongLab in action](docs/screenshots/hero.gif)
+<!--[SongLab in action](docs/screenshots/hero.gif)-->
 
 ---
 
@@ -64,9 +64,19 @@ Everything stays on your device — songs, files, and settings are stored locall
 - Color-coded section markers (Intro, Verse, Chorus, Bridge, Solo, and more)
 - Drag markers on the waveform to reposition
 - ASCII tab editor with multiple sheets per section (Guitar, Bass, Keys, Vocals, Drums)
+- Whole-song ASCII tab without markers; section tabs take precedence where they exist
 - Auto-scroll tabs during playback, synced to section timing
-- Toggle between Notation Mode and ASCII Mode per song
+- Toggle between Notation, ASCII and Songbook mode per song
 - Import/export tabs as plain text
+
+### Songbook
+- Lyrics with chords above, stored as [ChordPro](https://www.chordpro.org/) text per song
+- Paste chords-over-words sheets (e.g. from Ultimate Guitar) — converted to ChordPro automatically
+- Chord overview with guitar diagrams at the top; click a diagram to cycle through voicings
+- Voicings from a chord database, custom `{define}` shapes, or computed for chords the database lacks (marked "auto")
+- Active section highlighted during playback, with auto-scroll that shows the start of the next section
+- Import songbook sections as markers, spread across the song by text length (Replace/Merge)
+- Import/export as `.cho` (ChordPro); included in song, setlist and gig exports and Band Sync
 
 ### Looping
 - Loop any section with one click
@@ -212,13 +222,16 @@ See [Run locally](#run-locally-solo-or-band-sync) for the server setup.
 | Styling | [Tailwind CSS](https://tailwindcss.com/) 4 |
 | Band Sync | [Express](https://expressjs.com/) 5 + [socket.io](https://socket.io/) 4 |
 | PWA | [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) |
+| Music theory | [tonal](https://github.com/tonaljs/tonal) (MIT) |
+| Chord diagrams | [SVGuitar](https://github.com/omnibrain/svguitar) (MIT) |
+| Chord voicings | [chords-db](https://github.com/tombatossals/chords-db) guitar data (MIT, bundled in `src/data`) |
 
 ---
 
 ## Roadmap
 
 - **Multi-track notation** — render several instrument tracks at once
-- **Fretboard editor / chord lookup** — interactive fretboard for chord voicings and identification
+- **Fretboard editor / chord lookup** — interactive fretboard for chord voicings and identification (voicing lookup, generator and chord identification already exist from the songbook)
 - **Band Sync enhancements** — mDNS auto-discovery, host promotion, presenter mode
 - **ESP32 footpedal** — dedicated WiFi/BLE hardware controller
 - **Tauri desktop app** — native installer with bundled sync server (no terminal required)
