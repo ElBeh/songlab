@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyEdit,
+  formatDefineDirective,
   insertChord,
   insertComment,
   insertDirectiveLine,
   nextSectionLabel,
+  setChordDefinition,
   setMetaDirective,
   wrapInSection,
   type TextEdit,
@@ -128,5 +130,55 @@ describe('insertChord', () => {
   it('replaces the selection and normalizes accidentals', () => {
     const { text, start, end } = select('I |see| bad');
     expect(show(text, insertChord(start, end, ' C♯m7 '))).toBe('I [C#m7]| bad');
+  });
+});
+
+describe('setChordDefinition', () => {
+  const AM = { frets: [null, 0, 2, 2, 1, 0], baseFret: 1, fingers: [0, 0, 2, 3, 1, 0] };
+  const AM_LINE = '{define: Am base-fret 1 frets x 0 2 2 1 0 fingers 0 0 2 3 1 0}';
+
+  function define(marked: string, name: string, voicing: typeof AM | null): string | null {
+    const { text, start, end } = select(marked);
+    const edit = setChordDefinition(text, name, voicing, start, end);
+    return edit && show(text, edit);
+  }
+
+  it('formats the directive, omitting empty fingers', () => {
+    expect(formatDefineDirective('Am', AM)).toBe(AM_LINE);
+    expect(formatDefineDirective(' C♯ ', { frets: [null, 1, 3, 3, 3, 1], baseFret: 4, fingers: [0, 0, 0, 0, 0, 0] }))
+      .toBe('{define: C# base-fret 4 frets x 1 3 3 3 1}');
+    expect(formatDefineDirective('D', { frets: [null, null, 0, 2, 3, 2], baseFret: 1 }))
+      .toBe('{define: D base-fret 1 frets x x 0 2 3 2}');
+  });
+
+  it('inserts at the top, below metadata, or below other definitions', () => {
+    expect(define('[Am]H|i', 'Am', AM)).toBe(`${AM_LINE}\n[Am]H|i`);
+    expect(define('{title: X}\n{key: C}\n[Am]H|i', 'Am', AM)).toBe(`{title: X}\n{key: C}\n${AM_LINE}\n[Am]H|i`);
+    expect(define('{title: X}\n{define: G base-fret 1 frets 3 2 0 0 0 3}\n|x', 'Am', AM))
+      .toBe(`{title: X}\n{define: G base-fret 1 frets 3 2 0 0 0 3}\n${AM_LINE}\n|x`);
+  });
+
+  it('replaces the definition of the same chord, also with other accidentals', () => {
+    expect(define('{define: Am base-fret 5 frets 1 3 3 1 1 1}\n|x', 'Am', AM)).toBe(`${AM_LINE}\n|x`);
+    expect(define('{define: C♯ base-fret 1 frets x 4 3 1 2 1}\n|x', 'C#', null)).toBe('|x');
+  });
+
+  it('returns null when nothing changes', () => {
+    expect(define(`${AM_LINE}\n|x`, 'Am', AM)).toBeNull();
+    expect(define('[Am]|x', 'Am', null)).toBeNull();
+  });
+
+  it('removes the definition, also on the last line', () => {
+    expect(define(`{title: X}\n${AM_LINE}\n[Am]|x`, 'Am', null)).toBe('{title: X}\n[Am]|x');
+    expect(define(`x|\n${AM_LINE}`, 'Am', null)).toBe('x|');
+  });
+
+  it('keeps other chords with the same prefix', () => {
+    expect(define('{define: Am7 base-fret 1 frets x 0 2 0 1 0}\n|x', 'Am', null)).toBeNull();
+  });
+
+  it('is read back by the parser', () => {
+    const text = applyEdit('[Am]Hi', setChordDefinition('[Am]Hi', 'Am', AM, 0, 0)!);
+    expect(parseChordPro(text).definitions.Am).toEqual({ name: 'Am', ...AM });
   });
 });

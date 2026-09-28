@@ -61,6 +61,7 @@ import { useShallow } from 'zustand/shallow';
 import { ModeMenu } from './ModeMenu';
 import { ToolsMenu } from './ToolsMenu';  
 import { StandaloneMetronome } from '../Tools/StandaloneMetronome';
+import { FretboardEditor } from '../Tools/FretboardEditor';
 
 const VIEW_MODE_LABELS = { notation: 'Notation', ascii: 'ASCII', songbook: 'Songbook' } as const;
 
@@ -90,6 +91,7 @@ export default function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showRemoteControl, setShowRemoteControl] = useState(false);
   const [showMetronome, setShowMetronome] = useState(false);
+  const [showFretboard, setShowFretboard] = useState(false);
 
   // State selector (not the stable getter) so song changes reliably re-render
   const activeSong = useSongStore(
@@ -754,7 +756,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
     onSeek: isDummy ? handleSeekTo : undefined,
     currentTime: isDummy ? currentTime : undefined,
     duration: isDummy ? duration : undefined,
-    disabled: showMetronome,
+    disabled: showMetronome || showFretboard,
   });
 
   // Is there an active song with audio (or dummy)?
@@ -777,7 +779,10 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
           {!isViewer && (
           <div className='flex gap-1'>
             <ModeMenu />
-            <ToolsMenu onOpenMetronome={handleOpenMetronome} />
+            <ToolsMenu
+              onOpenMetronome={handleOpenMetronome}
+              onOpenFretboard={() => setShowFretboard(true)}
+            />
           </div>
         )}
 
@@ -1364,6 +1369,11 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
       {showMetronome && (
         <StandaloneMetronome onClose={() => setShowMetronome(false)} />
+      )}
+
+      {/* Lookup only; playback keeps running */}
+      {showFretboard && (
+        <FretboardEditor onClose={() => setShowFretboard(false)} />
       )}
 
       {markerImport && (

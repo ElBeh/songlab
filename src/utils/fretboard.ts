@@ -63,3 +63,41 @@ export function identifyChord(voicing: FretPositions, tuning: Tuning = STANDARD_
   const pitchClasses = voicingToNotes(voicing, tuning).map((n) => Note.pitchClass(n));
   return pitchClasses.length > 0 ? Chord.detect(pitchClasses) : [];
 }
+
+/**
+ * Voicing from absolute frets (null = muted, 0 = open), as clicked on the
+ * fretboard. Shapes within the first four frets keep baseFret 1 (nut shown),
+ * higher shapes start at their lowest fretted note.
+ */
+export function positionsFromAbsolute(frets: (number | null)[]): FretPositions {
+  const fretted = frets.filter((f): f is number => f !== null && f > 0);
+  const highest = Math.max(0, ...fretted);
+  if (highest <= 4) return { frets: [...frets], baseFret: 1 };
+
+  const baseFret = Math.min(...fretted);
+  return {
+    frets: frets.map((f) => (f === null || f === 0 ? f : f - baseFret + 1)),
+    baseFret,
+  };
+}
+
+/** True if both voicings are played the same way, regardless of their baseFret */
+export function isSameVoicing(a: FretPositions, b: FretPositions): boolean {
+  if (a.frets.length !== b.frets.length) return false;
+  return a.frets.every((fret, i) => {
+    const other = b.frets[i];
+    if (fret === null || other === null) return fret === other;
+    return absoluteFret(fret, a.baseFret) === absoluteFret(other, b.baseFret);
+  });
+}
+
+/**
+ * Chart spelling of a tonal chord name: tonal marks major chords with "M"
+ * ("CM", "CMadd9", "CM/E"), charts omit it ("C", "Cadd9", "C/E").
+ * "M" before a digit is a major seventh extension and becomes "maj".
+ */
+export function formatChordName(name: string): string {
+  return name.replace(/^([A-G][#b]*)M(?!aj)(\d?)/, (_, root: string, digit: string) =>
+    digit ? `${root}maj${digit}` : root,
+  );
+}

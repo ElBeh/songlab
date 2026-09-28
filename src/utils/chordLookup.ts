@@ -6,7 +6,14 @@ import { Chord, Note } from 'tonal';
 import type { Chord as DiagramChord, Finger, Barre } from 'svguitar';
 import type { ChordDefinition } from './chordSheetParser';
 import { generateVoicings } from './voicingGenerator';
-import { STANDARD_TUNING, isSameTuning, type Tuning } from './fretboard';
+import {
+  STANDARD_TUNING,
+  isSameTuning,
+  isSameVoicing,
+  type FretPositions,
+  type Tuning,
+} from './fretboard';
+import type { DefineVoicing } from './chordProEdit';
 import { normalizeChord } from './chordSheetParser';
 
 // --- Model ---
@@ -213,6 +220,22 @@ export function definitionToVoicing(def: ChordDefinition): ChordVoicing {
     barres: [...new Set(barres)],
     source: 'custom',
   };
+}
+
+/**
+ * Voicing to store as {define} when a chord is inserted with this shape.
+ * Null if no string sounds or if the shape is what the chord overview shows
+ * for the name anyway (its first resolved voicing).
+ */
+export function definitionForShape(
+  db: ChordDb | null,
+  chordName: string,
+  shape: FretPositions & { fingers?: number[] },
+): DefineVoicing | null {
+  if (shape.frets.every((f) => f === null)) return null;
+  const standard = resolveVoicings(db, chordName)[0];
+  if (standard && isSameVoicing(standard, shape)) return null;
+  return { frets: [...shape.frets], baseFret: shape.baseFret, fingers: shape.fingers };
 }
 
 // --- Diagram conversion ---

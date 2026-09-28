@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 
 interface ToolsMenuProps {
   onOpenMetronome: () => void;
+  onOpenFretboard: () => void;
 }
 
-export function ToolsMenu({ onOpenMetronome }: ToolsMenuProps) {
+export function ToolsMenu({ onOpenMetronome, onOpenFretboard }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -45,9 +46,12 @@ export function ToolsMenu({ onOpenMetronome }: ToolsMenuProps) {
             Metronome
           </button>
           <button
-            disabled
+            onClick={() => {
+              onOpenFretboard();
+              setOpen(false);
+            }}
             className="w-full text-left px-3 py-1.5 text-xs font-mono
-                       text-slate-500 cursor-not-allowed"
+                       text-slate-300 hover:bg-slate-700 transition-colors"
           >
             Fretboard Editor
           </button>

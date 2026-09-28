@@ -1,10 +1,21 @@
 // Tests for paste conversion and saving in the songbook editor.
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SongbookEditor } from './SongbookEditor';
+import { loadGuitarChordDb } from '../../utils/chordLookup';
 import { useSongStore } from '../../stores/useSongStore';
 import type { SongData } from '../../types';
+
+// svguitar needs SVG layout (getBBox), which jsdom lacks; diagrams are not under test
+vi.mock('svguitar', () => ({
+  SVGuitarChord: class {
+    configure() { return this; }
+    chord() { return this; }
+    draw() { return this; }
+    remove() {}
+  },
+}));
 
 function song(chordSheet: string | null = null): SongData {
   return {
@@ -15,8 +26,9 @@ function song(chordSheet: string | null = null): SongData {
   };
 }
 
+// The fretboard editor adds a second textbox (chord input), so pick the textarea
 function textarea(): HTMLTextAreaElement {
-  return screen.getByRole('textbox') as HTMLTextAreaElement;
+  return screen.getAllByRole('textbox').find((el) => el.tagName === 'TEXTAREA') as HTMLTextAreaElement;
 }
 
 function paste(text: string) {
@@ -100,9 +112,30 @@ describe('SongbookEditor', () => {
       expect(textarea().value).toBe('{title: Bad Moon}\n{key: E}\n[G]Hi');
     });
 
-    it('shows the chord button disabled until the fretboard editor exists', () => {
+    async function searchChord(name: string) {
+      await loadGuitarChordDb();
+      fireEvent.click(screen.getByText('chord'));
+      fireEvent.change(screen.getByLabelText('Chord'), { target: { value: name } });
+      await waitFor(() => expect(screen.getAllByTitle('Show this voicing on the fretboard').length)
+        .toBeGreaterThan(1));
+    }
+
+    it('inserts a chord from the fretboard editor at the cursor', async () => {
       render(<SongbookEditor song={song()} />);
-      expect(screen.getByText('chord')).toBeDisabled();
+      typeAndSelect('Let it be', 7);
+      await searchChord('Am');
+      fireEvent.click(screen.getByRole('button', { name: 'Insert Am' }));
+      expect(textarea().value).toBe('Let it [Am]be');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('adds a {define} for a non-default voicing below the song info', async () => {
+      render(<SongbookEditor song={song()} />);
+      typeAndSelect('{title: X}\nLet it be', 18);
+      await searchChord('Am');
+      fireEvent.click(screen.getAllByTitle('Show this voicing on the fretboard')[1]);
+      fireEvent.click(screen.getByRole('button', { name: 'Insert Am' }));
+      expect(textarea().value).toMatch(/^\{title: X\}\n\{define: Am base-fret \d+ frets [^}]+\}\nLet it \[Am\]be$/);
     });
   });
 });

@@ -117,15 +117,13 @@ export function SongbookEditor({ song }: SongbookEditorProps) {
 
   const canConvert = detectPastedSheetFormat(localContent) !== null;
 
-  const meta = useMemo<SheetMeta>(() => {
-    const sheet = parseChordPro(localContent);
-    return {
-      title: sheet.title ?? '',
-      artist: sheet.artist ?? '',
-      key: sheet.key ?? '',
-      capo: sheet.capo ? String(sheet.capo) : '',
-    };
-  }, [localContent]);
+  const sheet = useMemo(() => parseChordPro(localContent), [localContent]);
+  const meta = useMemo<SheetMeta>(() => ({
+    title: sheet.title ?? '',
+    artist: sheet.artist ?? '',
+    key: sheet.key ?? '',
+    capo: sheet.capo ? String(sheet.capo) : '',
+  }), [sheet]);
 
   // Apply a toolbar edit through the textarea itself, so Ctrl+Z can undo it.
   // execCommand is deprecated but the only way to keep the native undo stack;
@@ -202,7 +200,7 @@ export function SongbookEditor({ song }: SongbookEditorProps) {
 
         <div className={TOOLBAR_DIVIDER_CLASS} />
 
-        <SongbookInsertBar onEdit={handleEdit} meta={meta} />
+        <SongbookInsertBar onEdit={handleEdit} meta={meta} definitions={sheet.definitions} />
       </div>
 
       {/* Textarea */}

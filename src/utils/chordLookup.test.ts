@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { Chord, Note } from 'tonal';
 import { generateVoicings } from './voicingGenerator';
 import { voicingToNotes } from './fretboard';
-import type { ChordVoicing } from './chordLookup';
+import {
+  definitionForShape,
+  loadGuitarChordDb,
+  resolveVoicings,
+  type ChordVoicing,
+} from './chordLookup';
 
 function frets(voicing: ChordVoicing | undefined) {
   return voicing?.frets ?? null;
@@ -72,5 +77,34 @@ describe('generateVoicings', () => {
   it('returns nothing for unknown chord names', () => {
     expect(generateVoicings('Hm')).toEqual([]);
     expect(generateVoicings('Cxyz')).toEqual([]);
+  });
+});
+describe('definitionForShape', () => {
+  it('needs no definition for the voicing the overview shows anyway', async () => {
+    const db = await loadGuitarChordDb();
+    const standard = resolveVoicings(db, 'Am')[0];
+    expect(definitionForShape(db, 'Am', standard)).toBeNull();
+    // Same shape, different baseFret notation
+    expect(definitionForShape(db, 'Am', { frets: [null, 0, 2, 2, 1, 0], baseFret: 1 })).toBeNull();
+  });
+
+  it('returns other voicings as definition, keeping fingers', async () => {
+    const db = await loadGuitarChordDb();
+    const second = resolveVoicings(db, 'Am')[1];
+    expect(definitionForShape(db, 'Am', second)).toEqual({
+      frets: second.frets,
+      baseFret: second.baseFret,
+      fingers: second.fingers,
+    });
+  });
+
+  it('defines shapes of chords without any known voicing', () => {
+    const shape = { frets: [null, 3, 2, 0, 1, 0], baseFret: 1 };
+    expect(definitionForShape(null, 'Xyz', shape)).toEqual({ ...shape, fingers: undefined });
+  });
+
+  it('needs no definition without a sounding string', () => {
+    expect(definitionForShape(null, 'Am', { frets: [null, null, null, null, null, null], baseFret: 1 }))
+      .toBeNull();
   });
 });

@@ -10,6 +10,11 @@ interface ChordDiagramProps {
   variant?: { index: number; total: number };
   /** Called on click, e.g. to cycle through voicings */
   onClick?: () => void;
+  /**
+   * Selection mode (fretboard editor): the diagram is always clickable and
+   * highlighted when true. Undefined keeps the cycle behavior.
+   */
+  selected?: boolean;
 }
 
 // Colors match the slate theme of the app (Tailwind slate-300 / slate-500 / slate-900)
@@ -27,7 +32,7 @@ const DIAGRAM_COLORS = {
  * Guitar chord diagram rendered by svguitar. svguitar draws imperatively into
  * a DOM node, so the component owns a container ref and redraws in an effect.
  */
-export function ChordDiagram({ name, voicing, variant, onClick }: ChordDiagramProps) {
+export function ChordDiagram({ name, voicing, variant, onClick, selected }: ChordDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,15 +60,21 @@ export function ChordDiagram({ name, voicing, variant, onClick }: ChordDiagramPr
 
   const hasVariants = variant !== undefined && variant.total > 1;
   const isGenerated = voicing?.source === 'generated';
+  const isSelectable = selected !== undefined;
+  const title = isSelectable
+    ? 'Show this voicing on the fretboard'
+    : hasVariants ? 'Click for the next voicing' : undefined;
 
   return (
     <button
       type='button'
       onClick={onClick}
-      disabled={!onClick || !hasVariants}
-      title={hasVariants ? 'Click for the next voicing' : undefined}
-      className='flex flex-col items-center gap-0.5 w-24 p-1 rounded transition-colors
-                 enabled:hover:bg-slate-800 disabled:cursor-default'
+      disabled={!onClick || (!hasVariants && !isSelectable)}
+      title={title}
+      aria-pressed={selected}
+      className={`flex flex-col items-center gap-0.5 w-24 p-1 rounded transition-colors
+                  enabled:hover:bg-slate-800 disabled:cursor-default
+                  ${selected ? 'ring-2 ring-indigo-400 bg-slate-800' : ''}`}
     >
       <span className='font-mono text-sm font-bold text-indigo-300'>{name}</span>
       {voicing ? (

@@ -174,6 +174,43 @@ function metaLineRe(names: string[]): RegExp {
   return new RegExp(`^\\s*\\{\\s*(?:${names.join('|')})\\s*(?::[^}]*)?\\}\\s*$`, 'i');
 }
 
+/** Start offset of every line */
+function lineOffsets(lines: string[]): number[] {
+  const offsets: number[] = [];
+  let offset = 0;
+  for (const line of lines) { offsets.push(offset); offset += line.length + 1; }
+  return offsets;
+}
+
+/**
+ * Edit that replaces [from, to) and keeps the selection where it was: before
+ * the range unchanged, after it shifted, inside it moved to the range end.
+ */
+function keepSelectionEdit(
+  from: number,
+  to: number,
+  insert: string,
+  selectionStart: number,
+  selectionEnd: number,
+): TextEdit {
+  const shift = (pos: number) =>
+    pos <= from ? pos : pos >= to ? pos + insert.length - (to - from) : from + insert.length;
+  return { from, to, insert, selectionStart: shift(selectionStart), selectionEnd: shift(selectionEnd) };
+}
+
+/** Edit that removes a whole line including one adjacent newline */
+function removeLineEdit(
+  text: string,
+  from: number,
+  lineTo: number,
+  selectionStart: number,
+  selectionEnd: number,
+): TextEdit {
+  return lineTo < text.length
+    ? keepSelectionEdit(from, lineTo + 1, '', selectionStart, selectionEnd)
+    : keepSelectionEdit(Math.max(0, from - 1), lineTo, '', selectionStart, selectionEnd);
+}
+
 /**
  * Set, replace or (with an empty value) remove a metadata directive. A new line
  * goes after the metadata lines that precede it in META_ORDER, else at the top.
@@ -188,25 +225,16 @@ export function setMetaDirective(
 ): TextEdit | null {
   const trimmed = value.trim();
   const lines = text.split('\n');
-  const offsets: number[] = [];
-  let offset = 0;
-  for (const line of lines) { offsets.push(offset); offset += line.length + 1; }
-
-  const shift = (pos: number, from: number, to: number, insertLength: number) =>
-    pos <= from ? pos : pos >= to ? pos + insertLength - (to - from) : from + insertLength;
-  const build = (from: number, to: number, insert: string): TextEdit => ({
-    from, to, insert,
-    selectionStart: shift(selectionStart, from, to, insert.length),
-    selectionEnd: shift(selectionEnd, from, to, insert.length),
-  });
+  const offsets = lineOffsets(lines);
+  const build = (from: number, to: number, insert: string) =>
+    keepSelectionEdit(from, to, insert, selectionStart, selectionEnd);
 
   const existing = lines.findIndex((l) => metaLineRe(META_ALIASES[name]).test(l));
   if (existing !== -1) {
     const from = offsets[existing];
     const lineTo = from + lines[existing].length;
     if (trimmed) return build(from, lineTo, `{${name}: ${trimmed}}`);
-    // Remove the line including its newline
-    return lineTo < text.length ? build(from, lineTo + 1, '') : build(Math.max(0, from - 1), lineTo, '');
+    return removeLineEdit(text, from, lineTo, selectionStart, selectionEnd);
   }
   if (!trimmed) return null;
 
@@ -234,4 +262,69 @@ export function insertChord(
   const insert = `[${normalizeChord(chord.trim())}]`;
   const cursor = selectionStart + insert.length;
   return { from: selectionStart, to: selectionEnd, insert, selectionStart: cursor, selectionEnd: cursor };
+}
+
+// --- Chord definitions ---
+
+/** Voicing written into a {define} directive */
+export interface DefineVoicing {
+  /** Per string from low to high; null = muted, 0 = open, n = fret relative to baseFret */
+  frets: (number | null)[];
+  baseFret: number;
+  /** Per string finger numbers (0 = none); omitted in the directive if empty or all 0 */
+  fingers?: number[];
+}
+
+const DEFINE_LINE_RE = /^\s*\{\s*define\s*:\s*(\S+)[^}]*\}\s*$/i;
+
+/** {define: Am base-fret 1 frets x 0 2 2 1 0 fingers 0 0 2 3 1 0} */
+export function formatDefineDirective(name: string, voicing: DefineVoicing): string {
+  const frets = voicing.frets.map((f) => (f === null ? 'x' : String(f))).join(' ');
+  const fingers = voicing.fingers?.some((f) => f > 0) ? ` fingers ${voicing.fingers.join(' ')}` : '';
+  return `{define: ${normalizeChord(name.trim())} base-fret ${voicing.baseFret} frets ${frets}${fingers}}`;
+}
+
+/**
+ * Set, replace or (with null) remove the {define} directive of a chord.
+ * A new directive goes below the last {define} line, else below the last
+ * metadata line, else at the top. Returns null if nothing changes.
+ * The selection is kept where it was, shifted by the edit.
+ */
+export function setChordDefinition(
+  text: string,
+  name: string,
+  voicing: DefineVoicing | null,
+  selectionStart: number,
+  selectionEnd: number,
+): TextEdit | null {
+  const chord = normalizeChord(name.trim());
+  const lines = text.split('\n');
+  const offsets = lineOffsets(lines);
+  const build = (from: number, to: number, insert: string) =>
+    keepSelectionEdit(from, to, insert, selectionStart, selectionEnd);
+  const directive = voicing ? formatDefineDirective(chord, voicing) : null;
+
+  const existing = lines.findIndex((l) => {
+    const match = l.match(DEFINE_LINE_RE);
+    return match !== null && normalizeChord(match[1]) === chord;
+  });
+  if (existing !== -1) {
+    const from = offsets[existing];
+    const lineTo = from + lines[existing].length;
+    if (!directive) return removeLineEdit(text, from, lineTo, selectionStart, selectionEnd);
+    return lines[existing].trim() === directive ? null : build(from, lineTo, directive);
+  }
+  if (!directive) return null;
+
+  const allMeta = metaLineRe(META_ORDER.flatMap((n) => META_ALIASES[n]));
+  let afterDefine = -1;
+  let afterMeta = -1;
+  lines.forEach((l, i) => {
+    if (DEFINE_LINE_RE.test(l)) afterDefine = i;
+    else if (allMeta.test(l)) afterMeta = i;
+  });
+  const after = afterDefine !== -1 ? afterDefine : afterMeta;
+  if (after === -1) return build(0, 0, text ? `${directive}\n` : directive);
+  const at = offsets[after] + lines[after].length;
+  return build(at, at, `\n${directive}`);
 }

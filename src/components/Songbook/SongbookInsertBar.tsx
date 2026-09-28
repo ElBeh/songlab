@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { Popover } from '../Common/Popover';
+import { FretboardEditor } from '../Tools/FretboardEditor';
 import {
   SECTION_KINDS,
+  insertChord,
   insertComment,
   insertDirectiveLine,
   nextSectionLabel,
+  setChordDefinition,
   setMetaDirective,
   wrapInSection,
+  type DefineVoicing,
   type MetaDirective,
   type TextEdit,
 } from '../../utils/chordProEdit';
+import type { ChordDefinition } from '../../utils/chordSheetParser';
 import { TOOLBAR_BUTTON_CLASS, TOOLBAR_GROUP_CLASS, TOOLBAR_SELECT_CLASS } from './toolbarStyles';
 
 /** Builds an edit from the textarea's current text and selection; null = no change */
@@ -22,6 +27,8 @@ interface SongbookInsertBarProps {
   onEdit: (build: EditBuilder) => void;
   /** Current metadata of the sheet, prefills the info fields */
   meta: SheetMeta;
+  /** {define} voicings of the sheet, shown as hint in the fretboard editor */
+  definitions: Record<string, ChordDefinition>;
 }
 
 const META_FIELDS: { name: MetaDirective; label: string; placeholder: string }[] = [
@@ -61,8 +68,17 @@ function InfoForm({ meta, onApply }: { meta: SheetMeta; onApply: (values: SheetM
   );
 }
 
-/** Insert group of the songbook editor toolbar: sections, repeats, comments, tab blocks, info */
-export function SongbookInsertBar({ onEdit, meta }: SongbookInsertBarProps) {
+/** Insert group of the songbook editor toolbar: sections, repeats, comments, tab blocks, info, chords */
+export function SongbookInsertBar({ onEdit, meta, definitions }: SongbookInsertBarProps) {
+  const [showFretboard, setShowFretboard] = useState(false);
+
+  // Chord at the cursor first, then its {define} (added, replaced or removed) in the header.
+  // The textarea keeps its selection while the dialog has focus.
+  const handleInsertChord = (name: string, definition: DefineVoicing | null) => {
+    onEdit((_text, start, end) => insertChord(start, end, name));
+    onEdit((text, start, end) => setChordDefinition(text, name, definition, start, end));
+  };
+
   const insertSection = (kind: string, base: string) => {
     onEdit((text, start, end) => wrapInSection(text, start, end, kind, nextSectionLabel(text, base)));
   };
@@ -135,10 +151,20 @@ export function SongbookInsertBar({ onEdit, meta }: SongbookInsertBarProps) {
         )}
       </Popover>
 
-      {/* Chords are inserted via the fretboard editor (planned) */}
-      <button disabled className={TOOLBAR_BUTTON_CLASS} title='Insert chord (coming with the fretboard editor)'>
+      <button
+        onClick={() => setShowFretboard(true)}
+        className={TOOLBAR_BUTTON_CLASS}
+        title='Insert a chord at the cursor (fretboard editor)'
+      >
         chord
       </button>
+      {showFretboard && (
+        <FretboardEditor
+          onClose={() => setShowFretboard(false)}
+          onInsert={handleInsertChord}
+          definitions={definitions}
+        />
+      )}
     </div>
   );
 }
