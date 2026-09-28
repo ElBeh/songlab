@@ -1,5 +1,32 @@
 # SongLab — Changes
 
+## v0.14.10 — 2026-09-28
+
+All changes verified with: `tsc -b` (clean), `vitest run` (285 tests, all
+passing), `eslint` (no errors), and `npm run build` (production build succeeds).
+
+### Features
+- Fretboard editor (issue #5): chord lookup in both directions. A chord name
+  shows its voicings as diagrams and on an interactive fretboard (frets 0–15);
+  clicked positions are identified as chord names (tonal, incl. extended and
+  slash chords). Opens from the Tools menu (lookup only, playback continues).
+- Songbook: the "chord" button opens the fretboard editor and inserts the
+  chosen chord at the cursor. A voicing other than the default one is stored
+  as `{define}` below the song info; an existing `{define}` for the chord is
+  replaced, or removed when the default voicing is inserted. The dialog shows
+  a hint whenever the insert touches `{define}`.
+
+### Internals
+- New components: `Tools/Fretboard` (controlled fretboard), `Tools/FretboardEditor`.
+- `ChordDiagram`: optional `selected` prop for selection mode.
+- New utils: `positionsFromAbsolute`, `isSameVoicing`, `formatChordName`
+  (`fretboard`), `setChordDefinition`, `formatDefineDirective`
+  (`chordProEdit`), `definitionForShape` (`chordLookup`).
+- `setMetaDirective` shares selection-preserving edit helpers with
+  `setChordDefinition` (no behavior change).
+- The fretboard editor stops key events at the dialog, so global shortcuts
+  (space = play) do not fire while it is open.
+
 ## v0.14.5 — 2026-09-26
 
 All changes verified with: `tsc -b` (clean), `vitest run` (228 tests, all

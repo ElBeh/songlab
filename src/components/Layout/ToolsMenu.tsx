@@ -33,7 +33,7 @@ export function ToolsMenu({ onOpenMetronome, onOpenFretboard }: ToolsMenuProps) 
       {open && (
         <div
           className="absolute left-0 top-full mt-1 bg-slate-800 border
-                     border-slate-600 rounded-lg shadow-xl py-1 z-50 min-w-[160px]"
+                     border-slate-600 rounded-lg shadow-xl py-1 z-50 min-w-40"
         >
           <button
             onClick={() => {
