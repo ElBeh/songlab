@@ -3,10 +3,13 @@ import * as alphaTab from '@coderline/alphatab';
 import { SyncOffsetEditor } from './SyncOffsetEditor';
 import { useExternalMediaSync, buildTempoMap, tickToElapsedMs } from '../../hooks/useExternalMediaSync';
 import { useResizablePanelHeight } from '../../hooks/useResizablePanelHeight';
+import { PanelResizeHandle } from '../Common/PanelResizeHandle';
+import { ZoomControls } from '../Common/ZoomControls';
+import { usePersistedScale } from '../../hooks/usePersistedScale';
 import { buildTimeline } from '../../services/tempoMap';
 import { analyzeTuning, formatTuning } from '../../utils/tuningPresets';
 import type { TimelineBar } from '../../types';
-import { ArrowLeftRight, ArrowUpDown, Minus, Plus, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpDown, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { ICON_SIZE } from '../../utils/iconSizes';
 
 interface TrackMixerState {
@@ -74,7 +77,13 @@ export function NotationPanel({
   const [tracks, setTracks] = useState<{ index: number; name: string; tuning: number[] }[]>([]);
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const [layout, setLayout] = useState<'page' | 'horizontal'>('page');
-  const [scale, setScale] = useState(0.5);
+  // Zoom persisted per device (config store, not exported); one value for both layouts
+  const { scale, zoomIn, zoomOut } = usePersistedScale({
+    configKey: 'notationScale',
+    defaultScale: 0.5,
+    min: 0.3,
+    max: 1.5,
+  });
   const [synthLoading, setSynthLoading] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [trackStates, setTrackStates] = useState<TrackMixerState[]>([]);
@@ -406,34 +415,7 @@ export function NotationPanel({
             {layout === 'page' ? <><ArrowLeftRight size={ICON_SIZE.ACTION} className='inline-block' /> Horizontal</> : <><ArrowUpDown size={ICON_SIZE.ACTION} className='inline-block' /> Page</>}
           </button>
 
-          {/* Zoom controls */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() =>
-                setScale((s) => Math.max(0.3, Math.round((s - 0.1) * 10) / 10))
-              }
-              className="px-1.5 py-0.5 text-xs font-mono rounded transition-colors
-                        bg-slate-700 hover:bg-slate-600 text-slate-300"
-              title="Zoom out"
-            >
-              <Minus size={ICON_SIZE.ACTION} />
-            </button>
-
-            <span className="text-xs font-mono text-slate-400 min-w-8 text-center">
-              {Math.round(scale * 100)}%
-            </span>
-
-            <button
-              onClick={() =>
-                setScale((s) => Math.min(1.5, Math.round((s + 0.1) * 10) / 10))
-              }
-              className="px-1.5 py-0.5 text-xs font-mono rounded transition-colors
-                        bg-slate-700 hover:bg-slate-600 text-slate-300"
-              title="Zoom in"
-            >
-              <Plus size={ICON_SIZE.ACTION} />
-            </button>
-          </div>
+          <ZoomControls scale={scale} onZoomIn={zoomIn} onZoomOut={zoomOut} />
         
           {/* Divider */}
           <div className='w-px h-6 bg-slate-600 mx-1' />
@@ -564,28 +546,12 @@ export function NotationPanel({
         className="overflow-auto bg-white rounded relative"
         style={{ height: panelMaxHeight }}
       />
-      {/* Resize handle: drag to change panel height, arrow keys when focused */}
-      <div
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="Resize notation panel height"
-        tabIndex={0}
-        onPointerDown={startResize}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            adjustHeight(-24);
-          } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            adjustHeight(24);
-          }
-        }}
-        className={`mt-1 h-2 flex items-center justify-center rounded cursor-row-resize touch-none
-                    select-none transition-colors focus:outline-none focus:ring-1 focus:ring-slate-400
-                    ${isResizing ? 'bg-slate-500' : 'bg-slate-700 hover:bg-slate-600'}`}
-      >
-        <div className="w-10 h-1 rounded bg-slate-400" />
-      </div>
+      <PanelResizeHandle
+        label='Resize notation panel height'
+        isResizing={isResizing}
+        onResizeStart={startResize}
+        onAdjust={adjustHeight}
+      />
     </div>
   );
 }

@@ -4,6 +4,11 @@ import { getConfig, setConfig } from '../services/db';
 interface UseResizablePanelHeightOptions {
   /** Config store key for persistence (use distinct keys per layout mode) */
   configKey: string;
+  /**
+   * Key read when nothing is stored under configKey yet, e.g. to start with
+   * another panel's height. Changes are always saved under configKey.
+   */
+  fallbackConfigKey?: string;
   /** Height in px used when nothing is persisted yet */
   defaultHeight: number;
   minHeight?: number;
@@ -28,6 +33,7 @@ interface UseResizablePanelHeightResult {
  */
 export function useResizablePanelHeight({
   configKey,
+  fallbackConfigKey,
   defaultHeight,
   minHeight = 120,
   maxHeight = 1200,
@@ -50,7 +56,10 @@ export function useResizablePanelHeight({
     let cancelled = false;
     (async () => {
       try {
-        const stored = await getConfig<number>(configKey);
+        let stored = await getConfig<number>(configKey);
+        if (typeof stored !== 'number' && fallbackConfigKey) {
+          stored = await getConfig<number>(fallbackConfigKey);
+        }
         if (cancelled) return;
         setHeight(typeof stored === 'number' ? clamp(stored) : defaultHeight);
       } catch (error) {
@@ -60,7 +69,7 @@ export function useResizablePanelHeight({
     return () => {
       cancelled = true;
     };
-  }, [configKey, defaultHeight, clamp]);
+  }, [configKey, fallbackConfigKey, defaultHeight, clamp]);
 
   const persist = useCallback(
     (value: number) => {

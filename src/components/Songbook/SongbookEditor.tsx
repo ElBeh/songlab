@@ -1,9 +1,22 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Upload, Download, X } from 'lucide-react';
 import { useSongStore } from '../../stores/useSongStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { ICON_SIZE } from '../../utils/iconSizes';
-import { chordsOverWordsToChordPro, looksLikeChordsOverWords } from '../../utils/chordSheetParser';
+import {
+  PASTED_SHEET_FORMAT_LABELS,
+  convertPastedSheet,
+  detectPastedSheetFormat,
+  parseChordPro,
+  type PastedSheetFormat,
+} from '../../utils/chordSheetParser';
+import { SongbookInsertBar, type EditBuilder, type SheetMeta } from './SongbookInsertBar';
+import {
+  TOOLBAR_BUTTON_CLASS,
+  TOOLBAR_CLASS,
+  TOOLBAR_DIVIDER_CLASS,
+  TOOLBAR_GROUP_CLASS,
+} from './toolbarStyles';
 import type { SongData } from '../../types';
 
 interface SongbookEditorProps {
@@ -21,13 +34,10 @@ const SONGBOOK_PLACEHOLDER = `{title: Song title}
 [Em]Chorus [C]line
 {end_of_chorus}
 
-Or paste a chords-over-words sheet, it is converted automatically.`;
+Or paste a chords-over-words or stacked chord sheet, it is converted automatically.`;
 
-/** Convert pasted or imported text to ChordPro if it is a chords-over-words sheet */
-function toChordPro(text: string): { text: string; converted: boolean } {
-  return looksLikeChordsOverWords(text)
-    ? { text: chordsOverWordsToChordPro(text), converted: true }
-    : { text, converted: false };
+function conversionMessage(format: PastedSheetFormat): string {
+  return `Converted ${PASTED_SHEET_FORMAT_LABELS[format]} to ChordPro`;
 }
 
 export function SongbookEditor({ song }: SongbookEditorProps) {
@@ -57,17 +67,17 @@ export function SongbookEditor({ song }: SongbookEditorProps) {
     await updateSong({ ...song, chordSheet: null });
   };
 
-  // Paste: convert chords-over-words sheets and insert at the cursor
+  // Paste: convert plain-text chord sheets and insert at the cursor
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pasted = e.clipboardData.getData('text/plain');
-    const result = toChordPro(pasted);
-    if (!result.converted) return; // default paste
+    const result = convertPastedSheet(pasted);
+    if (!result.format) return; // default paste
 
     e.preventDefault();
     const el = e.currentTarget;
     const next = localContent.slice(0, el.selectionStart) + result.text + localContent.slice(el.selectionEnd);
     setLocalContent(next);
-    addToast('Converted chords-over-words to ChordPro', 'info');
+    addToast(conversionMessage(result.format), 'info');
   };
 
   const handleImport = () => {
@@ -79,9 +89,9 @@ export function SongbookEditor({ song }: SongbookEditorProps) {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        const result = toChordPro(reader.result as string);
+        const result = convertPastedSheet(reader.result as string);
         setLocalContent(result.text);
-        if (result.converted) addToast('Converted chords-over-words to ChordPro', 'info');
+        if (result.format) addToast(conversionMessage(result.format), 'info');
       };
       reader.onerror = () => addToast('Could not read file', 'error');
       reader.readAsText(file);
@@ -101,64 +111,98 @@ export function SongbookEditor({ song }: SongbookEditorProps) {
 
   // Manual conversion for text typed or pasted before (e.g. in two steps)
   const handleConvert = () => {
-    setLocalContent(chordsOverWordsToChordPro(localContent));
+    setLocalContent(convertPastedSheet(localContent).text);
     textareaRef.current?.focus();
   };
 
-  const canConvert = looksLikeChordsOverWords(localContent);
+  const canConvert = detectPastedSheetFormat(localContent) !== null;
+
+  const meta = useMemo<SheetMeta>(() => {
+    const sheet = parseChordPro(localContent);
+    return {
+      title: sheet.title ?? '',
+      artist: sheet.artist ?? '',
+      key: sheet.key ?? '',
+      capo: sheet.capo ? String(sheet.capo) : '',
+    };
+  }, [localContent]);
+
+  // Apply a toolbar edit through the textarea itself, so Ctrl+Z can undo it.
+  // execCommand is deprecated but the only way to keep the native undo stack;
+  // setRangeText is the fallback (e.g. jsdom), without undo.
+  const handleEdit = (build: EditBuilder) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const edit = build(el.value, el.selectionStart, el.selectionEnd);
+    if (!edit) return;
+
+    el.focus();
+    el.setSelectionRange(edit.from, edit.to);
+    const isNoop = edit.from === edit.to && edit.insert === '';
+    const command = edit.insert === '' ? 'delete' : 'insertText';
+    const applied = isNoop
+      || (typeof document.execCommand === 'function' && document.execCommand(command, false, edit.insert));
+    if (!applied) el.setRangeText(edit.insert, edit.from, edit.to, 'end');
+
+    setLocalContent(el.value);
+    el.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+  };
 
   return (
     <div className='flex flex-col gap-2 flex-1'>
-      {/* Toolbar */}
-      <div className='flex items-center gap-2'>
-        <button
-          onClick={handleImport}
-          className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                     text-slate-300 rounded transition-colors'
-          title='Import ChordPro or text file'
-        >
-          <Upload size={ICON_SIZE.ACTION} className='inline-block' /> import
-        </button>
-        <button
-          onClick={handleExport}
-          disabled={!localContent}
-          className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                     text-slate-300 rounded transition-colors disabled:opacity-30'
-          title='Export as .cho (ChordPro)'
-        >
-          <Download size={ICON_SIZE.ACTION} className='inline-block' /> export
-        </button>
-        {canConvert && (
+      {/* Toolbar: file group | insert group, styled like the notation controls bar */}
+      <div className={TOOLBAR_CLASS}>
+        <div className={TOOLBAR_GROUP_CLASS} role='group' aria-label='File'>
           <button
-            onClick={handleConvert}
-            className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-slate-600
-                       text-slate-300 rounded transition-colors'
-            title='Convert chords-over-words text to ChordPro'
+            onClick={handleImport}
+            className={TOOLBAR_BUTTON_CLASS}
+            title='Import ChordPro or text file'
           >
-            convert to ChordPro
+            <Upload size={ICON_SIZE.ACTION} className='inline-block' /> import
           </button>
-        )}
-        {savedContent && (
           <button
-            onClick={handleDelete}
-            className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-red-900
-                       text-slate-400 hover:text-red-300 rounded transition-colors'
+            onClick={handleExport}
+            disabled={!localContent}
+            className={TOOLBAR_BUTTON_CLASS}
+            title='Export as .cho (ChordPro)'
           >
-            <X size={ICON_SIZE.ACTION} className='inline-block' /> delete
+            <Download size={ICON_SIZE.ACTION} className='inline-block' /> export
           </button>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={!dirty}
-          className='px-3 py-1 text-xs font-mono rounded transition-colors
-                     disabled:opacity-30 disabled:cursor-not-allowed'
-          style={{
-            backgroundColor: dirty ? '#6366f1' : '#334155',
-            color: dirty ? '#fff' : '#94a3b8',
-          }}
-        >
-          {dirty ? '● save' : 'saved'}
-        </button>
+          {canConvert && (
+            <button
+              onClick={handleConvert}
+              className={TOOLBAR_BUTTON_CLASS}
+              title='Convert chords-over-words or stacked chord text to ChordPro'
+            >
+              convert to ChordPro
+            </button>
+          )}
+          {savedContent && (
+            <button
+              onClick={handleDelete}
+              className='px-2 py-1 text-xs font-mono bg-slate-700 hover:bg-red-900
+                         text-slate-400 hover:text-red-300 rounded transition-colors'
+            >
+              <X size={ICON_SIZE.ACTION} className='inline-block' /> delete
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={!dirty}
+            className='px-3 py-1 text-xs font-mono rounded transition-colors
+                       disabled:opacity-30 disabled:cursor-not-allowed'
+            style={{
+              backgroundColor: dirty ? '#6366f1' : '#334155',
+              color: dirty ? '#fff' : '#94a3b8',
+            }}
+          >
+            {dirty ? '● save' : 'saved'}
+          </button>
+        </div>
+
+        <div className={TOOLBAR_DIVIDER_CLASS} />
+
+        <SongbookInsertBar onEdit={handleEdit} meta={meta} />
       </div>
 
       {/* Textarea */}

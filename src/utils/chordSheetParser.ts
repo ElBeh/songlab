@@ -340,20 +340,36 @@ function mergeChordLine(chordLine: string, lyricLine: string): string {
   return merged.replace(/\s+$/, '');
 }
 
+function splitLines(text: string): string[] {
+  return text.replace(/\r\n?/g, '\n').split('\n');
+}
+
+/** True if any line holds a {directive} or an inline [chord] (a lone "[Verse]" header does not count) */
+function hasChordProMarkup(lines: string[]): boolean {
+  return lines.some((l) => parseDirective(l) !== null
+    || (/\[[^\]]+\]/.test(l) && !parseSectionHeader(l)));
+}
+
+/** Append {end_of_kind} before trailing blank lines so they separate sections, not end them */
+function appendSectionEnd(out: string[], kind: string): void {
+  let blanks = 0;
+  while (out.length > 0 && out[out.length - 1].trim() === '') { out.pop(); blanks++; }
+  out.push(`{end_of_${kind}}`);
+  for (let b = 0; b < blanks; b++) out.push('');
+}
+
 /**
  * True if the text looks like a pasted chords-over-words sheet rather than
  * ChordPro: no inline [chords] or {directives}, but at least one chord row.
  */
 export function looksLikeChordsOverWords(text: string): boolean {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
-  const hasChordPro = lines.some((l) => parseDirective(l) !== null
-    || (/\[[^\]]+\]/.test(l) && !parseSectionHeader(l)));
-  return !hasChordPro && lines.some(isChordLine);
+  const lines = splitLines(text);
+  return !hasChordProMarkup(lines) && lines.some(isChordLine);
 }
 
 /** Convert a pasted chords-over-words sheet into ChordPro */
 export function chordsOverWordsToChordPro(text: string): string {
-  const lines = text.replace(/\r\n?/g, '\n').replace(/\t/g, '    ').split('\n');
+  const lines = splitLines(text.replace(/\t/g, '    '));
   const out: string[] = [];
   let openKind: string | null = null;
   let inTab = false;
@@ -361,12 +377,8 @@ export function chordsOverWordsToChordPro(text: string): string {
   const closeOpen = () => {
     if (inTab) { out.push('{end_of_tab}'); inTab = false; }
     if (!openKind) return;
-    // Close before trailing blank lines so they separate sections, not end them
-    let blanks = 0;
-    while (out.length > 0 && out[out.length - 1].trim() === '') { out.pop(); blanks++; }
-    out.push(`{end_of_${openKind}}`);
+    appendSectionEnd(out, openKind);
     openKind = null;
-    for (let b = 0; b < blanks; b++) out.push('');
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -401,4 +413,127 @@ export function chordsOverWordsToChordPro(text: string): string {
   closeOpen();
 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+// --- Stacked chords (paste) ---
+//
+// Copying a chord view rendered as one element per chord/syllable pair
+// (e.g. Songsterr) yields one line per element: a chord line, then the text
+// fragment under that chord. Blank lines separate song lines, a whitespace-only
+// fragment is a chord without text, and word boundaries live in the fragments
+// ("earth" + "quakes and " -> "earthquakes and"), so fragments are joined raw.
+
+/** Minimum number of mid-line chord changes before a text counts as stacked */
+const STACKED_MIN_EVIDENCE = 3;
+
+/**
+ * True if the text looks like a stacked chord sheet: every chord line holds a
+ * single chord at column 0, and text fragments are regularly continued by a
+ * chord within the same line (trailing space, whitespace-only fragment, or a
+ * lowercase continuation after the chord).
+ *
+ * Sheets with only one chord per song line produce no such evidence; they
+ * fall back to chords-over-words, which converts them identically.
+ */
+export function looksLikeStackedChords(text: string): boolean {
+  const lines = splitLines(text);
+  if (hasChordProMarkup(lines)) return false;
+
+  let transitions = 0;
+  let evidence = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (isChordLine(line)) {
+      if (tokenize(line).length !== 1 || /^\s/.test(line)) return false;
+      continue;
+    }
+    if (line === '' || !isChordLine(lines[i + 1] ?? '')) continue;
+
+    // Text directly followed by a chord: a new lyric line or a mid-line chord change
+    transitions++;
+    if (/\s$/.test(line) || /^[a-z]/.test(lines[i + 2] ?? '')) evidence++;
+  }
+  return evidence >= STACKED_MIN_EVIDENCE && evidence * 2 >= transitions;
+}
+
+/** Convert a pasted stacked chord sheet into ChordPro, one song line per block */
+export function stackedChordsToChordPro(text: string): string {
+  const lines = splitLines(text);
+  const out: string[] = [];
+  let openKind: string | null = null;
+  let current = '';
+  let hasContent = false;
+  let expectText = false;
+
+  const flushLine = () => {
+    if (hasContent && current.trim() !== '') out.push(current.trim());
+    current = '';
+    hasContent = false;
+    expectText = false;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Only truly empty lines end a song line; " " is a fragment
+    if (line === '') {
+      flushLine();
+      // No blank line directly after a section start
+      if (!out[out.length - 1]?.startsWith('{start_of_')) out.push('');
+      continue;
+    }
+
+    // The line after a chord is always its text fragment, even if it looks like a chord
+    if (expectText) {
+      current += line;
+      expectText = false;
+      continue;
+    }
+
+    // A header is never a chord's fragment (handled above), so it always
+    // starts its own section, also directly above chords or inside a block
+    const header = parseSectionHeader(line);
+    if (header) {
+      flushLine();
+      if (openKind) appendSectionEnd(out, openKind);
+      openKind = sectionKindFromLabel(header) ?? 'part';
+      out.push(`{start_of_${openKind}: ${header}}`);
+      continue;
+    }
+
+    if (isChordLine(line)) {
+      current += `[${normalizeChord(line.trim())}]`;
+      expectText = true;
+    } else {
+      current += line;
+    }
+    hasContent = true;
+  }
+  flushLine();
+  if (openKind) appendSectionEnd(out, openKind);
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// --- Paste format dispatch ---
+
+export type PastedSheetFormat = 'stacked' | 'chordsOverWords';
+
+export const PASTED_SHEET_FORMAT_LABELS: Record<PastedSheetFormat, string> = {
+  stacked: 'stacked chords',
+  chordsOverWords: 'chords-over-words',
+};
+
+/** Detect a convertible plain-text sheet; stacked is checked first since it also has chord lines */
+export function detectPastedSheetFormat(text: string): PastedSheetFormat | null {
+  if (looksLikeStackedChords(text)) return 'stacked';
+  if (looksLikeChordsOverWords(text)) return 'chordsOverWords';
+  return null;
+}
+
+/** Convert pasted or imported text to ChordPro; format is null if it was left unchanged */
+export function convertPastedSheet(text: string): { text: string; format: PastedSheetFormat | null } {
+  const format = detectPastedSheetFormat(text);
+  if (format === 'stacked') return { text: stackedChordsToChordPro(text), format };
+  if (format === 'chordsOverWords') return { text: chordsOverWordsToChordPro(text), format };
+  return { text, format: null };
 }

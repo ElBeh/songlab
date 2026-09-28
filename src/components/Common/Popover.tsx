@@ -6,8 +6,8 @@ export type PopoverSide = 'top' | 'bottom';
 interface PopoverProps {
   /** Element rendered as the trigger button. The Popover wraps it in a button. */
   trigger: ReactNode;
-  /** Content rendered inside the popover panel when open. */
-  children: ReactNode;
+  /** Content rendered inside the popover panel when open; a function receives `close` (focus stays where the caller puts it). */
+  children: ReactNode | ((close: () => void) => ReactNode);
   /** Horizontal alignment of the panel relative to the trigger. Default: 'center'. */
   align?: PopoverAlign;
   /** Side of the trigger the panel appears on. Default: 'bottom'. */
@@ -90,7 +90,7 @@ export function Popover({
     .join(' ');
 
   return (
-    <div ref={wrapperRef} className="relative inline-block">
+    <div ref={wrapperRef} className="relative inline-flex">
       <button
         ref={triggerRef}
         type="button"
@@ -111,7 +111,9 @@ export function Popover({
           role="dialog"
           className={`absolute z-50 ${panelPositionClasses} ${panelClassName ?? ''}`}
         >
-          {children}
+          {typeof children === 'function'
+            ? children(() => setIsOpen(false))
+            : children}
         </div>
       )}
     </div>
