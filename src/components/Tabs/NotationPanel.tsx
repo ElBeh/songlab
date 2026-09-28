@@ -22,6 +22,8 @@ interface TrackMixerState {
 
 interface NotationPanelProps {
   gpData: ArrayBuffer;
+  /** False while another sheet view is shown; the panel stays mounted as playback source */
+  isVisible?: boolean;
   songId: string;
   /** Enable alphaSynth MIDI playback (Dummy + GP mode) */
   enableSynth?: boolean;
@@ -55,6 +57,7 @@ interface NotationPanelProps {
 
 export function NotationPanel({
   gpData,
+  isVisible = true,
   songId,
   enableSynth = false,
   enableExternalMedia = false,
@@ -232,7 +235,8 @@ export function NotationPanel({
   // ~7 Hz is more than enough to trigger the follow scroll.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !isPlaying) return;
+    // No follow scroll while hidden behind another sheet view
+    if (!container || !isPlaying || !isVisible) return;
 
     const SCROLL_CHECK_INTERVAL_MS = 150;
 
@@ -263,7 +267,7 @@ export function NotationPanel({
     const intervalId = window.setInterval(check, SCROLL_CHECK_INTERVAL_MS);
     check();
     return () => window.clearInterval(intervalId);
-  }, [layout, isPlaying]);
+  }, [layout, isPlaying, isVisible]);
 
   // Switch track
   useEffect(() => {

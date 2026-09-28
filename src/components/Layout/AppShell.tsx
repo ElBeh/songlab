@@ -1150,7 +1150,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
 
               {/* Tab section */}
               {activeSong && (
-                <div className='flex flex-col gap-2 flex-1 min-h-64'>
+                <div className='relative flex flex-col gap-2 flex-1 min-h-64'>
                   <div className='border-t border-slate-700 pt-4 flex items-center
                                   justify-between'>
                     <div className='flex items-center gap-3'>
@@ -1245,9 +1245,17 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                     </div>
                   </div>
 
-                  {/* Notation mode */}
-                  {viewMode === 'notation' ? (
+                  {/* Notation panel stays mounted while a GP file is loaded, also in
+                      songbook and ASCII view: its alphaTab instance is the synth
+                      playback source (Dummy + GP, viewer). Hidden views keep the full
+                      width so alphaTab's layout stays valid. */}
+                  {hasGpFile && (
+                    <div
+                      className={viewMode === 'notation' ? 'contents' : 'absolute inset-x-0 top-0 h-0 overflow-hidden invisible'}
+                      inert={viewMode !== 'notation'}
+                    >
                     <NotationPanel
+                      isVisible={viewMode === 'notation'}
                       gpData={gpFile.activeGpData!}
                       songId={activeSong!.id}
                       enableSynth={isAlphaSynth || (isAudioGp && isViewer)}
@@ -1264,7 +1272,10 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
                       onScoreInfo={handleScoreInfo}
                       onSeek={handleSeekTo} 
                     />
-                  ) : viewMode === 'songbook' ? (
+                    </div>
+                  )}
+
+                  {viewMode === 'notation' ? null : viewMode === 'songbook' ? (
                     /* Songbook mode: lyrics with chords for the whole song */
                     !isSession && editMode ? (
                       <SongbookEditor song={activeSong} />
