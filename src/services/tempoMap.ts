@@ -212,6 +212,34 @@ export function withBpmAdjust(timeline: TimelineBar[], adjust: number): Timeline
   );
 }
 
+/** A score timeline tagged with the song it was built for. */
+export interface ScoreTimelineSource {
+  songId: string;
+  timeline: TimelineBar[];
+}
+
+/**
+ * Pick the timeline the metronome should follow. A score timeline only applies
+ * to the song it was built for and only while that song still has a GP file;
+ * otherwise undefined is returned so the metronome falls back to the song's
+ * own BPM and time signature. alphaSynth reports score time directly, so the
+ * BPM correction only applies in Audio + GP mode.
+ */
+export function selectMetronomeTimeline(params: {
+  source: ScoreTimelineSource | null;
+  activeSongId: string | null;
+  hasGpFile: boolean;
+  isAlphaSynth: boolean;
+  bpmAdjust: number;
+}): TimelineBar[] | undefined {
+  const { source, activeSongId, hasGpFile, isAlphaSynth, bpmAdjust } = params;
+  if (!source || !hasGpFile) return undefined;
+  if (source.songId !== activeSongId) return undefined;
+  if (source.timeline.length === 0) return undefined;
+  if (isAlphaSynth) return source.timeline;
+  return withBpmAdjust(source.timeline, bpmAdjust);
+}
+
 /**
  * Resolve a bar by index. Indexes beyond the timeline are extrapolated as
  * full bars using the last bar's tempo and time signature, so the metronome

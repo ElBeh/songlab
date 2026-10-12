@@ -24,15 +24,25 @@ export function useDummyPlayback({ duration, onTimeUpdate, onFinish, onLoopResta
   const currentTimeRef = useRef(currentTime);
   const songLoopRef = useRef(songLoop);
   const onLoopRestartRef = useRef(onLoopRestart);
+  // Callbacks live in refs so a new caller identity on every render does not
+  // restart the rAF loop. Each restart drops one frame of elapsed time, which
+  // made the playhead (and the metronome locked to it) run at roughly half speed.
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onFinishRef = useRef(onFinish);
 
   // Keep refs in sync with state
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   useEffect(() => { songLoopRef.current = songLoop; }, [songLoop]);
   useEffect(() => { onLoopRestartRef.current = onLoopRestart; }, [onLoopRestart]);
+  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
+  useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
 
   // rAF playback loop
   useEffect(() => {
+    const onTimeUpdate = (time: number) => onTimeUpdateRef.current?.(time);
+    const onFinish = () => onFinishRef.current?.();
+
     if (!isPlaying) return;
 
     let lastFrame = 0;
@@ -104,7 +114,7 @@ export function useDummyPlayback({ duration, onTimeUpdate, onFinish, onLoopResta
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, duration, onTimeUpdate, onFinish]);
+  }, [isPlaying, duration]);
 
   const handlePlayPause = useCallback(() => {
     setIsPlaying((v) => !v);

@@ -11,6 +11,7 @@ import {
   buildTimeline,
   elapsedMsToTick,
   nextBeatPosition,
+  selectMetronomeTimeline,
   tickToElapsedMs,
   tickToSeconds,
   withBpmAdjust,
@@ -222,6 +223,42 @@ describe('tempoMap', () => {
     it('returns the original timeline when the adjustment is zero', () => {
       const timeline = buildFixedTimeline(120, [4, 4]);
       expect(withBpmAdjust(timeline, 0)).toBe(timeline);
+    });
+  });
+
+  describe('selectMetronomeTimeline', () => {
+    const timeline = buildFixedTimeline(180, [4, 4]);
+    const source = { songId: 'song-a', timeline };
+    const base = {
+      source,
+      activeSongId: 'song-a',
+      hasGpFile: true,
+      isAlphaSynth: true,
+      bpmAdjust: 0,
+    };
+
+    it('ignores a score timeline built for another song', () => {
+      expect(selectMetronomeTimeline({ ...base, activeSongId: 'song-b' })).toBeUndefined();
+    });
+
+    it('ignores the score timeline once the song has no GP file', () => {
+      expect(selectMetronomeTimeline({ ...base, hasGpFile: false })).toBeUndefined();
+    });
+
+    it('returns undefined without a score timeline', () => {
+      expect(selectMetronomeTimeline({ ...base, source: null })).toBeUndefined();
+      expect(
+        selectMetronomeTimeline({ ...base, source: { songId: 'song-a', timeline: [] } }),
+      ).toBeUndefined();
+    });
+
+    it('returns the score timeline unchanged in alphaSynth mode', () => {
+      expect(selectMetronomeTimeline({ ...base, bpmAdjust: -10 })).toBe(timeline);
+    });
+
+    it('applies the BPM correction in Audio + GP mode', () => {
+      const result = selectMetronomeTimeline({ ...base, isAlphaSynth: false, bpmAdjust: -10 });
+      expect(result?.[0].bpm).toBe(170);
     });
   });
 });

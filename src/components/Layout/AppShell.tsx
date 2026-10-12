@@ -33,7 +33,7 @@ import { JoinPromptDialog } from './JoinPromptDialog';
 import { NotationPanel } from '../Tabs/NotationPanel';
 import { SongbookView } from '../Songbook/SongbookView';
 import { SongbookEditor } from '../Songbook/SongbookEditor';
-import { withBpmAdjust } from '../../services/tempoMap';
+import { selectMetronomeTimeline, type ScoreTimelineSource } from '../../services/tempoMap';
 import type { TimelineBar } from '../../types';
 import { MarkerImportDialog } from '../Markers/MarkerImportDialog';
 import { useGpFile, isGpFile } from '../../hooks/useGpFile';
@@ -259,7 +259,9 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   }, []);
 
   // Auto-set BPM and time signature from GP file score data
-  const [scoreTimeline, setScoreTimeline] = useState<TimelineBar[]>([]);
+  // Tagged with the song it was built for, so a stale score never drives the
+  // metronome of another song.
+  const [scoreTimeline, setScoreTimeline] = useState<ScoreTimelineSource | null>(null);
   const handleScoreInfo = useCallback((info: {
     bpm: number;
     timeSignature: [number, number];
@@ -273,7 +275,7 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
       bpm: Math.round(info.bpm),
       timeSignature: info.timeSignature,
     });
-    setScoreTimeline(info.timeline);
+    setScoreTimeline({ songId: song.id, timeline: info.timeline });
   }, []);
 
   // --- Marker Import (GP rehearsal marks, songbook sections) ---
@@ -403,12 +405,14 @@ const controlCommandRef = useRef<((cmd: ControlCommand) => void) | null>(null);
   // --- Metronome (continuous click during playback) ---
   // alphaSynth reports score time directly, so no sync offset applies there.
   // Audio playback reports media time, which the song's sync offset maps to
-  // score time. The BPM correction only exists in Audio + GP mode.
-  const metronomeTimeline = useMemo(() => {
-    if (scoreTimeline.length === 0) return undefined;
-    if (isAlphaSynth) return scoreTimeline;
-    return withBpmAdjust(scoreTimeline, activeSong?.bpmAdjust ?? 0);
-  }, [scoreTimeline, isAlphaSynth, activeSong?.bpmAdjust]);
+  // score time. Without a matching score the song's own BPM is used.
+  const metronomeTimeline = useMemo(() => selectMetronomeTimeline({
+    source: scoreTimeline,
+    activeSongId: activeSong?.id ?? null,
+    hasGpFile,
+    isAlphaSynth,
+    bpmAdjust: activeSong?.bpmAdjust ?? 0,
+  }), [scoreTimeline, activeSong?.id, hasGpFile, isAlphaSynth, activeSong?.bpmAdjust]);
 
   const metronome = useMetronome({
     hasSong: !!activeSong,
